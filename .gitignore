@@ -1,0 +1,31 @@
+﻿# Unreal Engine
+[Bb]inaries/
+[Bb]uild/
+[Dd]erivedDataCache/
+[Ii]ntermediate/
+[Ss]aved/
+.vs/
+.vscode/
+*.sln
+*.vcxproj*
+*.uproject
+*.uprojectuser
+*.suo
+*.opensdf
+*.sdf
+*.user
+*.userprefs
+*.log
+
+# Build
+Build/
+Binaries/
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
