@@ -1,0 +1,149 @@
+name: MANIFOLD CI Gate
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+env:
+  UE5_VERSION: "5.8"
+  PROJECT_PATH: "${{ github.workspace }}"
+  # UE5 installation path on runner - adjust for your self-hosted runner
+  UE5_PATH: "C:\\Program Files\\Epic Games\\UE_5.8"
+
+jobs:
+  # 1. Fast structural checks (runs on every PR, no UE needed)
+  structure-check:
+    name: Repo Structure & Lint
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Verify folder structure (WP I1 gate)
+        shell: pwsh
+        run: |
+          $required = @(
+            "Source/Core", "Source/Kernels", "Source/Correspond", "Source/Telemetry",
+            "Content/Realms/Orbits", "Content/Realms/Fluids", "Content/VFX", "Content/Audio",
+            "Data/Correspondences", "Tools/CI", "Docs"
+          )
+          $missing = $required | Where-Object { -not (Test-Path $_) }
+          if ($missing) {
+            Write-Error "Missing folders: $($missing -join ', ')"
+            exit 1
+          }
+          Write-Host "✓ All required folders present" -ForegroundColor Green
+
+      - name: Check .gitignore
+        shell: pwsh
+        run: |
+          $gi = Get-Content .gitignore
+          $requiredPatterns = @("[Bb]inaries/", "[Bb]uild/", "[Ii]ntermediate/", "*.uproject", "*.sln")
+          $missing = $requiredPatterns | Where-Object { $gi -notmatch [regex]::Escape($_) }
+          if ($missing) { Write-Warning "Consider adding to .gitignore: $($missing -join ', ')" }
+          Write-Host "✓ .gitignore checked" -ForegroundColor Green
+
+      - name: Validate markdown docs
+        shell: pwsh
+        run: |
+          Get-ChildItem Docs -Filter *.md -Recurse | ForEach-Object {
+            $content = Get-Content $_ -Raw
+            if ($content -notmatch "^# ") { Write-Warning "$_ missing H1 header" }
+          }
+          Write-Host "✓ Markdown structure OK" -ForegroundColor Green
+
+  # 2. UE5 Build + Test Harness (requires self-hosted runner with UE5.8+)
+  # This job runs on a self-hosted runner tagged 'ue5-build'
+  ue-tests:
+    name: UE5 Build & Test Gate
+    needs: structure-check
+    runs-on: [self-hosted, ue5-build]  # Requires self-hosted runner with UE5.8+ installed
+    timeout-minutes: 60
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true  # For Megascans/assets if used
+
+      - name: Cache UE5 Intermediate/DerivedDataCache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.PROJECT_PATH }}/Intermediate
+            ${{ env.PROJECT_PATH }}/DerivedDataCache
+          key: ue5-${{ env.UE5_VERSION }}-${{ hashFiles('**/*.Build.cs', '**/*.uproject') }}
+          restore-keys: |
+            ue5-${{ env.UE5_VERSION }}-
+
+      - name: Run CI Test Harness (ALL work packages)
+        shell: pwsh
+        run: |
+          .\Tools\CI\run_tests.ps1 -WorkPackage ALL -Verbose
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ github.run_id }}
+          path: Tools/CI/test-results/*.xml
+          retention-days: 7
+
+      - name: Publish test report
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: MANIFOLD Test Results
+          path: Tools/CI/test-results/*.xml
+          reporter: dotnet-trx  # JUnit XML works too
+
+  # 3. Agent WP Verification (manual dispatch for agent handoff)
+  # Usage: gh workflow run agent-wp-verify -f wp=S3
+  agent-wp-verify:
+    name: Agent WP Verification
+    runs-on: [self-hosted, ue5-build]
+    timeout-minutes: 30
+    if: false  # Disabled by default - enable via manual dispatch
+    inputs:
+      wp:
+        description: "Work Package ID (e.g., S1, S3, V1, W2)"
+        required: true
+        type: string
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run single WP tests
+        shell: pwsh
+        run: |
+          .\Tools\CI\run_tests.ps1 -WorkPackage ${{ github.event.inputs.wp }} -Verbose
+
+  # 4. Nightly full slice + performance baseline
+  nightly:
+    name: Nightly Full Slice + Perf
+    runs-on: [self-hosted, ue5-build]
+    timeout-minutes: 120
+    schedule:
+      - cron: '0 3 * * *'  # 3 AM daily
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - name: Run full slice + perf benchmarks
+        shell: pwsh
+        run: |
+          .\Tools\CI\run_tests.ps1 -WorkPackage ALL -Verbose
+          # Perf benchmarks would go here (FPS, memory, Insight Rate)
+      - name: Upload perf baseline
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-baseline-${{ github.run_id }}
+          path: Tools/CI/perf-results/
+          retention-days: 30
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
