@@ -21,11 +21,34 @@ the seam** where two realms correspond.
 
 | Key | Action |
 |-----|--------|
-| `E` | Transport the currently-lit correspondence across the seam |
+| `E` | Transport the currently-lit correspondence across the seam (Classic) |
 | `R` | Restart the session (a new hidden ratio if the seed changes) |
+| `C` | Toggle between **Classic** and **Constellation Lock** modes |
+| `1`–`6` | (Constellation) Pick / unpick a realm for your subset |
+| `Space` | (Constellation) Lock your selected subset |
 | free-fly | Move the camera to observe the realms |
 
-The console command `ManifoldTransport` does the same as `E`; `ManifoldRestart` as `R`.
+The console commands mirror the keys: `ManifoldTransport` (`E`), `ManifoldRestart`
+(`R`), `ManifoldToggleMode` (`C`), `ConstellationToggleRealm <index>` (`1`–`6`),
+`ConstellationLock` (`Space`).
+
+## Constellation Lock (the harder mode)
+
+Press **`C`** to switch to Constellation Lock. Now the puzzle inverts: instead of five
+realms sharing one obvious ratio and a single decoy, **every realm shows a *different*
+surface ratio**, and a hidden subset of them (the *constellation*) truly corresponds —
+but under a **rule** that isn't literal equality:
+
+- **Exact** — the corresponding realms share the same ratio outright.
+- **Octave** — they match only after dividing out factors of 2, so `3:1`, `3:2` and
+  `6:1` all count as the *same* structure even though the numbers look nothing alike.
+
+The active rule is chosen from the seed (and shown on the HUD as a hint). Your job is to
+**mentally normalize the six ratios by that rule, decide which realms belong to the
+corresponding set, and lock exactly that subset** with `1`–`6` then `Space`. A correct
+lock ignites every pairing in the constellation and wins; a wrong guess is a *wasted
+probe* that costs points. This is inference and set-selection under a hidden rule — real
+cross-domain reasoning, not spotting the odd number out.
 
 ## The realms
 

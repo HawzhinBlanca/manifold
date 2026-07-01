@@ -7,6 +7,9 @@
 #include "ManifoldHUD.generated.h"
 
 class UTexture2D;
+class UFont;
+class UManifoldSlice;
+class AManifoldGameMode;
 
 /**
  * AManifoldHUD — the game's branded on-screen UI: the procedural MANIFOLD emblem, the
@@ -27,4 +30,9 @@ private:
     UTexture2D* Emblem = nullptr;
 
     void DrawPanel(float X, float Y, float W, float H, const FLinearColor& Color);
+
+    /** The Constellation-Lock readout: six surface ratios, the current pick, the relation
+     *  hint, probes, objective, and the resolution banner. Drawn instead of the classic
+     *  realm readout when the session is in constellation mode. */
+    void DrawConstellationReadout(UManifoldSlice* S, AManifoldGameMode* GM, UFont* Font, UFont* Big);
 };

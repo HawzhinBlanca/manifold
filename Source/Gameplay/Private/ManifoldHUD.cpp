@@ -60,8 +60,15 @@ void AManifoldHUD::DrawHUD()
             Cyan, CX - 210.0f, CY + 78.0f, Font);
         DrawText(TEXT("Find the correspondence and carry it across the seam."),
             Cyan, CX - 195.0f, CY + 100.0f, Font);
-        DrawText(TEXT("[E] transport     [R] restart"), Gold, CX - 110.0f, CY + 134.0f, Font);
+        DrawText(TEXT("[E] transport   [R] restart   [C] constellation mode"), Gold, CX - 150.0f, CY + 134.0f, Font);
         return; // show only the title over the scene until the player begins
+    }
+
+    // Constellation Lock has its own readout (the subset-hunt puzzle).
+    if (S->IsConstellationMode())
+    {
+        DrawConstellationReadout(S, GM, Font, Big);
+        return;
     }
 
     // --- Title bar: emblem + wordmark + framed readout panel ---
@@ -164,5 +171,95 @@ void AManifoldHUD::DrawHUD()
         }
         DrawText(FString::Printf(TEXT("Score %d  (best %d)    %d discoveries    [R] play again"),
             Sum.Score, GM->Profile.BestScore, Sum.Discoveries), Dim, CX - 230.0f, CY + 72.0f, Font);
+    }
+}
+
+void AManifoldHUD::DrawConstellationReadout(UManifoldSlice* S, AManifoldGameMode* GM, UFont* Font, UFont* Big)
+{
+    if (!S || !GM) return;
+
+    const FLinearColor Gold(1.0f, 0.85f, 0.2f);
+    const FLinearColor Cyan(0.3f, 0.8f, 1.0f);
+    const FLinearColor Dim(0.62f, 0.66f, 0.74f);
+    const FLinearColor Violet(0.8f, 0.5f, 1.0f);
+    const FLinearColor PanelBg(0.02f, 0.03f, 0.07f, 0.72f);
+
+    if (!Emblem) { Emblem = ManifoldEmblem::CreateTexture(256); }
+
+    const float PanelX = 32.0f, PanelY = 28.0f, PanelW = 592.0f, PanelH = 400.0f;
+    DrawPanel(PanelX, PanelY, PanelW, PanelH, PanelBg);
+    if (Emblem)
+    {
+        DrawTexture(Emblem, PanelX + 14.0f, PanelY + 14.0f, 56.0f, 56.0f, 0, 0, 1, 1);
+    }
+    if (Big)
+    {
+        DrawText(TEXT("MANIFOLD"), Gold, PanelX + 84.0f, PanelY + 20.0f, Big, 1.35f);
+    }
+    DrawText(TEXT("constellation lock"), Dim, PanelX + 86.0f, PanelY + 52.0f, Font);
+
+    float X = PanelX + 20.0f;
+    float Y = PanelY + 86.0f;
+    auto Line = [&](const FString& Text, const FLinearColor& Color)
+    {
+        DrawText(Text, Color, X, Y, Font);
+        Y += 24.0f;
+    };
+
+    // The rule the corresponding realms obey (the player normalizes each ratio by it).
+    Line(FString::Printf(TEXT("Rule: %s   -   which realms correspond under it?"),
+        *S->GetActiveRelationName()), Cyan);
+
+    const TArray<int32>& Pick = GM->GetPendingSelection();
+    for (int32 i = 0; i < S->GetConstellationRealmCount(); ++i)
+    {
+        const bool bSel = Pick.Contains(i);
+        Line(FString::Printf(TEXT("[%d] %s   ratio %s   %s"),
+            i + 1, *S->GetRealmName(i), *S->GetRealmSurfaceRatio(i),
+            bSel ? TEXT("<< picked") : TEXT("")), bSel ? Gold : Dim);
+    }
+
+    const FManifoldSessionSummary Sum = S->GetSessionSummary();
+    Line(FString::Printf(TEXT("Locked pairs %d/%d    wasted probes %d"),
+        Sum.Discoveries, S->GetObjectiveTarget(), S->GetFailedProbes()), Violet);
+    Line(FString::Printf(TEXT("Score %d    Best %d"), Sum.Score, GM->Profile.BestScore), Gold);
+
+    if (S->GetSessionState() == EManifoldSessionState::InProgress)
+    {
+        DrawText(TEXT("[1-6] pick   [Space] lock   [C] classic   [R] new puzzle"),
+            Dim, PanelX + 20.0f, PanelY + PanelH - 30.0f, Font);
+    }
+    else
+    {
+        DrawText(TEXT("[R] new puzzle    [C] classic mode"),
+            Dim, PanelX + 20.0f, PanelY + PanelH - 30.0f, Font);
+    }
+
+    // --- Resolution banner (won only; constellation has no lose state) ---
+    if (Sum.State != EManifoldSessionState::InProgress)
+    {
+        const float CX = Canvas ? Canvas->ClipX * 0.5f : 640.0f;
+        const float CY = Canvas ? Canvas->ClipY * 0.42f : 360.0f;
+
+        DrawPanel(CX - 300.0f, CY - 70.0f, 600.0f, 168.0f, FLinearColor(0.02f, 0.03f, 0.07f, 0.85f));
+        if (Emblem)
+        {
+            DrawTexture(Emblem, CX - 48.0f, CY - 58.0f, 96.0f, 96.0f, 0, 0, 1, 1);
+        }
+        if (Big)
+        {
+            DrawText(TEXT("CONSTELLATION LOCKED"), Gold, CX - 230.0f, CY + 44.0f, Big, 1.25f);
+        }
+        const TCHAR* RankLetter =
+            Sum.Rank == EManifoldRank::S ? TEXT("S") :
+            Sum.Rank == EManifoldRank::A ? TEXT("A") :
+            Sum.Rank == EManifoldRank::B ? TEXT("B") :
+            Sum.Rank == EManifoldRank::C ? TEXT("C") : TEXT("D");
+        if (Big)
+        {
+            DrawText(FString::Printf(TEXT("RANK %s"), RankLetter), Gold, CX + 150.0f, CY + 40.0f, Big, 1.8f);
+        }
+        DrawText(FString::Printf(TEXT("Score %d  (best %d)    %d probes wasted    [R] new puzzle"),
+            Sum.Score, GM->Profile.BestScore, S->GetFailedProbes()), Dim, CX - 230.0f, CY + 72.0f, Font);
     }
 }

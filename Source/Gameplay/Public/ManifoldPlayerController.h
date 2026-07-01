@@ -30,12 +30,31 @@ protected:
     void OnTransport();
     void OnRestart();
 
+    // Constellation Lock verbs: pick realms 1-6, lock the subset, toggle play mode.
+    void OnSelect1(); void OnSelect2(); void OnSelect3();
+    void OnSelect4(); void OnSelect5(); void OnSelect6();
+    void OnLock();
+    void OnToggleMode();
+
 private:
+    /** Route a realm pick (0-based) to the game mode. */
+    void SelectRealm(int32 Index);
+
     UPROPERTY()
     UInputAction* TransportAction = nullptr;
 
     UPROPERTY()
     UInputAction* RestartAction = nullptr;
+
+    /** One action per realm number key (1-6). */
+    UPROPERTY()
+    TArray<UInputAction*> SelectActions;
+
+    UPROPERTY()
+    UInputAction* LockAction = nullptr;
+
+    UPROPERTY()
+    UInputAction* ModeAction = nullptr;
 
     UPROPERTY()
     UInputMappingContext* MappingContext = nullptr;

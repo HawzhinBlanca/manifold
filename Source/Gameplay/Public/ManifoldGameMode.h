@@ -41,6 +41,27 @@ public:
     UFUNCTION(Exec, BlueprintCallable, Category = "MANIFOLD")
     void ManifoldRestart();
 
+    // --- Constellation Lock verbs ([C] switches mode; 1-6 pick; Space locks) ---
+
+    /** Toggle between Classic and Constellation play and start a fresh session. */
+    UFUNCTION(Exec, BlueprintCallable, Category = "MANIFOLD")
+    void ManifoldToggleMode();
+
+    /** Add/remove a realm (0-based index) from the pending constellation selection. */
+    UFUNCTION(Exec, BlueprintCallable, Category = "MANIFOLD")
+    void ConstellationToggleRealm(int32 Index);
+
+    /** Lock the pending selection: an exact match with the hidden constellation wins. */
+    UFUNCTION(Exec, BlueprintCallable, Category = "MANIFOLD")
+    void ConstellationLock();
+
+    /** Which mode the next/current session uses. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MANIFOLD")
+    EManifoldPlayMode PlayMode = EManifoldPlayMode::Classic;
+
+    /** The realms the player has tentatively selected (for the HUD). */
+    const TArray<int32>& GetPendingSelection() const { return PendingSelection; }
+
     /** Fixed simulation cadence (seconds) so the feel is frame-rate independent. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MANIFOLD")
     float StepInterval = 0.05f;
@@ -76,6 +97,10 @@ protected:
     /** Timer + realm cursor for the gentle ambient pad (a soft recurring drone). */
     float AmbientTimer = 0.0f;
     int32 AmbientRealmIndex = 0;
+
+    /** Pending constellation pick + a counter that rotates the puzzle seed each start. */
+    TArray<int32> PendingSelection;
+    int32 ConstellationSeedCounter = 0;
 
     /** Seconds the intro title card has been showing. */
     float TitleTimer = 0.0f;

@@ -55,15 +55,27 @@ void AManifoldGameMode::BeginPlay()
 void AManifoldGameMode::StartSession()
 {
     Slice = NewObject<UManifoldSlice>(this);
-    // Interactive: the correspondence lights up, but the PLAYER triggers transport.
-    Slice->bAutoTransportOnIgnite = false;
-    Slice->SetObjective(Objective);
-    Slice->Setup(1111ULL, 2222ULL);
     Accumulator = 0.0f;
     LastPlayedCue = 0;
     bSessionRecorded = false;
     bTitleShown = true;
     TitleTimer = 0.0f;
+    PendingSelection.Reset();
+
+    if (PlayMode == EManifoldPlayMode::Constellation)
+    {
+        // A fresh puzzle each start: the seed rotates so the relation/constellation vary.
+        const int64 Seed = 7001 + ConstellationSeedCounter;
+        ++ConstellationSeedCounter;
+        Slice->SetupConstellation(Seed, 3);
+    }
+    else
+    {
+        // Interactive: the correspondence lights up, but the PLAYER triggers transport.
+        Slice->bAutoTransportOnIgnite = false;
+        Slice->SetObjective(Objective);
+        Slice->Setup(1111ULL, 2222ULL);
+    }
 
     // Spawn the debug-draw view of both realms + the resonance/seam ribbons (once).
     if (UWorld* World = GetWorld())
@@ -95,11 +107,16 @@ void AManifoldGameMode::Tick(float DeltaSeconds)
         if (TitleTimer >= 6.0f) { bTitleShown = false; }
     }
 
-    Accumulator += DeltaSeconds;
-    while (Accumulator >= StepInterval)
+    // Classic mode advances the live simulation; Constellation is a static reasoning
+    // puzzle resolved by locking a subset, so it isn't ticked.
+    if (PlayMode == EManifoldPlayMode::Classic)
     {
-        Slice->Tick();
-        Accumulator -= StepInterval;
+        Accumulator += DeltaSeconds;
+        while (Accumulator >= StepInterval)
+        {
+            Slice->Tick();
+            Accumulator -= StepInterval;
+        }
     }
 
     // Voice any cues the slice emitted this frame (discovery chimes, transport resolves).
@@ -128,8 +145,10 @@ void AManifoldGameMode::Tick(float DeltaSeconds)
         UManifoldSlice::RecordSessionInProfile(Profile, Slice->GetSessionSummary());
         UManifoldSlice::SaveProfile(Profile, ProfilePath());
 
-        // Save a shareable, re-watchable replay of a winning run.
-        if (Slice->GetSessionState() == EManifoldSessionState::Won)
+        // Save a shareable, re-watchable replay of a winning CLASSIC run (the replay
+        // format records the transport schedule; a constellation lock is reproduced from
+        // its seed instead, handled separately).
+        if (PlayMode == EManifoldPlayMode::Classic && Slice->GetSessionState() == EManifoldSessionState::Won)
         {
             const FString ReplayPath = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("LastWin.manifoldreplay"));
             UManifoldSlice::SaveReplay(Slice->CaptureReplay(), ReplayPath);
@@ -157,4 +176,40 @@ void AManifoldGameMode::ManifoldTransport()
     const bool bOk = Slice->PlayerRequestTransport();
     UE_LOG(LogTemp, Display, TEXT("[MANIFOLD] Transport %s"),
         bOk ? TEXT("SUCCEEDED — power carried across the seam") : TEXT("failed — no correspondence lit"));
+}
+
+void AManifoldGameMode::ManifoldToggleMode()
+{
+    PlayMode = (PlayMode == EManifoldPlayMode::Classic)
+        ? EManifoldPlayMode::Constellation
+        : EManifoldPlayMode::Classic;
+    StartSession();
+    UE_LOG(LogTemp, Display, TEXT("[MANIFOLD] Mode: %s"),
+        PlayMode == EManifoldPlayMode::Constellation ? TEXT("Constellation Lock") : TEXT("Classic"));
+}
+
+void AManifoldGameMode::ConstellationToggleRealm(int32 Index)
+{
+    if (!Slice || !Slice->IsConstellationMode()) return;
+    if (Index < 0 || Index >= Slice->GetConstellationRealmCount()) return;
+    if (Slice->GetSessionState() != EManifoldSessionState::InProgress) return;
+
+    bTitleShown = false;
+    if (PendingSelection.Contains(Index)) { PendingSelection.Remove(Index); }
+    else { PendingSelection.Add(Index); }
+}
+
+void AManifoldGameMode::ConstellationLock()
+{
+    if (!Slice || !Slice->IsConstellationMode()) return;
+    if (Slice->GetSessionState() != EManifoldSessionState::InProgress) return;
+
+    bTitleShown = false;
+    const bool bWon = Slice->PlayerLockConstellation(PendingSelection);
+    UE_LOG(LogTemp, Display, TEXT("[MANIFOLD] Lock %s (%d realms) — probes used %d"),
+        bWon ? TEXT("CORRECT — constellation complete") : TEXT("wrong — try another subset"),
+        PendingSelection.Num(), Slice->GetFailedProbes());
+
+    // A wrong lock clears the pick so the next attempt starts fresh.
+    if (!bWon) { PendingSelection.Reset(); }
 }

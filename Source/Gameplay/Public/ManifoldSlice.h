@@ -97,6 +97,10 @@ public:
     UFUNCTION(BlueprintPure, Category = "MANIFOLD")
     EManifoldSessionState GetSessionState() const { return SessionState; }
 
+    /** Discoveries required to win this session (C(K,2) in constellation mode). */
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD")
+    int32 GetObjectiveTarget() const { return Objective.TargetDiscoveries; }
+
     /** Snapshot of the session outcome (state + score + insight). */
     UFUNCTION(BlueprintPure, Category = "MANIFOLD")
     FManifoldSessionSummary GetSessionSummary() const;

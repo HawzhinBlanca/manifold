@@ -30,6 +30,14 @@ cross-domain inference. **56/56 green.**
   points). Deterministic in the seed; decoys are constructed with mutually-distinct octave
   classes so they never spuriously correspond. Tests: `MANIFOLD.Play.ConstellationLock`,
   `…ConstellationDeterminism`, `…ConstellationOctaveSurface`.
+- **Reachable & playable.** A play-mode toggle (`EManifoldPlayMode`) lets the GameMode run
+  either Classic or Constellation; `[C]` switches modes and rolls a fresh puzzle seed,
+  `[1]`–`[6]` pick realms, `[Space]` locks, `[R]` starts a new puzzle. The HUD gains a
+  Constellation readout — the six surface ratios, the current pick, the active rule hint,
+  wasted probes, objective and a "CONSTELLATION LOCKED" banner with rank. A 96-seed
+  realization sweep (`MANIFOLD.Play.ConstellationRealizationSweep`) proves every kernel
+  realizes its assigned ratio and no decoy spuriously corresponds across the seed space.
+  A 5-dimension adversarial review returned zero confirmed findings. **57/57 green.**
 
 ### Hardened (no mocks / placeholders)
 An adversarial, codebase-wide incompleteness audit found 16 real stubs/fakes;

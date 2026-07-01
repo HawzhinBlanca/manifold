@@ -20,6 +20,19 @@ enum class EManifoldSessionState : uint8
 };
 
 /**
+ * How a session plays. Classic is the Orbits<->Fluids seam plus auto-surfaced
+ * cross-domain analogies (the original loop). Constellation is the harder puzzle:
+ * six realms each show a different surface ratio and the player must infer the
+ * session's structural relation and lock the exact corresponding subset.
+ */
+UENUM(BlueprintType)
+enum class EManifoldPlayMode : uint8
+{
+    Classic,
+    Constellation
+};
+
+/**
  * The win condition for a playable session (the thing that turns the endless
  * simulation into a game with a goal). A discovery is any correspondence the
  * player surfaces — an Orbits<->Fluids ignition or a cross-domain shared-structure
