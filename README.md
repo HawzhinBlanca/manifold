@@ -7,7 +7,7 @@ Discover that two simulation realms secretly share one hidden structure — then
 
 [![Engine](https://img.shields.io/badge/Unreal%20Engine-5.8-black)](https://www.unrealengine.com/)
 [![Language](https://img.shields.io/badge/C%2B%2B-20-blue)]()
-[![Tests](https://img.shields.io/badge/automation%20tests-38%2F38%20green-brightgreen)]()
+[![Tests](https://img.shields.io/badge/automation%20tests-59%2F59%20green-brightgreen)]()
 [![Determinism](https://img.shields.io/badge/simulation-deterministic-informational)]()
 [![License](https://img.shields.io/badge/license-Proprietary-red)](LICENSE)
 
@@ -37,16 +37,21 @@ realms + decoy, scoring, and expedition mode.
 **Playable, deterministic, and fully code-complete** — no mocks or placeholders in
 code (verified by a codebase-wide adversarial audit). What remains is art direction.
 
-- ✅ **38 / 38** automation tests pass, headless, 0 failures
+- ✅ **59 / 59** automation tests pass, headless, 0 failures
 - ✅ Deterministic fixed-step simulation (bitwise-reproducible; real replay verification)
 - ✅ **Six** realms (Orbits, Fluids, Harmonics, Waves, Rhythm, Gears) sharing one hidden
   ratio across celestial / fluid / acoustic / spatial / temporal / mechanical domains,
   via a generic N-realm engine — plus a **decoy** realm the engine refuses to false-match
+- ✅ **Two play modes** — *Classic* (find the shared ratio, carry it across the seam) and
+  **Constellation Lock**: every realm shows a *different* surface ratio and you must infer
+  the session's hidden rule (Exact or **Octave-equivalent**) and lock the exact
+  corresponding subset — cross-domain reasoning, not number-spotting
 - ✅ Game loop with an **objective** (win/lose) and **deterministic, shareable replays**
+  (both modes reproduce bit-for-bit from their seed)
 - ✅ **Audio you can hear** — procedural synthesis; a discovered `3:2` sounds a perfect fifth
 - ✅ **Real 3D geometry** for every realm + a **branded HUD** with a procedural emblem
-- ✅ **Enhanced Input** (`[E]` transport, `[R]` restart) + a **packaged standalone build**
-  (`Tools/CI/package.ps1` → `dist/Windows/`)
+- ✅ **Enhanced Input** (`[E]` transport, `[R]` restart, `[C]` switch mode, `1`–`6` pick,
+  `[Space]` lock) + a **packaged standalone build** (`Tools/CI/package.ps1` → `dist/Windows/`)
 - 🎨 Art direction (Megascans/Nanite scenes, Niagara VFX, bespoke materials/UMG, a hand-
   authored map) layers on top — see [`Docs/IMPLEMENTATION_STATUS.md`](Docs/IMPLEMENTATION_STATUS.md)
 
@@ -61,7 +66,10 @@ content; ownership boundaries are literal folders.
 | `MANIFOLDKernelsOrbits` | Runtime | Velocity-Verlet n-body, Keplerian elements, resonance detection |
 | `MANIFOLDKernelsFluids` | Runtime | Stam stable-fluids solver, vortex detection |
 | `MANIFOLDKernelsHarmonics` | Runtime | Coupled oscillators, integer frequency-ratio structure |
-| `MANIFOLDCorrespond` | Runtime | Data-driven mapping, detection, transport, generic N-realm engine |
+| `MANIFOLDKernelsWaves` | Runtime | String standing waves, harmonic-index ratio structure |
+| `MANIFOLDKernelsRhythm` | Runtime | Polyrhythms, small-integer tempo ratio structure |
+| `MANIFOLDKernelsGears` | Runtime | Meshed gear trains, exact tooth-count ratio structure |
+| `MANIFOLDCorrespond` | Runtime | Data-driven mapping, detection, transport, generic N-realm engine (relation-aware: Exact / Octave / Reciprocal) |
 | `MANIFOLDTelemetry` | Runtime | Insight-Rate event logging |
 | `MANIFOLDGameplay` | Runtime | `UManifoldSlice` — the playable vertical-slice loop |
 
@@ -85,7 +93,7 @@ exposes its structure for mappings. Correspondences are authored as data
     -unattended -nullrhi -nosplash -nopause -stdout
 ```
 
-Expected: `20 Success, 0 Fail`. Close the Unreal Editor first (Live Coding holds a
+Expected: `59 Success, 0 Fail`. Close the Unreal Editor first (Live Coding holds a
 build lock). The CI harness `Tools/CI/run_tests.ps1` wraps both steps.
 
 ## Repository layout
