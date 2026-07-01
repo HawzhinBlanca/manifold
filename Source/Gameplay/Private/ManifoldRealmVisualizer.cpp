@@ -14,6 +14,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/DirectionalLight.h"
+#include "Engine/PostProcessVolume.h"
 #include "Engine/World.h"
 #include "DeterministicRNG.h"
 #include "UObject/ConstructorHelpers.h"
@@ -78,6 +79,19 @@ void AManifoldRealmVisualizer::BeginPlay()
         };
         SpawnLight(FRotator(-45.0f, -30.0f, 0.0f), 4.0f, FLinearColor(1.0f, 0.97f, 0.9f)); // warm key
         SpawnLight(FRotator(15.0f, 150.0f, 0.0f), 2.0f, FLinearColor(0.55f, 0.68f, 1.0f)); // cool fill
+
+        // Cinematic post: bloom so the gold correspondences / seam / stars glow, a soft
+        // vignette, and fixed exposure so the scene doesn't auto-brighten/flicker.
+        if (APostProcessVolume* PP = World->SpawnActor<APostProcessVolume>())
+        {
+            PP->bUnbound = true;
+            FPostProcessSettings& S = PP->Settings;
+            S.bOverride_BloomIntensity = true;             S.BloomIntensity = 1.2f;
+            S.bOverride_BloomThreshold = true;             S.BloomThreshold = 0.6f;
+            S.bOverride_VignetteIntensity = true;          S.VignetteIntensity = 0.5f;
+            S.bOverride_AutoExposureMinBrightness = true;  S.AutoExposureMinBrightness = 1.0f;
+            S.bOverride_AutoExposureMaxBrightness = true;  S.AutoExposureMaxBrightness = 1.0f; // fixed exposure
+        }
     }
 
     SpawnStarfield();
