@@ -7,7 +7,7 @@ Discover that two simulation realms secretly share one hidden structure — then
 
 [![Engine](https://img.shields.io/badge/Unreal%20Engine-5.8-black)](https://www.unrealengine.com/)
 [![Language](https://img.shields.io/badge/C%2B%2B-20-blue)]()
-[![Tests](https://img.shields.io/badge/automation%20tests-20%2F20%20green-brightgreen)]()
+[![Tests](https://img.shields.io/badge/automation%20tests-38%2F38%20green-brightgreen)]()
 [![Determinism](https://img.shields.io/badge/simulation-deterministic-informational)]()
 [![License](https://img.shields.io/badge/license-Proprietary-red)](LICENSE)
 
@@ -31,14 +31,20 @@ game can't be fully solved.
 
 ## Status
 
-The **correspondence engine — the product's core — is implemented, deterministic,
-data-driven, generalized to N realms, and fully test-covered.**
+**Playable, deterministic, and fully code-complete** — no mocks or placeholders in
+code (verified by a codebase-wide adversarial audit). What remains is art direction.
 
-- ✅ **20 / 20** automation tests pass, headless, 0 failures
-- ✅ Deterministic fixed-step simulation (bitwise-reproducible, replayable)
-- ✅ Three realms (Orbits, Fluids, Harmonics) + a generic N-realm correspondence engine
-- ✅ Playable vertical-slice loop verified end-to-end (detect → transport → Insight Rate)
-- 🚧 Presentation layer (worlds, VFX, audio, interactive UI) — see [`Docs/IMPLEMENTATION_STATUS.md`](Docs/IMPLEMENTATION_STATUS.md)
+- ✅ **38 / 38** automation tests pass, headless, 0 failures
+- ✅ Deterministic fixed-step simulation (bitwise-reproducible; real replay verification)
+- ✅ **Five** realms (Orbits, Fluids, Harmonics, Waves, Rhythm) sharing one `3:2` across
+  celestial / fluid / acoustic / spatial / temporal domains, via a generic N-realm engine
+- ✅ Game loop with an **objective** (win/lose) and **deterministic, shareable replays**
+- ✅ **Audio you can hear** — procedural synthesis; a discovered `3:2` sounds a perfect fifth
+- ✅ **Real 3D geometry** for every realm + a **branded HUD** with a procedural emblem
+- ✅ **Enhanced Input** (`[E]` transport, `[R]` restart) + a **packaged standalone build**
+  (`Tools/CI/package.ps1` → `dist/Windows/`)
+- 🎨 Art direction (Megascans/Nanite scenes, Niagara VFX, bespoke materials/UMG, a hand-
+  authored map) layers on top — see [`Docs/IMPLEMENTATION_STATUS.md`](Docs/IMPLEMENTATION_STATUS.md)
 
 ## Architecture
 
