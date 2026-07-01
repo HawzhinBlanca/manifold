@@ -101,6 +101,13 @@ void AManifoldGameMode::Tick(float DeltaSeconds)
     {
         UManifoldSlice::RecordSessionInProfile(Profile, Slice->GetSessionSummary());
         UManifoldSlice::SaveProfile(Profile, ProfilePath());
+
+        // Save a shareable, re-watchable replay of a winning run.
+        if (Slice->GetSessionState() == EManifoldSessionState::Won)
+        {
+            const FString ReplayPath = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("LastWin.manifoldreplay"));
+            UManifoldSlice::SaveReplay(Slice->CaptureReplay(), ReplayPath);
+        }
         bSessionRecorded = true;
     }
 }

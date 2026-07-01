@@ -371,6 +371,36 @@ bool FExpeditionTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// Capture replay: an INTERACTIVELY-played session (the player fires the transport
+// verb) can be captured as a replay and reproduced bit-for-bit on a fresh slice.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCaptureReplayTest, "MANIFOLD.Play.CaptureReplay", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FCaptureReplayTest::RunTest(const FString& Parameters)
+{
+    UManifoldSlice* S = NewObject<UManifoldSlice>();
+    S->bAutoTransportOnIgnite = false; // interactive: the player transports
+    S->Setup(1111ULL, 2222ULL);
+    for (int32 i = 0; i < 30; ++i)
+    {
+        S->Tick();
+    }
+    UTEST_TRUE("A correspondence is available to the player", S->IsCorrespondenceAvailable());
+    UTEST_TRUE("Player transports it", S->PlayerRequestTransport());
+
+    const FManifoldReplay Cap = S->CaptureReplay();
+    UTEST_GREATER("Captured a transport", Cap.FinalTransports, 0);
+    UTEST_EQUAL("Captured the orbits seed", (int64)Cap.OrbitsSeed, (int64)1111);
+    UTEST_EQUAL("Captured the step count", Cap.Steps, 30);
+
+    // Reproduce the captured interactive session on a fresh slice.
+    UManifoldSlice* P = NewObject<UManifoldSlice>();
+    const FManifoldSliceResult R = P->RunReplay(Cap);
+    UTEST_EQUAL("Captured replay reproduces transports", R.TransportsCompleted, Cap.FinalTransports);
+    UTEST_EQUAL("Captured replay reproduces Insight Rate", R.InsightRate, Cap.FinalInsightRate);
+
+    return true;
+}
+
 // Scoring: a played session yields a positive score that reflects what the player
 // surfaced, and the summary carries it.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FScoringTest, "MANIFOLD.Play.Scoring", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)

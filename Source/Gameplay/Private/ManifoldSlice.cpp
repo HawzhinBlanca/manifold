@@ -15,6 +15,9 @@
 
 void UManifoldSlice::Setup(uint64 OrbitsSeed, uint64 FluidsSeed)
 {
+    SavedOrbitsSeed = OrbitsSeed;
+    SavedFluidsSeed = FluidsSeed;
+
     Orbits = NewObject<UOrbitsKernel>(this);
     Fluids = NewObject<UFluidsKernel>(this);
     Harmonics = NewObject<UHarmonicsKernel>(this);
@@ -321,6 +324,19 @@ void UManifoldSlice::RecordSessionInProfile(FManifoldProfile& Profile, const FMa
         ++Profile.SessionsWon;
     }
     Profile.BestScore = FMath::Max(Profile.BestScore, Summary.Score);
+}
+
+FManifoldReplay UManifoldSlice::CaptureReplay() const
+{
+    FManifoldReplay Replay;
+    Replay.OrbitsSeed = SavedOrbitsSeed;
+    Replay.FluidsSeed = SavedFluidsSeed;
+    Replay.Steps = static_cast<int32>(CurrentStep);
+    Replay.TransportSteps = TransportStepLog;
+    Replay.FinalDiscoveries = GetTotalDiscoveries();
+    Replay.FinalTransports = TransportCount;
+    Replay.FinalInsightRate = GetInsightRate();
+    return Replay;
 }
 
 bool UManifoldSlice::SaveProfile(const FManifoldProfile& Profile, const FString& Path)

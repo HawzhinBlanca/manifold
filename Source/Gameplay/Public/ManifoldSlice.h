@@ -120,6 +120,12 @@ public:
     UFUNCTION(BlueprintCallable, Category = "MANIFOLD")
     FManifoldSliceResult RunReplay(const FManifoldReplay& Replay);
 
+    /** Capture the CURRENT (interactively-played) session as a shareable replay: its
+     *  seeds, the exact steps the player transported, and the result so far. Re-running
+     *  it via RunReplay reproduces the session bit-for-bit. */
+    UFUNCTION(BlueprintCallable, Category = "MANIFOLD")
+    FManifoldReplay CaptureReplay() const;
+
     /** Steps at which a transport fired this session (the reproduced schedule). */
     const TArray<int32>& GetTransportSchedule() const { return TransportStepLog; }
 
@@ -205,6 +211,10 @@ private:
     int32 IgnitedCount = 0;
     int32 TransportCount = 0;
     int32 SharedDiscoveries = 0;
+
+    // The seeds this session was built from (stored so it can be captured as a replay).
+    uint64 SavedOrbitsSeed = 0;
+    uint64 SavedFluidsSeed = 0;
 
     // The hidden ratio this session's realms share (chosen from the seed in Setup).
     int32 SharedP = 3;
