@@ -56,11 +56,26 @@ void AManifoldHUD::DrawHUD()
             DrawText(TEXT("MANIFOLD"), Gold, CX - 132.0f, CY + 0.0f, Big, 2.2f);
         }
         DrawText(TEXT("the correspondence engine"), Dim, CX - 96.0f, CY + 44.0f, Font);
-        DrawText(TEXT("Five realms secretly share one hidden ratio. One is a decoy."),
-            Cyan, CX - 210.0f, CY + 78.0f, Font);
-        DrawText(TEXT("Find the correspondence and carry it across the seam."),
-            Cyan, CX - 195.0f, CY + 100.0f, Font);
-        DrawText(TEXT("[E] transport   [R] restart   [C] constellation mode"), Gold, CX - 150.0f, CY + 134.0f, Font);
+        if (S->IsConstellationMode())
+        {
+            DrawText(TEXT("Constellation Lock: every realm shows a DIFFERENT ratio."),
+                Cyan, CX - 220.0f, CY + 78.0f, Font);
+            DrawText(TEXT("A hidden set truly corresponds under the Rule shown — normalize"),
+                Cyan, CX - 230.0f, CY + 100.0f, Font);
+            DrawText(TEXT("the six ratios by it, then lock exactly the matching set."),
+                Cyan, CX - 220.0f, CY + 118.0f, Font);
+            DrawText(TEXT("[1-6] pick   [Space] lock   [C] classic   [R] new puzzle"),
+                Gold, CX - 200.0f, CY + 150.0f, Font);
+        }
+        else
+        {
+            DrawText(TEXT("Five realms secretly share one hidden ratio. One is a decoy."),
+                Cyan, CX - 210.0f, CY + 78.0f, Font);
+            DrawText(TEXT("Find the correspondence and carry it across the seam."),
+                Cyan, CX - 195.0f, CY + 100.0f, Font);
+            DrawText(TEXT("[E] transport   [R] restart   [C] constellation mode"),
+                Gold, CX - 150.0f, CY + 134.0f, Font);
+        }
         return; // show only the title over the scene until the player begins
     }
 
