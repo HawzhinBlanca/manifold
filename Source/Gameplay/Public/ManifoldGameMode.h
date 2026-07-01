@@ -8,6 +8,7 @@
 #include "ManifoldGameMode.generated.h"
 
 class UManifoldSlice;
+class UManifoldSynthComponent;
 
 /**
  * AManifoldGameMode — the playable shell. Owns a live UManifoldSlice, advances it
@@ -51,6 +52,16 @@ public:
 protected:
     float Accumulator = 0.0f;
 
+    /** Real-time procedural synth that plays the slice's audio cues (audible audio). */
+    UPROPERTY()
+    UManifoldSynthComponent* Synth = nullptr;
+
+    /** Index of the next unplayed cue in the slice's cue log. */
+    int32 LastPlayedCue = 0;
+
     /** Build a fresh interactive session (slice + objective) and the realm view. */
     void StartSession();
+
+    /** Send any newly-emitted audio cues to the synth. */
+    void PlayNewAudioCues();
 };

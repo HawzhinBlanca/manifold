@@ -122,6 +122,9 @@ public:
     UFUNCTION(BlueprintPure, Category = "MANIFOLD")
     int32 GetAudioCueCount() const { return AudioCues.Num(); }
 
+    /** All audio cues emitted this session, in order (so a synth can play new ones). */
+    const TArray<FManifoldAudioCue>& GetAudioCues() const { return AudioCues; }
+
     /** Persist / restore a recording to a .manifoldreplay file. */
     static bool SaveReplay(const FManifoldReplay& Replay, const FString& Path);
     static bool LoadReplay(FManifoldReplay& OutReplay, const FString& Path);

@@ -2,6 +2,7 @@
 
 #include "Misc/AutomationTest.h"
 #include "ManifoldAudioDirector.h"
+#include "ManifoldToneSynth.h"
 
 // The core of the audio layer: integer frequency ratios map to the correct
 // consonant musical intervals. This is what makes a discovered correspondence
@@ -65,6 +66,44 @@ bool FAudioDiscoveryAndResolveTest::RunTest(const FString& Parameters)
     UTEST_EQUAL("Transport intent is ChordResolve", (int32)Move.Intent, (int32)EManifoldCueIntent::ChordResolve);
     UTEST_EQUAL("Transport resolves from source toward destination tonic",
         Move.IntervalSemitones, To.RootMidi - From.RootMidi);
+
+    return true;
+}
+
+// The audio is actually SYNTHESIZED (not just described): equal-tempered pitch and a
+// decaying-sine voice that produces real audible energy and then falls silent.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FToneSynthesisTest, "MANIFOLD.Audio.ToneSynthesis", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FToneSynthesisTest::RunTest(const FString& Parameters)
+{
+    // Equal-tempered pitch: octaves double the frequency, A4 = 440 Hz.
+    UTEST_EQUAL("MIDI 69 -> 440 Hz", FMath::RoundToInt(ManifoldMidiToFrequency(69)), 440);
+    UTEST_EQUAL("MIDI 81 -> 880 Hz (octave up)", FMath::RoundToInt(ManifoldMidiToFrequency(81)), 880);
+    UTEST_EQUAL("MIDI 57 -> 220 Hz (octave down)", FMath::RoundToInt(ManifoldMidiToFrequency(57)), 220);
+
+    // A triggered voice produces real signal, then decays to silence.
+    const int32 SampleRate = 48000;
+    FManifoldToneVoice Voice;
+    UTEST_FALSE("Voice starts silent", Voice.IsActive());
+    Voice.NoteOn(440.0f, 1.0f);
+    UTEST_TRUE("Voice is active after NoteOn", Voice.IsActive());
+
+    double Energy = 0.0;
+    float MaxAbs = 0.0f;
+    for (int32 i = 0; i < SampleRate; ++i) // 1 second
+    {
+        const float S = Voice.NextSample(SampleRate);
+        Energy += static_cast<double>(S) * S;
+        MaxAbs = FMath::Max(MaxAbs, FMath::Abs(S));
+    }
+    UTEST_GREATER("Voice produced audible energy", Energy, 1.0);
+    UTEST_GREATER("Voice reached a real amplitude", MaxAbs, 0.1f);
+
+    for (int32 i = 0; i < SampleRate * 3; ++i) // decay for 3 more seconds
+    {
+        Voice.NextSample(SampleRate);
+    }
+    UTEST_FALSE("Voice decays to silence", Voice.IsActive());
 
     return true;
 }

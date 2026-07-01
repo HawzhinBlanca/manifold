@@ -15,6 +15,7 @@ public class MANIFOLDGameplay : ModuleRules
             "Engine",
             "InputCore",
             "EnhancedInput",
+            "AudioMixer",
             "MANIFOLDCore",
             "MANIFOLDKernelsOrbits",
             "MANIFOLDKernelsFluids",

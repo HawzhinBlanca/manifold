@@ -5,6 +5,7 @@
 #include "ManifoldHUD.h"
 #include "ManifoldPlayerController.h"
 #include "ManifoldRealmVisualizer.h"
+#include "ManifoldToneSynth.h"
 #include "GameFramework/DefaultPawn.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -28,6 +29,12 @@ AManifoldGameMode::AManifoldGameMode()
 void AManifoldGameMode::BeginPlay()
 {
     Super::BeginPlay();
+
+    // Real-time procedural synth: no sound asset needed, tones are generated in code.
+    Synth = NewObject<UManifoldSynthComponent>(this, TEXT("ManifoldSynth"));
+    Synth->RegisterComponent();
+    Synth->Start(); // begin generating audio; PlayCue triggers tones
+
     StartSession();
 }
 
@@ -39,6 +46,7 @@ void AManifoldGameMode::StartSession()
     Slice->SetObjective(Objective);
     Slice->Setup(1111ULL, 2222ULL);
     Accumulator = 0.0f;
+    LastPlayedCue = 0;
 
     // Spawn the debug-draw view of both realms + the resonance/seam ribbons (once).
     if (UWorld* World = GetWorld())
@@ -69,6 +77,21 @@ void AManifoldGameMode::Tick(float DeltaSeconds)
         Slice->Tick();
         Accumulator -= StepInterval;
     }
+
+    // Voice any cues the slice emitted this frame (discovery chimes, transport resolves).
+    PlayNewAudioCues();
+}
+
+void AManifoldGameMode::PlayNewAudioCues()
+{
+    if (!Synth || !Slice) return;
+
+    const TArray<FManifoldAudioCue>& Cues = Slice->GetAudioCues();
+    for (int32 i = LastPlayedCue; i < Cues.Num(); ++i)
+    {
+        Synth->PlayCue(Cues[i]);
+    }
+    LastPlayedCue = Cues.Num();
 }
 
 void AManifoldGameMode::ManifoldTransport()
