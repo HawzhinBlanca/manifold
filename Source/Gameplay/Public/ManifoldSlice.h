@@ -6,6 +6,7 @@
 #include "UObject/Object.h"
 #include "ManifoldTypes.h"
 #include "ManifoldAudioDirector.h"
+#include "CorrespondenceSystem.h" // ECorrespondenceRelation (Constellation Lock)
 #include "ManifoldSlice.generated.h"
 
 class UOrbitsKernel;
@@ -186,6 +187,67 @@ public:
      * got and the cumulative score. Deterministic in BaseSeed.
      */
     static FManifoldExpeditionResult RunExpedition(int64 BaseSeed, int32 NumLevels, int32 StepsPerLevel = 30, UObject* Outer = nullptr);
+
+    // =====================================================================
+    // CONSTELLATION LOCK — the harder puzzle (infer the relation, pick the subset)
+    // =====================================================================
+
+    /**
+     * Build a Constellation-Lock session: six ratio realms each show a DIFFERENT surface
+     * ratio, but a hidden subset (the "constellation" of ConstellationSize realms) truly
+     * corresponds under this session's structural relation — Exact (they share the literal
+     * ratio) or OctaveInvariant (they share a ratio only after dividing out factors of 2,
+     * so 3:2, 6:1 and 3:1 all correspond even though they look different). The player must
+     * INFER the relation and select exactly the corresponding subset — cross-domain
+     * reasoning, not number-spotting. Deterministic in Seed. Resolved via
+     * PlayerLockConstellation (not by ticking).
+     */
+    UFUNCTION(BlueprintCallable, Category = "MANIFOLD|Constellation")
+    void SetupConstellation(int64 Seed, int32 ConstellationSize = 3);
+
+    /** Deterministically choose this session's structural relation from the seed. */
+    static ECorrespondenceRelation PickRelation(uint64 Seed);
+
+    /** Deterministically choose K distinct realm indices (the hidden constellation) out
+     *  of NumRealms; returned sorted ascending. */
+    static void PickConstellation(uint64 Seed, int32 NumRealms, int32 K, TArray<int32>& OutMembers);
+
+    /**
+     * The player's verb: lock in the subset of realms believed to correspond. Scores
+     * ONLY if the sorted selection exactly equals the hidden constellation — then the true
+     * C(K,2) analogies ignite (driving discoveries/score/rank/telemetry through the same
+     * path as organic discovery) and the session is won. A wrong selection consumes a
+     * probe and scores nothing. Returns true on a correct lock.
+     */
+    UFUNCTION(BlueprintCallable, Category = "MANIFOLD|Constellation")
+    bool PlayerLockConstellation(const TArray<int32>& SelectedRealmIndices);
+
+    /** The hidden corresponding subset (sorted realm indices). Empty outside constellation mode. */
+    const TArray<int32>& GetConstellation() const { return Constellation; }
+
+    /** True once SetupConstellation has built a constellation session. */
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD|Constellation")
+    bool IsConstellationMode() const { return bConstellationMode; }
+
+    /** The active structural relation as a short human label ("Exact" / "Octave"). */
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD|Constellation")
+    FString GetActiveRelationName() const;
+
+    /** How many wrong locks the player has made this session. */
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD|Constellation")
+    int32 GetFailedProbes() const { return FailedProbes; }
+
+    /** Number of ratio realms shown in constellation mode (six). */
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD|Constellation")
+    int32 GetConstellationRealmCount() const { return ConstellationRealmIds.Num(); }
+
+    /** The surface ratio ("p:q") realm Index displays — what the player actually sees. */
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD|Constellation")
+    FString GetRealmSurfaceRatio(int32 Index) const;
+
+    /** The display name of realm Index (e.g. "Orbits", "Gears"). */
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD|Constellation")
+    FString GetRealmName(int32 Index) const;
     /** Cross-domain analogies found via the generic N-realm engine (e.g. orbital 3:2 == harmonic 3:2). */
     UFUNCTION(BlueprintPure, Category = "MANIFOLD") int32 GetSharedDiscoveries() const { return SharedDiscoveries; }
     UFUNCTION(BlueprintPure, Category = "MANIFOLD") int64 GetStepCount() const { return CurrentStep; }
@@ -254,6 +316,15 @@ private:
     // Audio cues emitted this session (discovery chimes, transport resolves).
     TArray<FManifoldAudioCue> AudioCues;
     FManifoldAudioCue LastAudioCue;
+
+    // --- Constellation Lock state (set by SetupConstellation) ---
+    bool bConstellationMode = false;
+    int32 ConstellationSize = 0;
+    ECorrespondenceRelation ActiveRelation = ECorrespondenceRelation::Exact;
+    TArray<int32> Constellation;         // hidden corresponding realm indices (sorted)
+    TArray<FName> ConstellationRealmIds; // realm id per index, in display order
+    TArray<FString> RealmSurfaceRatios;  // surface ratio "p:q" per index (as shown)
+    int32 FailedProbes = 0;
 
     void HandleIgnited(FGuid SourceStructure, FGuid TargetStructure, float Scale);
     void HandleSharedDiscovery(FName RealmA, FName RealmB, FString Ratio, FGuid StableId);

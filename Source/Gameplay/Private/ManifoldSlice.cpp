@@ -9,6 +9,7 @@
 #include "GearsKernel.h"
 #include "CorrespondenceSystem.h"
 #include "TelemetrySystem.h"
+#include "DeterministicRNG.h"
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
 #include "Serialization/MemoryReader.h"
@@ -32,6 +33,15 @@ void UManifoldSlice::Setup(uint64 OrbitsSeed, uint64 FluidsSeed)
     TransportStepLog.Reset();
     AudioCues.Reset();
     LastAudioCue = FManifoldAudioCue();
+
+    // Not a constellation session (SetupConstellation sets this true).
+    bConstellationMode = false;
+    ConstellationSize = 0;
+    ActiveRelation = ECorrespondenceRelation::Exact;
+    Constellation.Reset();
+    ConstellationRealmIds.Reset();
+    RealmSurfaceRatios.Reset();
+    FailedProbes = 0;
 
     Orbits = NewObject<UOrbitsKernel>(this);
     Fluids = NewObject<UFluidsKernel>(this);
@@ -200,6 +210,298 @@ void UManifoldSlice::PickSharedRatio(uint64 Seed, int32& OutP, int32& OutQ)
     OutQ = Ratios[Index].Y;
 }
 
+// ===========================================================================
+// CONSTELLATION LOCK — deterministic scenario generation + the player's lock verb.
+// ===========================================================================
+
+namespace
+{
+    // A reduced small-integer ratio p:q (p > q >= 1, coprime), realizable by ALL six
+    // ratio realms — Orbits (Kepler, MaxRatio=10), Harmonics, Waves, Rhythm, Gears, Decoy.
+    struct FRatioPQ { int32 P; int32 Q; };
+
+    // Octave families: each row's members all normalize to the SAME octave class (base:1)
+    // yet are SURFACE-DISTINCT, and every term is <= 9 so Orbits detects them exactly.
+    //   base 3 -> {3:1, 3:2, 6:1}   base 5 -> {5:1, 5:2, 5:4}
+    //   base 7 -> {7:1, 7:2, 7:4}   base 9 -> {9:1, 9:2, 9:4}
+    static const int32 kFamilyCount = 4;
+    static const FRatioPQ kFamilyMembers[kFamilyCount][3] = {
+        { {3,1}, {3,2}, {6,1} },
+        { {5,1}, {5,2}, {5,4} },
+        { {7,1}, {7,2}, {7,4} },
+        { {9,1}, {9,2}, {9,4} },
+    };
+
+    // Decoy ratios for octave mode. Their octave classes are 5:3, 1:3, 7:5, 1:5, 7:3, 9:5
+    // respectively — all MUTUALLY DISTINCT and none of the base:1 form a family uses, so a
+    // decoy never corresponds to a member or to another decoy under OctaveInvariant.
+    static const FRatioPQ kDecoyRatios[] = {
+        {5,3}, {4,3}, {7,5}, {8,5}, {7,3}, {9,5},
+    };
+
+    // Fisher-Yates shuffle in place with the deterministic RNG.
+    template <typename T>
+    void DetShuffle(TArray<T>& A, FDeterministicRNG& RNG)
+    {
+        for (int32 i = A.Num() - 1; i > 0; --i)
+        {
+            const int32 j = RNG.RandRange(0, i);
+            A.Swap(i, j);
+        }
+    }
+}
+
+ECorrespondenceRelation UManifoldSlice::PickRelation(uint64 Seed)
+{
+    // Two slice-realizable relations (Reciprocal needs q:p ordering that the order-
+    // insensitive kernels can't emit, so it is engine-only). 50/50 from a mixed seed.
+    FDeterministicRNG RNG(Seed ^ 0xABCDEF0123456789ULL);
+    return RNG.RandBool() ? ECorrespondenceRelation::OctaveInvariant : ECorrespondenceRelation::Exact;
+}
+
+void UManifoldSlice::PickConstellation(uint64 Seed, int32 NumRealms, int32 K, TArray<int32>& OutMembers)
+{
+    OutMembers.Reset();
+    NumRealms = FMath::Max(0, NumRealms);
+    K = FMath::Clamp(K, 0, NumRealms);
+
+    TArray<int32> Pool;
+    Pool.Reserve(NumRealms);
+    for (int32 i = 0; i < NumRealms; ++i) { Pool.Add(i); }
+
+    // Partial Fisher-Yates: select K distinct indices deterministically.
+    FDeterministicRNG RNG(Seed ^ 0x5EED5A1AD5C0FFEEULL);
+    for (int32 i = 0; i < K; ++i)
+    {
+        const int32 j = i + RNG.RandRange(0, NumRealms - 1 - i);
+        Pool.Swap(i, j);
+    }
+    Pool.SetNum(K);
+    Pool.Sort();
+    OutMembers = MoveTemp(Pool);
+}
+
+void UManifoldSlice::SetupConstellation(int64 InSeed, int32 InConstellationSize)
+{
+    const uint64 Seed = static_cast<uint64>(InSeed);
+    SavedOrbitsSeed = Seed;
+    SavedFluidsSeed = Seed;
+
+    // Reset all session accumulators (reuse safety).
+    IgnitedCount = 0;
+    TransportCount = 0;
+    SharedDiscoveries = 0;
+    CurrentStep = 0;
+    CurrentTime = 0.0f;
+    bCorrespondenceAvailable = false;
+    PendingVortexId = FGuid();
+    SessionState = EManifoldSessionState::InProgress;
+    TransportStepLog.Reset();
+    AudioCues.Reset();
+    LastAudioCue = FManifoldAudioCue();
+    FailedProbes = 0;
+
+    const int32 N = 6; // Orbits, Harmonics, Waves, Rhythm, Gears, Decoy
+    ConstellationSize = FMath::Clamp(InConstellationSize, 2, 3);
+    bConstellationMode = true;
+
+    ActiveRelation = PickRelation(Seed);
+    PickConstellation(Seed, N, ConstellationSize, Constellation);
+    const TSet<int32> MemberSet(Constellation);
+
+    // --- Choose surface ratios: members correspond under ActiveRelation, decoys don't. ---
+    TArray<FRatioPQ> RealmRatios;
+    RealmRatios.SetNum(N);
+
+    FDeterministicRNG RNG(Seed ^ 0xC0FFEE1234567890ULL);
+
+    if (ActiveRelation == ECorrespondenceRelation::OctaveInvariant)
+    {
+        // Members: three surface-distinct ratios from one octave family.
+        const int32 Family = RNG.RandRange(0, kFamilyCount - 1);
+        TArray<FRatioPQ> Members;
+        for (int32 m = 0; m < 3; ++m) { Members.Add(kFamilyMembers[Family][m]); }
+        DetShuffle(Members, RNG);
+
+        // Decoys: distinct-class ratios, none in this family's class.
+        const int32 FamilyBase = kFamilyMembers[Family][0].P; // 3/5/7/9
+        TArray<FRatioPQ> Decoys;
+        for (const FRatioPQ& R : kDecoyRatios)
+        {
+            // Reject any decoy whose octave class collides with the members' base:1.
+            const FString DecoyClass = UCorrespondenceSystem::NormalizeRatio(
+                FString::Printf(TEXT("%d:%d"), R.P, R.Q), ECorrespondenceRelation::OctaveInvariant);
+            const FString MemberClass = FString::Printf(TEXT("%d:1"), FamilyBase);
+            if (DecoyClass != MemberClass) { Decoys.Add(R); }
+        }
+        DetShuffle(Decoys, RNG);
+
+        int32 mi = 0, di = 0;
+        for (int32 idx = 0; idx < N; ++idx)
+        {
+            RealmRatios[idx] = MemberSet.Contains(idx) ? Members[mi++] : Decoys[di++];
+        }
+    }
+    else // Exact: members share one literal ratio; decoys are distinct literals.
+    {
+        int32 rp = 0, rq = 0;
+        PickSharedRatio(Seed, rp, rq);
+        const FRatioPQ Shared{ rp, rq };
+
+        TArray<FRatioPQ> Decoys;
+        static const FIntPoint ExactPool[] = {
+            FIntPoint(3,2), FIntPoint(4,3), FIntPoint(5,4), FIntPoint(5,3),
+            FIntPoint(2,1), FIntPoint(5,2), FIntPoint(7,4), FIntPoint(7,5),
+            FIntPoint(8,5), FIntPoint(9,8),
+        };
+        for (const FIntPoint& R : ExactPool)
+        {
+            if (R.X != Shared.P || R.Y != Shared.Q) { Decoys.Add(FRatioPQ{ R.X, R.Y }); }
+        }
+        DetShuffle(Decoys, RNG);
+
+        int32 di = 0;
+        for (int32 idx = 0; idx < N; ++idx)
+        {
+            RealmRatios[idx] = MemberSet.Contains(idx) ? Shared : Decoys[di++];
+        }
+    }
+
+    // --- Build the realms and realize each realm's assigned ratio. ---
+    Orbits = NewObject<UOrbitsKernel>(this);
+    Harmonics = NewObject<UHarmonicsKernel>(this);
+    Waves = NewObject<UWavesKernel>(this);
+    Rhythm = NewObject<URhythmKernel>(this);
+    Gears = NewObject<UGearsKernel>(this);
+    Decoy = NewObject<UHarmonicsKernel>(this);
+    Fluids = nullptr; // no Orbits<->Fluids seam in constellation mode
+    Correspond = NewObject<UCorrespondenceSystem>(this);
+    Telemetry = NewObject<UTelemetrySystem>(this);
+    Audio = NewObject<UManifoldAudioDirector>(this);
+
+    Orbits->Initialize(Seed);
+    Harmonics->Initialize(Seed ^ 0xABCDEF);
+    Waves->Initialize(Seed ^ 0x123456);
+    Rhythm->Initialize(Seed ^ 0x789ABC);
+    Gears->Initialize(Seed ^ 0x2468AC);
+    Decoy->Initialize(Seed ^ 0xFEDCBA);
+
+    Telemetry->InitializeTelemetry(TEXT("ConstellationSession.log"));
+    Correspond->SetActiveRelation(ActiveRelation);
+    Correspond->OnSharedStructureDiscovered.AddUObject(this, &UManifoldSlice::HandleSharedDiscovery);
+
+    // Orbits realizes its ratio via a Kepler period ratio p:q (Star + two planets).
+    auto SetupOrbitsRatio = [this](int32 P, int32 Q)
+    {
+        FOrbitsBodyDef Star; Star.Name = TEXT("Star"); Star.Mass = 1.989e30; Star.bIsCentral = true;
+        Orbits->AddBody(Star);
+
+        FOrbitsBodyDef A; A.Name = TEXT("PlanetA"); A.Mass = 1e24; A.Position = FVector(1.496e11, 0.0, 0.0);
+        A.Velocity = FVector(0.0, FMath::Sqrt((Orbits->G * Star.Mass) / A.Position.X), 0.0);
+        Orbits->AddBody(A);
+
+        const double RatioD = static_cast<double>(P) / static_cast<double>(Q);
+        const double R_B = A.Position.X * FMath::Pow(RatioD, 2.0 / 3.0);
+        FOrbitsBodyDef B; B.Name = TEXT("PlanetB"); B.Mass = 1e24; B.Position = FVector(R_B, 0.0, 0.0);
+        B.Velocity = FVector(0.0, FMath::Sqrt((Orbits->G * Star.Mass) / R_B), 0.0);
+        Orbits->AddBody(B);
+    };
+
+    SetupOrbitsRatio(RealmRatios[0].P, RealmRatios[0].Q);
+    Harmonics->AddMode(static_cast<double>(RealmRatios[1].Q), 1.0);
+    Harmonics->AddMode(static_cast<double>(RealmRatios[1].P), 1.0);
+    Waves->ExciteHarmonic(RealmRatios[2].Q, 1.0);
+    Waves->ExciteHarmonic(RealmRatios[2].P, 1.0);
+    Rhythm->AddVoice(static_cast<double>(RealmRatios[3].P));
+    Rhythm->AddVoice(static_cast<double>(RealmRatios[3].Q));
+    Gears->AddGear(RealmRatios[4].P);
+    Gears->AddGear(RealmRatios[4].Q);
+    Decoy->AddMode(static_cast<double>(RealmRatios[5].Q), 1.0);
+    Decoy->AddMode(static_cast<double>(RealmRatios[5].P), 1.0);
+
+    // Step each realm a few times so its structure detector populates ActiveRatios.
+    for (int32 s = 0; s < 3; ++s)
+    {
+        Orbits->Step(0.1f);
+        Harmonics->Step(0.016f);
+        Waves->Step(0.001f);
+        Rhythm->Step(0.016f);
+        Gears->Step(0.016f);
+        Decoy->Step(0.016f);
+    }
+
+    // Register the six realms under their structure query types (display order = index).
+    // Realm 5 is a second oscillator bank ("Chords"); in constellation mode it can be a
+    // true member, so it is NOT labelled "Decoy" (which it is only in the classic mode).
+    ConstellationRealmIds = { TEXT("Orbits"), TEXT("Harmonics"), TEXT("Waves"),
+                              TEXT("Rhythm"), TEXT("Gears"), TEXT("Chords") };
+    static const FName QueryTypes[N] = { TEXT("OrbitalResonance"), TEXT("HarmonicRatio"),
+        TEXT("WaveHarmonic"), TEXT("RhythmRatio"), TEXT("GearRatio"), TEXT("HarmonicRatio") };
+    UObject* const Kernels[N] = { Orbits, Harmonics, Waves, Rhythm, Gears, Decoy };
+    for (int32 idx = 0; idx < N; ++idx)
+    {
+        Correspond->RegisterRealm(ConstellationRealmIds[idx], QueryTypes[idx], Kernels[idx]);
+    }
+
+    // Record the surface ratio each realm actually reports (what the player sees).
+    RealmSurfaceRatios.SetNum(N);
+    for (int32 idx = 0; idx < N; ++idx)
+    {
+        RealmSurfaceRatios[idx] = FString::Printf(TEXT("%d:%d"), RealmRatios[idx].P, RealmRatios[idx].Q);
+    }
+
+    // Win when the player surfaces every corresponding pair in the constellation.
+    FManifoldObjective Obj;
+    Obj.TargetDiscoveries = FMath::Max(1, ConstellationSize * (ConstellationSize - 1) / 2);
+    Obj.StepBudget = 0;
+    Objective = Obj;
+}
+
+bool UManifoldSlice::PlayerLockConstellation(const TArray<int32>& SelectedRealmIndices)
+{
+    if (!bConstellationMode || SessionState != EManifoldSessionState::InProgress)
+    {
+        return false;
+    }
+
+    TArray<int32> Selection = SelectedRealmIndices;
+    Selection.Sort();
+
+    // The lock is correct only if it matches the hidden constellation exactly.
+    if (Selection != Constellation)
+    {
+        ++FailedProbes;
+        return false;
+    }
+
+    // Correct: ignite the true C(K,2) analogies (members correspond under the active
+    // relation; decoys do not), driving discoveries/telemetry/audio/scoring through the
+    // same path as organic discovery. Idempotent, so a repeat lock awards nothing new.
+    Correspond->DetectSharedStructureCorrespondences();
+    EvaluateObjective();
+    return true;
+}
+
+FString UManifoldSlice::GetActiveRelationName() const
+{
+    switch (ActiveRelation)
+    {
+    case ECorrespondenceRelation::OctaveInvariant: return TEXT("Octave");
+    case ECorrespondenceRelation::Reciprocal:      return TEXT("Reciprocal");
+    default:                                        return TEXT("Exact");
+    }
+}
+
+FString UManifoldSlice::GetRealmSurfaceRatio(int32 Index) const
+{
+    return RealmSurfaceRatios.IsValidIndex(Index) ? RealmSurfaceRatios[Index] : TEXT("-");
+}
+
+FString UManifoldSlice::GetRealmName(int32 Index) const
+{
+    return ConstellationRealmIds.IsValidIndex(Index) ? ConstellationRealmIds[Index].ToString() : TEXT("-");
+}
+
 void UManifoldSlice::HandleIgnited(FGuid /*SourceStructure*/, FGuid /*TargetStructure*/, float Scale)
 {
     ++IgnitedCount;
@@ -339,6 +641,11 @@ int32 UManifoldSlice::GetScore() const
     {
         Score += FMath::Max(0, Objective.StepBudget - static_cast<int32>(CurrentStep)) * 10;
     }
+    // Constellation Lock rewards precision: each wrong lock (a wasted probe) costs points.
+    if (bConstellationMode)
+    {
+        Score -= FailedProbes * 250;
+    }
     return FMath::Max(0, Score);
 }
 
@@ -430,13 +737,19 @@ void UManifoldSlice::Tick()
     if (Decoy) { Decoy->Step(0.016f); }
     CurrentTime = Fluids->GetSimulationTime();
 
-    // Orbits <-> Fluids (data-driven spec): ignition lights the transport seam.
-    Correspond->DetectCorrespondence();
+    // Constellation mode resolves through PlayerLockConstellation, NOT automatic
+    // detection — auto-firing here would solve the subset-hunt for the player. So the
+    // seam + shared-structure auto-detection only run in the classic (non-constellation) mode.
+    if (!bConstellationMode)
+    {
+        // Orbits <-> Fluids (data-driven spec): ignition lights the transport seam.
+        Correspond->DetectCorrespondence();
 
-    // Generic N-realm engine: cross-domain analogies by shared structure ratio
-    // (Orbits 3:2 <-> Harmonics 3:2). Each newly-found analogy fires
-    // OnSharedStructureDiscovered -> HandleSharedDiscovery, which counts it.
-    Correspond->DetectSharedStructureCorrespondences();
+        // Generic N-realm engine: cross-domain analogies by shared structure ratio
+        // (Orbits 3:2 <-> Harmonics 3:2). Each newly-found analogy fires
+        // OnSharedStructureDiscovered -> HandleSharedDiscovery, which counts it.
+        Correspond->DetectSharedStructureCorrespondences();
+    }
 
     // Resolve the session against its objective (win/lose).
     EvaluateObjective();

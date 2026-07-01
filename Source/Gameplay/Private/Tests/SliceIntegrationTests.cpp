@@ -99,6 +99,124 @@ bool FConstellationOctaveEngineTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// Constellation Lock (the player verb): the exact hidden subset scores and wins, igniting
+// C(K,2) analogies; a plausible-but-wrong subset scores nothing and burns a probe.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FConstellationLockTest, "MANIFOLD.Play.ConstellationLock", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FConstellationLockTest::RunTest(const FString& Parameters)
+{
+    UManifoldSlice* Slice = NewObject<UManifoldSlice>();
+    Slice->SetupConstellation(4242, 3);
+
+    UTEST_TRUE("constellation mode active", Slice->IsConstellationMode());
+    UTEST_EQUAL("six ratio realms are shown", Slice->GetConstellationRealmCount(), 6);
+
+    const TArray<int32> Answer = Slice->GetConstellation();
+    UTEST_EQUAL("K=3 hidden members", Answer.Num(), 3);
+
+    // A plausible wrong guess: swap one true member for a non-member realm.
+    TArray<int32> Wrong = Answer;
+    for (int32 i = 0; i < 6; ++i) { if (!Answer.Contains(i)) { Wrong[0] = i; break; } }
+
+    UTEST_FALSE("wrong lock does not score", Slice->PlayerLockConstellation(Wrong));
+    UTEST_EQUAL("still in progress after a wrong lock",
+        static_cast<int32>(Slice->GetSessionState()), static_cast<int32>(EManifoldSessionState::InProgress));
+    UTEST_EQUAL("a probe was consumed", Slice->GetFailedProbes(), 1);
+    UTEST_EQUAL("no discoveries from a wrong lock", Slice->GetTotalDiscoveries(), 0);
+
+    // The exact hidden subset wins and ignites C(3,2)=3 cross-domain analogies.
+    UTEST_TRUE("correct lock scores", Slice->PlayerLockConstellation(Answer));
+    UTEST_EQUAL("session won",
+        static_cast<int32>(Slice->GetSessionState()), static_cast<int32>(EManifoldSessionState::Won));
+    UTEST_EQUAL("C(3,2)=3 discoveries ignited", Slice->GetTotalDiscoveries(), 3);
+
+    return true;
+}
+
+// Constellation generation is deterministic in the seed and spreads across seeds (both
+// relations occur; the hidden subset varies) — so no two sessions play the same, yet each
+// reproduces exactly.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FConstellationDeterminismTest, "MANIFOLD.Play.ConstellationDeterminism", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FConstellationDeterminismTest::RunTest(const FString& Parameters)
+{
+    const uint64 Seeds[] = { 1ULL, 7ULL, 100ULL, 99999ULL };
+    for (uint64 S : Seeds)
+    {
+        UTEST_EQUAL("relation stable across calls",
+            static_cast<int32>(UManifoldSlice::PickRelation(S)),
+            static_cast<int32>(UManifoldSlice::PickRelation(S)));
+
+        TArray<int32> A, B;
+        UManifoldSlice::PickConstellation(S, 6, 3, A);
+        UManifoldSlice::PickConstellation(S, 6, 3, B);
+        UTEST_TRUE("constellation stable across calls", A == B);
+        UTEST_EQUAL("selects exactly K", A.Num(), 3);
+        for (int32 i = 1; i < A.Num(); ++i)
+        {
+            UTEST_TRUE("members sorted & distinct", A[i] > A[i - 1]);
+        }
+    }
+
+    bool bSawExact = false, bSawOctave = false;
+    TSet<FString> DistinctSubsets;
+    for (uint64 S = 0; S < 200; ++S)
+    {
+        if (UManifoldSlice::PickRelation(S) == ECorrespondenceRelation::Exact) { bSawExact = true; }
+        else { bSawOctave = true; }
+
+        TArray<int32> M;
+        UManifoldSlice::PickConstellation(S, 6, 3, M);
+        DistinctSubsets.Add(FString::Printf(TEXT("%d,%d,%d"), M[0], M[1], M[2]));
+    }
+    UTEST_TRUE("both relations occur across seeds", bSawExact && bSawOctave);
+    UTEST_GREATER("the hidden subset varies across seeds", DistinctSubsets.Num(), 5);
+
+    return true;
+}
+
+// The heart of the mechanic under OctaveInvariant: the corresponding realms show
+// DIFFERENT surface ratios (e.g. 3:1, 3:2, 6:1) yet collapse to ONE octave class — the
+// player must normalize and reason, not eye-spot. The true subset still wins.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FConstellationOctaveSurfaceTest, "MANIFOLD.Play.ConstellationOctaveSurface", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FConstellationOctaveSurfaceTest::RunTest(const FString& Parameters)
+{
+    // Find a seed whose relation is Octave (both relations are common, so this is quick).
+    uint64 Seed = 0;
+    bool bFound = false;
+    for (uint64 S = 0; S < 500; ++S)
+    {
+        if (UManifoldSlice::PickRelation(S) == ECorrespondenceRelation::OctaveInvariant)
+        {
+            Seed = S; bFound = true; break;
+        }
+    }
+    UTEST_TRUE("found an octave-relation seed", bFound);
+
+    UManifoldSlice* Slice = NewObject<UManifoldSlice>();
+    Slice->SetupConstellation(static_cast<int64>(Seed), 3);
+    UTEST_EQUAL("relation reported as Octave", Slice->GetActiveRelationName(), FString(TEXT("Octave")));
+
+    const TArray<int32> Members = Slice->GetConstellation();
+    UTEST_EQUAL("K=3 members", Members.Num(), 3);
+
+    TSet<FString> Surfaces, Classes;
+    for (int32 Idx : Members)
+    {
+        const FString Surface = Slice->GetRealmSurfaceRatio(Idx);
+        Surfaces.Add(Surface);
+        Classes.Add(UCorrespondenceSystem::NormalizeRatio(Surface, ECorrespondenceRelation::OctaveInvariant));
+    }
+    UTEST_GREATER("member surface ratios are not all identical", Surfaces.Num(), 1);
+    UTEST_EQUAL("members share exactly one octave class", Classes.Num(), 1);
+
+    UTEST_TRUE("the true subset wins", Slice->PlayerLockConstellation(Members));
+    UTEST_EQUAL("won with C(3,2)=3 discoveries", Slice->GetTotalDiscoveries(), 3);
+
+    return true;
+}
+
 // Control build (Build Plan D3): with NO correspondence content the loop must NOT
 // manufacture insight — the moat is that unsolved seams stay unsolved. Here we run
 // only the Fluids realm (no resonance to correspond with), so nothing ignites.

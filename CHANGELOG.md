@@ -6,20 +6,30 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
-### Added (depth — Constellation Lock foundation)
-- **Relation-aware correspondence engine.** The generic N-realm detector no longer
-  matches only on *literal* equal ratios — it matches under a per-session structural
-  **relation**: `Exact` (literal, the default — reproduces prior behavior byte-for-byte),
-  `OctaveInvariant` (equal after dividing out factors of 2, so 3:2, 6:4 and 3:1 all
-  correspond), or `Reciprocal` (p:q ~ q:p). `UCorrespondenceSystem::NormalizeRatio` is
-  the single, pure source of truth for "corresponds", shared by the detector and (next)
-  the Constellation-Lock verb. This is the groundwork for the harder puzzle where every
-  realm shows a *different* surface ratio and the player must infer the hidden relation +
-  select the corresponding subset, instead of eye-spotting one odd realm.
-  Tests: `MANIFOLD.Correspondence.RelationNormalize` (all three relations + robustness),
-  `MANIFOLD.Correspondence.ConstellationOctave` (surface-distinct realms correspond under
-  Octave while a decoy stays out, and the same realms do *not* correspond under Exact —
-  proving the relation genuinely changes behavior). **53/53 green.**
+### Added (depth — Constellation Lock)
+A new, harder puzzle mode that replaces "spot the one odd realm" with genuine
+cross-domain inference. **56/56 green.**
+- **Relation-aware correspondence engine.** The generic N-realm detector matches under a
+  per-session structural **relation** instead of only literal-equal ratios: `Exact`
+  (literal, the default — reproduces prior behavior byte-for-byte), `OctaveInvariant`
+  (equal after dividing out factors of 2, so 3:2, 6:1 and 3:1 all correspond), or
+  `Reciprocal` (p:q ~ q:p). `UCorrespondenceSystem::NormalizeRatio` is the single pure
+  source of truth for "corresponds", used for the compare, the dedup key and the broadcast
+  id. Tests: `MANIFOLD.Correspondence.RelationNormalize`, `…ConstellationOctave`.
+- **The Constellation-Lock session.** `UManifoldSlice::SetupConstellation(seed)` builds six
+  ratio realms that each show a DIFFERENT surface ratio; a hidden subset (the
+  "constellation") actually corresponds under the session's relation, chosen from the seed.
+  Under Octave the corresponding realms look unlike each other (3:1, 3:2, 6:1 all collapse
+  to one class), so the player must normalize and reason rather than number-spot. Every
+  realm realizes its assigned ratio through its own physics (Orbits via a Kepler period
+  ratio, Gears via tooth counts, Waves/Rhythm/Harmonics via integers), all detected exactly.
+- **The player's verb.** `PlayerLockConstellation(selected)` scores ONLY on an exact-set
+  match with the hidden constellation — then the true C(K,2) analogies ignite through the
+  same discovery/score/telemetry path as organic play and the session is won; a
+  plausible-but-wrong lock burns a probe and scores nothing (each wasted probe costs
+  points). Deterministic in the seed; decoys are constructed with mutually-distinct octave
+  classes so they never spuriously correspond. Tests: `MANIFOLD.Play.ConstellationLock`,
+  `…ConstellationDeterminism`, `…ConstellationOctaveSurface`.
 
 ### Hardened (no mocks / placeholders)
 An adversarial, codebase-wide incompleteness audit found 16 real stubs/fakes;
