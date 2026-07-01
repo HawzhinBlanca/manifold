@@ -12,6 +12,8 @@
 #include "CorrespondenceSystem.h"
 #include "TelemetrySystem.h"
 #include "Misc/Paths.h"
+#include "Misc/FileHelper.h"
+#include "Serialization/MemoryWriter.h"
 #include "HAL/PlatformFileManager.h"
 
 // End-to-end integration acceptance: proves the whole vertical-slice loop runs —
@@ -423,6 +425,34 @@ bool FProfileRoundTripTest::RunTest(const FString& Parameters)
     UTEST_EQUAL("Loaded won", Loaded.SessionsWon, 1);
 
     FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*Path);
+
+    // A truncated/corrupt profile (valid header, short body) must FAIL to load AND must
+    // NOT partially overwrite the caller's existing profile (which would then be saved
+    // back, destroying the real save).
+    {
+        TArray<uint8> Bytes;
+        FMemoryWriter W(Bytes, /*bIsPersistent*/ true);
+        uint32 M = FManifoldProfile::Magic;
+        uint32 V = FManifoldProfile::Version;
+        W << M;
+        W << V;
+        int32 Partial = 12345;
+        W << Partial; // only one of the three body ints — the rest is missing
+        const FString BadPath = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Bad.manifoldprofile"));
+        FFileHelper::SaveArrayToFile(Bytes, *BadPath);
+
+        FManifoldProfile Existing;
+        Existing.BestScore = 999;
+        Existing.SessionsPlayed = 7;
+        Existing.SessionsWon = 3;
+        const bool bLoaded = UManifoldSlice::LoadProfile(Existing, BadPath);
+        UTEST_FALSE("Truncated profile load fails", bLoaded);
+        UTEST_EQUAL("Truncated load leaves best score intact", Existing.BestScore, 999);
+        UTEST_EQUAL("Truncated load leaves sessions played intact", Existing.SessionsPlayed, 7);
+        UTEST_EQUAL("Truncated load leaves sessions won intact", Existing.SessionsWon, 3);
+        FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*BadPath);
+    }
+
     return true;
 }
 

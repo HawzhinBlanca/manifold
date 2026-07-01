@@ -10,6 +10,14 @@ UTelemetrySystem::UTelemetrySystem()
     FileHandle = nullptr;
 }
 
+void UTelemetrySystem::BeginDestroy()
+{
+    // Idempotent with explicit ShutdownTelemetry: closes+null-guards the file handle so
+    // a dropped session (e.g. on restart) never leaks it or leaves the log file locked.
+    ShutdownTelemetry();
+    Super::BeginDestroy();
+}
+
 void UTelemetrySystem::InitializeTelemetry(const FString& InLogFileName)
 {
     LoggedEvents.Empty();

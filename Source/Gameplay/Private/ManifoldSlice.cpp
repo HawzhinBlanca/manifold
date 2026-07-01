@@ -352,8 +352,17 @@ bool UManifoldSlice::LoadProfile(FManifoldProfile& OutProfile, const FString& Pa
     {
         return false;
     }
-    Reader << OutProfile;
-    return !Reader.IsError();
+    // Deserialize into a temporary and only commit on a fully successful read, so a
+    // truncated/corrupt file (valid header, short body) can never partially overwrite
+    // the caller's profile (which would then be saved back, destroying the real save).
+    FManifoldProfile Temp;
+    Reader << Temp;
+    if (Reader.IsError())
+    {
+        return false;
+    }
+    OutProfile = Temp;
+    return true;
 }
 
 void UManifoldSlice::Tick()
@@ -560,6 +569,14 @@ bool UManifoldSlice::LoadReplay(FManifoldReplay& OutReplay, const FString& Path)
     {
         return false; // not ours / wrong version — reject rather than misread
     }
-    Reader << OutReplay;
-    return !Reader.IsError();
+    // Read into a temporary; only commit on a fully successful read (a truncated file
+    // must not partially overwrite the caller's replay).
+    FManifoldReplay Temp;
+    Reader << Temp;
+    if (Reader.IsError())
+    {
+        return false;
+    }
+    OutReplay = Temp;
+    return true;
 }

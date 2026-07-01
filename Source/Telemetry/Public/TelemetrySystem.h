@@ -38,6 +38,10 @@ class MANIFOLDTELEMETRY_API UTelemetrySystem : public UObject
 public:
     UTelemetrySystem();
 
+    /** Ensure the log file handle is closed if the object is GC'd without an explicit
+     *  ShutdownTelemetry (e.g. an interactive session dropped on restart). */
+    virtual void BeginDestroy() override;
+
     /** Initialize logging with output filename */
     void InitializeTelemetry(const FString& InLogFileName);
 

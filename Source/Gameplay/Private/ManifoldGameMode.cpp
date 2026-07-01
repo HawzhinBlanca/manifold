@@ -36,8 +36,13 @@ void AManifoldGameMode::BeginPlay()
 {
     Super::BeginPlay();
 
-    // Restore the player's profile (best score, sessions) if one exists.
-    UManifoldSlice::LoadProfile(Profile, ProfilePath());
+    // Restore the player's profile (best score, sessions) if one exists; on any load
+    // failure (missing/corrupt/wrong-version) start from a clean default rather than
+    // risk saving a partially-read profile back over the real one.
+    if (!UManifoldSlice::LoadProfile(Profile, ProfilePath()))
+    {
+        Profile = FManifoldProfile();
+    }
 
     // Real-time procedural synth: no sound asset needed, tones are generated in code.
     Synth = NewObject<UManifoldSynthComponent>(this, TEXT("ManifoldSynth"));
