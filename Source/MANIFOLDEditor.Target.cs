@@ -11,7 +11,8 @@ public class MANIFOLDEditorTarget : TargetRules
 		ExtraModuleNames.AddRange(new string[] { 
 			"MANIFOLDCore", 
 			"MANIFOLDKernelsOrbits", 
-			"MANIFOLDKernelsFluids", 
+			"MANIFOLDKernelsFluids",
+			"MANIFOLDKernelsHarmonics",
 			"MANIFOLDCorrespond",
 			"MANIFOLDTelemetry",
 			"MANIFOLDGameplay"
