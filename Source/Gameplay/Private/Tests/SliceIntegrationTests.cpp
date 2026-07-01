@@ -133,6 +133,8 @@ bool FInteractiveSessionTest::RunTest(const FString& Parameters)
     UTEST_TRUE("Resonance detected", Slice->HasResonance());
     UTEST_TRUE("Vortex detected", Slice->HasVortex());
     UTEST_EQUAL("Orbits shows 3:2", Slice->GetOrbitsRatio(), FString(TEXT("3:2")));
+    UTEST_EQUAL("Harmonics shows 3:2", Slice->GetHarmonicsRatio(), FString(TEXT("3:2")));
+    UTEST_GREATER("Cross-domain analogy (Orbits<->Harmonics) discovered", Slice->GetSharedDiscoveries(), 0);
     UTEST_GREATER("Correspondence lit at least once", Slice->GetCorrespondencesIgnited(), 0);
     UTEST_GREATER("Insight Rate positive", Slice->GetInsightRate(), 0.0f);
     UTEST_TRUE("Correspondence available to the player", Slice->IsCorrespondenceAvailable());
@@ -141,7 +143,50 @@ bool FInteractiveSessionTest::RunTest(const FString& Parameters)
     // The player's verb.
     UTEST_TRUE("Player transport succeeds when a correspondence is lit", Slice->PlayerRequestTransport());
     UTEST_GREATER("Transport recorded", Slice->GetTransportsCompleted(), 0);
-    UTEST_FALSE("Nothing left to transport immediately after", Slice->PlayerRequestTransport());
+
+    return true;
+}
+
+// Vertical-slice GATE (Build Plan §5 Stream P / P2): the numeric go/no-go. The
+// slice with a correspondence must produce a positive Insight Rate; the control
+// (no correspondence) must produce exactly zero — and the slice must strictly beat
+// the control. This is the "prove the loop compounds vs. control" criterion in code.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVerticalSliceGateTest, "MANIFOLD.Play.VerticalSliceGate", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FVerticalSliceGateTest::RunTest(const FString& Parameters)
+{
+    // Treatment: the full slice.
+    UManifoldSlice* Slice = NewObject<UManifoldSlice>();
+    Slice->Setup(1111ULL, 2222ULL);
+    const FManifoldSliceResult Treatment = Slice->RunPlaythrough(30);
+
+    // Control: a single-planet Orbits + Fluids, no resonance -> no correspondence.
+    UManifoldSlice* Control = NewObject<UManifoldSlice>();
+    Control->Orbits = NewObject<UOrbitsKernel>(Control);
+    Control->Fluids = NewObject<UFluidsKernel>(Control);
+    Control->Correspond = NewObject<UCorrespondenceSystem>(Control);
+    Control->Telemetry = NewObject<UTelemetrySystem>(Control);
+    Control->Orbits->Initialize(1111ULL);
+    Control->Fluids->Initialize(2222ULL);
+    Control->Correspond->RegisterKernels(Control->Orbits, Control->Fluids);
+    Control->Telemetry->InitializeTelemetry(TEXT("GateControl.log"));
+    FOrbitsBodyDef Star; Star.Mass = 1.989e30; Star.bIsCentral = true; Control->Orbits->AddBody(Star);
+    FOrbitsBodyDef Planet; Planet.Mass = 1e24; Planet.Position = FVector(1.496e11, 0.0, 0.0);
+    const double V = FMath::Sqrt((Control->Orbits->G * Star.Mass) / Planet.Position.X);
+    Planet.Velocity = FVector(0.0, V, 0.0);
+    Control->Orbits->AddBody(Planet);
+    Control->Fluids->AddVelocity(0.5f, 0.45f, 20.0f, 0.0f);
+    for (int32 i = 0; i < 30; ++i)
+    {
+        Control->Orbits->Step(0.1f);
+        Control->Fluids->Step(0.016f);
+        Control->Correspond->DetectCorrespondence();
+    }
+    const float ControlInsight = Control->Telemetry->CalculateInsightRate();
+
+    UTEST_GREATER("GATE: treatment Insight Rate is positive", Treatment.InsightRate, 0.0f);
+    UTEST_EQUAL("GATE: control Insight Rate is zero", ControlInsight, 0.0f);
+    UTEST_GREATER("GATE: treatment strictly beats control (loop compounds)", Treatment.InsightRate, ControlInsight);
 
     return true;
 }

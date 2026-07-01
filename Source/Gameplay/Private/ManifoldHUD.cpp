@@ -32,10 +32,15 @@ void AManifoldHUD::DrawHUD()
 
     Line(TEXT("MANIFOLD  -  vertical slice"), FLinearColor::White);
     Line(FString::Printf(TEXT("Step %lld"), S->GetStepCount()), Dim);
-    Line(FString::Printf(TEXT("Orbits  |  resonance %s"), *S->GetOrbitsRatio()),
+    Line(FString::Printf(TEXT("Orbits     |  resonance %s"), *S->GetOrbitsRatio()),
         S->HasResonance() ? Gold : Dim);
-    Line(FString::Printf(TEXT("Fluids  |  vortex %s"), S->HasVortex() ? TEXT("present") : TEXT("-")),
+    Line(FString::Printf(TEXT("Fluids     |  vortex %s"), S->HasVortex() ? TEXT("present") : TEXT("-")),
         S->HasVortex() ? Cyan : Dim);
+    Line(FString::Printf(TEXT("Harmonics  |  ratio %s"), *S->GetHarmonicsRatio()),
+        FLinearColor(0.8f, 0.5f, 1.0f));
+    Line(FString::Printf(TEXT("Cross-domain analogies found: %d   (orbital 3:2 == harmonic 3:2)"),
+        S->GetSharedDiscoveries()),
+        S->GetSharedDiscoveries() > 0 ? Gold : Dim);
     Line(FString::Printf(TEXT("Insight Rate %.3f   (lit %d, transported %d)"),
         S->GetInsightRate(), S->GetCorrespondencesIgnited(), S->GetTransportsCompleted()),
         FLinearColor::Green);

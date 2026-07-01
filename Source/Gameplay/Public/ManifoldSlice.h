@@ -8,6 +8,7 @@
 
 class UOrbitsKernel;
 class UFluidsKernel;
+class UHarmonicsKernel;
 class UCorrespondenceSystem;
 class UTelemetrySystem;
 
@@ -83,6 +84,9 @@ public:
     UFUNCTION(BlueprintPure, Category = "MANIFOLD") bool HasResonance() const;
     UFUNCTION(BlueprintPure, Category = "MANIFOLD") bool HasVortex() const;
     UFUNCTION(BlueprintPure, Category = "MANIFOLD") FString GetOrbitsRatio() const;
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD") FString GetHarmonicsRatio() const;
+    /** Cross-domain analogies found via the generic N-realm engine (e.g. orbital 3:2 == harmonic 3:2). */
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD") int32 GetSharedDiscoveries() const { return SharedDiscoveries; }
     UFUNCTION(BlueprintPure, Category = "MANIFOLD") int64 GetStepCount() const { return CurrentStep; }
 
     UPROPERTY()
@@ -90,6 +94,9 @@ public:
 
     UPROPERTY()
     UFluidsKernel* Fluids = nullptr;
+
+    UPROPERTY()
+    UHarmonicsKernel* Harmonics = nullptr;
 
     UPROPERTY()
     UCorrespondenceSystem* Correspond = nullptr;
@@ -100,6 +107,7 @@ public:
 private:
     int32 IgnitedCount = 0;
     int32 TransportCount = 0;
+    int32 SharedDiscoveries = 0;
     int64 CurrentStep = 0;
     float CurrentTime = 0.0f;
 

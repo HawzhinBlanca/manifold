@@ -3,6 +3,7 @@
 #include "ManifoldSlice.h"
 #include "OrbitsKernel.h"
 #include "FluidsKernel.h"
+#include "HarmonicsKernel.h"
 #include "CorrespondenceSystem.h"
 #include "TelemetrySystem.h"
 #include "Misc/Paths.h"
@@ -11,12 +12,20 @@ void UManifoldSlice::Setup(uint64 OrbitsSeed, uint64 FluidsSeed)
 {
     Orbits = NewObject<UOrbitsKernel>(this);
     Fluids = NewObject<UFluidsKernel>(this);
+    Harmonics = NewObject<UHarmonicsKernel>(this);
     Correspond = NewObject<UCorrespondenceSystem>(this);
     Telemetry = NewObject<UTelemetrySystem>(this);
 
     Orbits->Initialize(OrbitsSeed);
     Fluids->Initialize(FluidsSeed);
+    Harmonics->Initialize(OrbitsSeed ^ 0xABCDEF);
     Correspond->RegisterKernels(Orbits, Fluids);
+
+    // Generic N-realm engine: any two realms exposing the same ratio correspond.
+    // (Orbits 3:2 <-> Harmonics 3:2 is the second, cross-domain "aha".)
+    Correspond->RegisterRealm(TEXT("Orbits"), TEXT("OrbitalResonance"), Orbits);
+    Correspond->RegisterRealm(TEXT("Harmonics"), TEXT("HarmonicRatio"), Harmonics);
+
     Telemetry->InitializeTelemetry(TEXT("SlicePlaythrough.log"));
 
     // Load the data-driven correspondence content (Build Plan D1). If the content
@@ -61,6 +70,11 @@ void UManifoldSlice::Setup(uint64 OrbitsSeed, uint64 FluidsSeed)
     Fluids->AddVelocity(0.55f, 0.5f, 0.0f, 20.0f);
     Fluids->AddVelocity(0.5f, 0.55f, -20.0f, 0.0f);
     Fluids->AddVelocity(0.45f, 0.5f, 0.0f, -20.0f);
+
+    // --- Harmonics scenario: modes at 2 Hz and 3 Hz form a 3:2 (same structure
+    //     as the orbital resonance — the cross-domain analogy). ---
+    Harmonics->AddMode(2.0, 1.0);
+    Harmonics->AddMode(3.0, 1.0);
 }
 
 void UManifoldSlice::HandleIgnited(FGuid /*SourceStructure*/, FGuid /*TargetStructure*/, float Scale)
@@ -121,10 +135,15 @@ void UManifoldSlice::Tick()
     ++CurrentStep;
     Orbits->Step(0.1f);
     Fluids->Step(0.016f);
+    if (Harmonics) { Harmonics->Step(0.016f); }
     CurrentTime = Fluids->GetSimulationTime();
 
-    // Look across the seam every step; ignition fires the reactions above.
+    // Orbits <-> Fluids (data-driven spec): ignition lights the transport seam.
     Correspond->DetectCorrespondence();
+
+    // Generic N-realm engine: cross-domain analogies by shared structure ratio
+    // (Orbits 3:2 <-> Harmonics 3:2). Each new one is a discovery.
+    SharedDiscoveries += Correspond->DetectSharedStructureCorrespondences();
 }
 
 FManifoldSliceResult UManifoldSlice::RunPlaythrough(int32 Steps)
@@ -168,6 +187,19 @@ FString UManifoldSlice::GetOrbitsRatio() const
         if (Res.Num() > 0)
         {
             return FString::Printf(TEXT("%d:%d"), Res[0].Ratio.X, Res[0].Ratio.Y);
+        }
+    }
+    return TEXT("-");
+}
+
+FString UManifoldSlice::GetHarmonicsRatio() const
+{
+    if (Harmonics)
+    {
+        const TArray<FHarmonicRatioMatch>& Ratios = Harmonics->GetActiveRatios();
+        if (Ratios.Num() > 0)
+        {
+            return FString::Printf(TEXT("%d:%d"), Ratios[0].Ratio.X, Ratios[0].Ratio.Y);
         }
     }
     return TEXT("-");
