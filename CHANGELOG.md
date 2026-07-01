@@ -25,6 +25,9 @@ all are now fixed with tests (**37/37 green**):
   instead of debug-draw lines.
 
 ### Added (game depth & replayability)
+- **Capture replay:** an interactively-played session can be captured as a shareable
+  replay (seeds + the exact player transport schedule) and reproduced bit-for-bit; the
+  GameMode auto-saves a replay of every winning run. `MANIFOLD.Play.CaptureReplay`.
 - **Expedition mode:** a campaign of escalating-difficulty levels (rising discovery
   targets) played back to back until one can't be cleared, with a cumulative score and
   a natural difficulty wall (a session surfaces at most 7 discoveries, so target 8 ends
@@ -114,7 +117,7 @@ all are now fixed with tests (**37/37 green**):
   registration. AndroidFileServer plugin disabled (stops dev-token regeneration).
 
 ### Status
-- **43 / 43** automation tests green, headless. Repo is public and professional.
+- **44 / 44** automation tests green, headless. Repo is public and professional.
   Remaining phase (real art/VFX scenes, bound sound assets, bespoke UMG UI, human
   playtest) is human-owned and needs the editor + a display — see
   `Docs/IMPLEMENTATION_STATUS.md`.

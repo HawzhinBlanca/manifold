@@ -8,7 +8,7 @@ MANIFOLD is a **playable, deterministic, data-driven, N-realm correspondence gam
 with an objective, deterministic replay, a code-level audio layer, key input, and a
 professional public repository + a headless packaging path.
 
-**43 automation tests pass, 0 failures, headless.** The correspondence engine — the
+**44 automation tests pass, 0 failures, headless.** The correspondence engine — the
 product's core per the design bible — is complete and generalized to N realms; a
 playable shell drives it with a branded HUD (objective + session state + score), real
 mesh geometry for the realms, key-bound verbs, and audible synthesized cues. **Five** realms now
@@ -79,7 +79,7 @@ console command).
 
 **Verify (headless):**
 ```powershell
-Tools\CI\run_tests.ps1      # build editor target + all MANIFOLD tests (expect 43 Success, 0 Fail)
+Tools\CI\run_tests.ps1      # build editor target + all MANIFOLD tests (expect 44 Success, 0 Fail)
 Tools\CI\package.ps1        # produce a standalone Windows build under dist\Windows
 ```
 Close the Unreal Editor first (Live Coding holds a build lock).
