@@ -291,6 +291,49 @@ bool FConstellationReplayTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// Constellation scoring grades difficulty and precision so the rank is meaningful: an
+// Octave solve (harder to infer) outscores an Exact solve, and a flawless solve outscores
+// one that wasted a probe on the same puzzle.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FConstellationScoringTest, "MANIFOLD.Play.ConstellationScoring", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FConstellationScoringTest::RunTest(const FString& Parameters)
+{
+    int64 OctaveSeed = -1, ExactSeed = -1;
+    for (int64 S = 0; S < 500 && (OctaveSeed < 0 || ExactSeed < 0); ++S)
+    {
+        const ECorrespondenceRelation R = UManifoldSlice::PickRelation(static_cast<uint64>(S));
+        if (R == ECorrespondenceRelation::OctaveInvariant && OctaveSeed < 0) { OctaveSeed = S; }
+        if (R == ECorrespondenceRelation::Exact && ExactSeed < 0) { ExactSeed = S; }
+    }
+    UTEST_TRUE("found an octave seed and an exact seed", OctaveSeed >= 0 && ExactSeed >= 0);
+
+    // Flawless solves of each.
+    UManifoldSlice* Oct = NewObject<UManifoldSlice>();
+    Oct->SetupConstellation(OctaveSeed, 3);
+    UTEST_TRUE("octave flawless win", Oct->PlayerLockConstellation(Oct->GetConstellation()));
+    const int32 OctScore = Oct->GetScore();
+
+    UManifoldSlice* Exa = NewObject<UManifoldSlice>();
+    Exa->SetupConstellation(ExactSeed, 3);
+    UTEST_TRUE("exact flawless win", Exa->PlayerLockConstellation(Exa->GetConstellation()));
+    const int32 ExaScore = Exa->GetScore();
+
+    UTEST_GREATER("octave (harder rule) outscores exact", OctScore, ExaScore);
+
+    // Precision: a wasted probe on the SAME octave puzzle scores below the flawless run.
+    UManifoldSlice* Probed = NewObject<UManifoldSlice>();
+    Probed->SetupConstellation(OctaveSeed, 3);
+    TArray<int32> Wrong = Probed->GetConstellation();
+    for (int32 i = 0; i < 6; ++i) { if (!Probed->GetConstellation().Contains(i)) { Wrong[0] = i; break; } }
+    UTEST_FALSE("a wrong lock", Probed->PlayerLockConstellation(Wrong));
+    UTEST_TRUE("then the correct lock", Probed->PlayerLockConstellation(Probed->GetConstellation()));
+    UTEST_EQUAL("probed run still wins",
+        static_cast<int32>(Probed->GetSessionState()), static_cast<int32>(EManifoldSessionState::Won));
+    UTEST_GREATER("flawless outscores a probed solve", OctScore, Probed->GetScore());
+
+    return true;
+}
+
 // Control build (Build Plan D3): with NO correspondence content the loop must NOT
 // manufacture insight — the moat is that unsolved seams stay unsolved. Here we run
 // only the Fluids realm (no resonance to correspond with), so nothing ignites.

@@ -641,9 +641,19 @@ int32 UManifoldSlice::GetScore() const
     {
         Score += FMath::Max(0, Objective.StepBudget - static_cast<int32>(CurrentStep)) * 10;
     }
-    // Constellation Lock rewards precision: each wrong lock (a wasted probe) costs points.
+    // Constellation Lock grades difficulty AND precision, so the rank means something:
+    // the Octave rule is harder to infer than Exact, and a flawless (no wasted probe)
+    // solve is worth a bonus; every wrong lock costs points.
     if (bConstellationMode)
     {
+        if (ActiveRelation == ECorrespondenceRelation::OctaveInvariant)
+        {
+            Score += 2000; // inferring the octave rule is the hard case
+        }
+        if (SessionState == EManifoldSessionState::Won && FailedProbes == 0)
+        {
+            Score += 1500; // flawless read of the constellation
+        }
         Score -= FailedProbes * 250;
     }
     return FMath::Max(0, Score);
