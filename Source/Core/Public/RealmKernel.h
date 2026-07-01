@@ -43,7 +43,7 @@ class MANIFOLDCORE_API IRealmKernel
     GENERATED_BODY()
 
 public:
-    virtual ~IRealmKernel() = default;
+    // Note: no explicit virtual destructor — GENERATED_BODY() provides it for UInterface I-classes.
 
     // =====================================================================
     // IDENTITY & METADATA

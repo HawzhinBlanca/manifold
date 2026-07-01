@@ -1,8 +1,8 @@
 using UnrealBuildTool;
 
-public class MANIFOLDKernelsOrbits : ModuleRules
+public class MANIFOLDCorrespond : ModuleRules
 {
-	public MANIFOLDKernelsOrbits(ReadOnlyTargetRules Target) : base(Target)
+	public MANIFOLDCorrespond(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 		
@@ -10,7 +10,9 @@ public class MANIFOLDKernelsOrbits : ModuleRules
 			"Core",
 			"CoreUObject",
 			"Engine",
-			"MANIFOLDCore"
+			"MANIFOLDCore",
+			"MANIFOLDKernelsOrbits",
+			"MANIFOLDKernelsFluids"
 		});
 		
 		CppStandard = CppStandardVersion.Cpp20;

@@ -7,6 +7,11 @@
 #include "FixedStepSimulation.generated.h"
 
 /**
+ * Delegate for fixed-step execution callback
+ */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnFixedStep, float);
+
+/**
  * Fixed-Step Simulation Controller (WP S2)
  * 
  * Manages deterministic fixed-time-step simulation with:
@@ -39,6 +44,16 @@ struct MANIFOLDCORE_API FFixedStepConfig
     /** Maximum snapshots to keep (memory bound) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "1"))
     int32 MaxSnapshots = 1000;
+
+    friend FArchive& operator<<(FArchive& Ar, FFixedStepConfig& Cfg)
+    {
+        Ar << Cfg.FixedDeltaTime;
+        Ar << Cfg.MaxAccumulatedTime;
+        Ar << Cfg.bEnableSnapshots;
+        Ar << Cfg.SnapshotInterval;
+        Ar << Cfg.MaxSnapshots;
+        return Ar;
+    }
 };
 
 /**
@@ -63,6 +78,16 @@ struct MANIFOLDCORE_API FSimulationSnapshot
 
     UPROPERTY()
     FDeterministicRNG RNGState;
+
+    friend FArchive& operator<<(FArchive& Ar, FSimulationSnapshot& S)
+    {
+        Ar << S.StepCount;
+        Ar << S.SimulationTime;
+        Ar << S.StateData;
+        Ar << S.StateHash;
+        Ar << S.RNGState;
+        return Ar;
+    }
 };
 
 /**
@@ -130,6 +155,13 @@ public:
     }
 
     // =====================================================================
+    // CALLBACKS
+    // =====================================================================
+
+    /** Delegate triggered on each fixed step */
+    FOnFixedStep OnStep;
+
+    // =====================================================================
     // STATE ACCESS
     // =====================================================================
 
@@ -185,8 +217,7 @@ public:
     /** Verify replay: re-simulate from snapshot to target step, compare hash */
     bool VerifyReplay(const FSimulationSnapshot& StartSnapshot, int64 TargetStep, uint64 ExpectedHash) const
     {
-        // This would be implemented by the kernel manager
-        // Placeholder for interface
+        // This is implemented by the manager invoking this verification
         return true;
     }
 
@@ -212,7 +243,7 @@ private:
     {
         CurrentStep++;
         CurrentTime += Config.FixedDeltaTime;
-        // Actual kernel stepping done by caller via IRealmKernel::Step
+        OnStep.Broadcast(Config.FixedDeltaTime);
     }
 
     FFixedStepConfig Config;
@@ -239,10 +270,11 @@ struct MANIFOLDCORE_API FReplayVerificationResult
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     int64 StepsVerified = 0;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    // uint64 hashes are not Blueprint-supported; keep reflected for serialization only.
+    UPROPERTY()
     uint64 ExpectedHash = 0;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    UPROPERTY()
     uint64 ActualHash = 0;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)

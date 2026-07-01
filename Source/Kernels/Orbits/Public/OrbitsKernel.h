@@ -20,7 +20,10 @@ struct MANIFOLDKERNELSORBITS_API FOrbitsBodyDef
 {
     GENERATED_BODY()
 
-    /** Unique body ID
+    /** Unique body ID */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FGuid Id;
+
     /** Display name */
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FName Name;
@@ -50,6 +53,19 @@ struct MANIFOLDKERNELSORBITS_API FOrbitsBodyDef
     bool bIsCentral = false;
 
     FOrbitsBodyDef() = default;
+
+    friend FArchive& operator<<(FArchive& Ar, FOrbitsBodyDef& B)
+    {
+        Ar << B.Id;
+        Ar << B.Name;
+        Ar << B.Mass;
+        Ar << B.Position;
+        Ar << B.Velocity;
+        Ar << B.Radius;
+        Ar << B.Color;
+        Ar << B.bIsCentral;
+        return Ar;
+    }
 };
 
 /**
@@ -99,6 +115,19 @@ struct MANIFOLDKERNELSORBITS_API FOrbitalElements
 
     /** Check if orbit is circular */
     bool IsCircular(double Tolerance = 1e-6) const { return Eccentricity < Tolerance; }
+
+    friend FArchive& operator<<(FArchive& Ar, FOrbitalElements& E)
+    {
+        Ar << E.SemiMajorAxis;
+        Ar << E.Eccentricity;
+        Ar << E.Inclination;
+        Ar << E.LongitudeOfAscendingNode;
+        Ar << E.ArgumentOfPeriapsis;
+        Ar << E.TrueAnomaly;
+        Ar << E.Period;
+        Ar << E.MeanMotion;
+        return Ar;
+    }
 };
 
 /**
@@ -134,6 +163,17 @@ struct MANIFOLDKERNELSORBITS_API FResonanceMatch
     double Strength = 0.0;
 
     FResonanceMatch() = default;
+
+    friend FArchive& operator<<(FArchive& Ar, FResonanceMatch& R)
+    {
+        Ar << R.BodyA;
+        Ar << R.BodyB;
+        Ar << R.Ratio;
+        Ar << R.ActualRatio;
+        Ar << R.Deviation;
+        Ar << R.Strength;
+        return Ar;
+    }
 };
 
 /**
@@ -160,6 +200,23 @@ struct MANIFOLDKERNELSORBITS_API FOrbitsState : public FRealmState
     double SystemTotalAngularMomentum = 0.0;
 
     FOrbitsState() : FRealmState(TEXT("Orbits"), 1, 0) {}
+
+    friend FArchive& operator<<(FArchive& Ar, FOrbitsState& StateObj)
+    {
+        Ar << StateObj.RealmId;
+        Ar << StateObj.SimulationVersion;
+        Ar << StateObj.Seed;
+        Ar << StateObj.SimulationTime;
+        Ar << StateObj.StepCount;
+        Ar << StateObj.StateHash;
+        Ar << StateObj.BinaryData;
+        Ar << StateObj.Bodies;
+        Ar << StateObj.CurrentElements;
+        Ar << StateObj.ActiveResonances;
+        Ar << StateObj.SystemTotalEnergy;
+        Ar << StateObj.SystemTotalAngularMomentum;
+        return Ar;
+    }
 };
 
 /**
@@ -168,7 +225,7 @@ struct MANIFOLDKERNELSORBITS_API FOrbitsState : public FRealmState
  * Implements IRealmKernel for the Orbits realm.
  * Supports: central star + planets/moons, n-body perturbations, resonance queries.
  */
-UCLASS(Abstract, BlueprintType, meta = (ImplementedByInterface = "IRealmKernel"))
+UCLASS(BlueprintType, meta = (ImplementedByInterface = "IRealmKernel"))
 class MANIFOLDKERNELSORBITS_API UOrbitsKernel : public UObject, public IRealmKernel
 {
     GENERATED_BODY()
@@ -226,7 +283,7 @@ public:
     bool GetOrbitalElements(FGuid BodyId, FOrbitalElements& OutElements) const;
 
     /** Get all active resonances */
-    const TArray<FResonanceMatch>& GetActiveResonances() const { return State->ActiveResonances; }
+    const TArray<FResonanceMatch>& GetActiveResonances() const;
 
     /** Detect resonances between all body pairs */
     void DetectResonances(double MaxDeviation = 0.01, int32 MaxRatio = 10);
@@ -255,12 +312,12 @@ protected:
     // INTERNAL STATE
     // =====================================================================
 
-    TSharedPtr<FOrbitsState> State;
+    TSharedPtr<FOrbitsState> OrbitState;
     double SimTime = 0.0;
     int64 StepCount = 0;
     FDeterministicRNG RNG;
 
-    // Integration
+    // Integration arrays synced with OrbitState->Bodies
     TArray<FVector> Positions;
     TArray<FVector> Velocities;
     TArray<FVector> Accelerations;
@@ -272,8 +329,12 @@ protected:
     // =====================================================================
 
     void ComputeAccelerations();
-    void IntegrateLeapfrog(float DeltaTime);
-    void IntegrateVelocityVerlet(float DeltaTime);
+    void IntegrateVelocityVerlet(double DeltaTime);
     void UpdateOrbitalElements(int32 BodyIndex);
     double ComputeResonanceStrength(const FOrbitalElements& A, const FOrbitalElements& B, int32 p, int32 q) const;
+
+    /** Recompute elements, resonances, and system totals (energy/angular momentum/hash).
+     *  Called after every Step AND right after bodies are added, so the initial
+     *  SystemTotalEnergy baseline is valid before the first Step. */
+    void UpdateDerivedState();
 };

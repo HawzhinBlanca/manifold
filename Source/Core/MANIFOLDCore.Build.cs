@@ -23,7 +23,7 @@ public class MANIFOLDCore : ModuleRules
         // Determinism: disable optimizations that could affect floating-point reproducibility
         if (Target.Configuration != UnrealTargetConfiguration.Shipping)
         {
-            bUseUnityBuild = false;  // More predictable incremental builds
+            bUseUnity = false;  // More predictable incremental builds
         }
 
         // C++20 for std::format, concepts, etc.

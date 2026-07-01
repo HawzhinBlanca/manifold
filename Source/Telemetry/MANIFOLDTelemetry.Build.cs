@@ -1,8 +1,8 @@
 using UnrealBuildTool;
 
-public class MANIFOLDKernelsOrbits : ModuleRules
+public class MANIFOLDTelemetry : ModuleRules
 {
-	public MANIFOLDKernelsOrbits(ReadOnlyTargetRules Target) : base(Target)
+	public MANIFOLDTelemetry(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 		
