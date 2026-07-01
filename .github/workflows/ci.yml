@@ -29,18 +29,19 @@ jobs:
         with:
           lfs: true
 
-      - name: Build MANIFOLDEditor
+      # Single source of truth: run_tests.ps1 builds the editor target with UE's
+      # bundled toolchain, runs every MANIFOLD.* automation test, exports a report,
+      # and gates on the PARSED pass/fail counts (not just the process exit code).
+      - name: Build + automation gate (headless)
         shell: pwsh
         run: |
-          & "$env:UE_ROOT\Engine\Build\BatchFiles\Build.bat" `
-            MANIFOLDEditor Win64 Development `
-            -Project="$($PWD.Path)\MANIFOLD.uproject" -WaitMutex -FromMsBuild
+          .\Tools\CI\run_tests.ps1 -UE5Path "$env:UE_ROOT"
+          if ($LASTEXITCODE -ne 0) { throw "MANIFOLD CI gate failed (exit $LASTEXITCODE)" }
 
-      - name: Run automation tests (nullrhi, unattended)
-        shell: pwsh
-        run: |
-          & "$env:UE_ROOT\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" `
-            "$($PWD.Path)\MANIFOLD.uproject" `
-            -ExecCmds="Automation RunTests MANIFOLD; Quit" `
-            -unattended -nullrhi -nosplash -nopause -stdout -NoLogTimes -TestExit="Automation Test Queue Empty"
-          if ($LASTEXITCODE -ne 0) { throw "Automation tests failed (exit $LASTEXITCODE)" }
+      - name: Upload automation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: automation-report
+          path: Tools/CI/test-results/
+          if-no-files-found: ignore
