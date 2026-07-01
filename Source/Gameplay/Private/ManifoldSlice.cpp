@@ -19,6 +19,20 @@ void UManifoldSlice::Setup(uint64 OrbitsSeed, uint64 FluidsSeed)
     SavedOrbitsSeed = OrbitsSeed;
     SavedFluidsSeed = FluidsSeed;
 
+    // Reset all session accumulators so reusing a slice instance (e.g. RecordReplay
+    // then RunReplay on the same object) starts clean instead of accumulating.
+    IgnitedCount = 0;
+    TransportCount = 0;
+    SharedDiscoveries = 0;
+    CurrentStep = 0;
+    CurrentTime = 0.0f;
+    bCorrespondenceAvailable = false;
+    PendingVortexId = FGuid();
+    SessionState = EManifoldSessionState::InProgress;
+    TransportStepLog.Reset();
+    AudioCues.Reset();
+    LastAudioCue = FManifoldAudioCue();
+
     Orbits = NewObject<UOrbitsKernel>(this);
     Fluids = NewObject<UFluidsKernel>(this);
     Harmonics = NewObject<UHarmonicsKernel>(this);
@@ -479,6 +493,19 @@ FString UManifoldSlice::GetHarmonicsRatio() const
     if (Harmonics)
     {
         const TArray<FHarmonicRatioMatch>& Ratios = Harmonics->GetActiveRatios();
+        if (Ratios.Num() > 0)
+        {
+            return FString::Printf(TEXT("%d:%d"), Ratios[0].Ratio.X, Ratios[0].Ratio.Y);
+        }
+    }
+    return TEXT("-");
+}
+
+FString UManifoldSlice::GetWavesRatio() const
+{
+    if (Waves)
+    {
+        const TArray<FWaveRatioMatch>& Ratios = Waves->GetActiveRatios();
         if (Ratios.Num() > 0)
         {
             return FString::Printf(TEXT("%d:%d"), Ratios[0].Ratio.X, Ratios[0].Ratio.Y);

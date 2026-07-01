@@ -20,6 +20,7 @@ void UTelemetrySystem::BeginDestroy()
 
 void UTelemetrySystem::InitializeTelemetry(const FString& InLogFileName)
 {
+    ShutdownTelemetry(); // close any handle from a prior init (no leak on re-init)
     LoggedEvents.Empty();
 
     FString Dir = FPaths::ProjectLogDir();

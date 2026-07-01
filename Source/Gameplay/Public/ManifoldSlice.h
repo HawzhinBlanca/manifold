@@ -164,6 +164,7 @@ public:
     UFUNCTION(BlueprintPure, Category = "MANIFOLD") bool HasVortex() const;
     UFUNCTION(BlueprintPure, Category = "MANIFOLD") FString GetOrbitsRatio() const;
     UFUNCTION(BlueprintPure, Category = "MANIFOLD") FString GetHarmonicsRatio() const;
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD") FString GetWavesRatio() const;
     UFUNCTION(BlueprintPure, Category = "MANIFOLD") FString GetRhythmRatio() const;
     UFUNCTION(BlueprintPure, Category = "MANIFOLD") FString GetGearsRatio() const;
 

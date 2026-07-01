@@ -68,7 +68,7 @@ void AManifoldHUD::DrawHUD()
     const float PanelX = 32.0f;
     const float PanelY = 28.0f;
     const float PanelW = 560.0f;
-    const float PanelH = 384.0f;
+    const float PanelH = 412.0f;
     DrawPanel(PanelX, PanelY, PanelW, PanelH, PanelBg);
 
     if (Emblem)
@@ -96,6 +96,8 @@ void AManifoldHUD::DrawHUD()
     Line(FString::Printf(TEXT("Fluids     |  vortex %s"), S->HasVortex() ? TEXT("present") : TEXT("-")),
         S->HasVortex() ? Cyan : Dim);
     Line(FString::Printf(TEXT("Harmonics  |  ratio %s"), *S->GetHarmonicsRatio()), Violet);
+    Line(FString::Printf(TEXT("Waves      |  harmonic %s"), *S->GetWavesRatio()),
+        FLinearColor(0.3f, 0.9f, 0.8f));
     Line(FString::Printf(TEXT("Rhythm     |  polyrhythm %s"), *S->GetRhythmRatio()), Amber);
     Line(FString::Printf(TEXT("Gears      |  gear ratio %s"), *S->GetGearsRatio()),
         FLinearColor(0.7f, 0.75f, 0.8f));

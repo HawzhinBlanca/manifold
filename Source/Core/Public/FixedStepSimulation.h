@@ -207,7 +207,9 @@ public:
     void CaptureSnapshot(const TArray<uint8>& KernelStates = TArray<uint8>())
     {
         if (!Config.bEnableSnapshots) return;
-        if (CurrentStep % Config.SnapshotInterval != 0) return;
+        // An explicit CaptureSnapshot() always captures at the current step (there is
+        // no per-step auto-capture loop, so gating on SnapshotInterval here would just
+        // silently drop off-interval requests).
 
         FSimulationSnapshot Snapshot;
         Snapshot.StepCount = CurrentStep;

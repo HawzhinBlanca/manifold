@@ -188,30 +188,40 @@ bool UOrbitsKernel::Query(const FRealmQuery& QueryObj, FRealmQueryResult& Result
 {
     if (QueryObj.QueryType == TEXT("OrbitalResonance"))
     {
-        // Return strongest resonance inside bounds
-        double MinStr = QueryObj.MinStrength;
-        
+        // Return the STRONGEST qualifying resonance inside bounds (matching the
+        // strongest-match semantics of every other realm's query).
+        const double MinStr = QueryObj.MinStrength;
+        const FResonanceMatch* Best = nullptr;
+        const FOrbitsBodyDef* BestBodyA = nullptr;
+
         for (const FResonanceMatch& Res : OrbitState->ActiveResonances)
         {
-            if (Res.Strength >= MinStr)
-            {
-                const FOrbitsBodyDef* BodyA = GetBody(Res.BodyA);
-                if (BodyA && QueryObj.SearchBounds.IsValid && !QueryObj.SearchBounds.IsInside(BodyA->Position))
-                {
-                    continue;
-                }
+            if (Res.Strength < MinStr) continue;
 
-                Result.StructureId = Res.Id; // stable across frames (see DetectResonances)
-                Result.StructureType = QueryObj.QueryType;
-                Result.Position = BodyA ? BodyA->Position : FVector::ZeroVector;
-                Result.Rotation = FQuat::Identity;
-                Result.Strength = static_cast<float>(Res.Strength);
-                Result.Parameters.Add(TEXT("Ratio"), FString::Printf(TEXT("%d:%d"), Res.Ratio.X, Res.Ratio.Y));
-                Result.Parameters.Add(TEXT("Deviation"), FString::Printf(TEXT("%f"), Res.Deviation));
-                Result.Parameters.Add(TEXT("BodyA"), Res.BodyA.ToString());
-                Result.Parameters.Add(TEXT("BodyB"), Res.BodyB.ToString());
-                return true;
+            const FOrbitsBodyDef* BodyA = GetBody(Res.BodyA);
+            if (BodyA && QueryObj.SearchBounds.IsValid && !QueryObj.SearchBounds.IsInside(BodyA->Position))
+            {
+                continue;
             }
+            if (!Best || Res.Strength > Best->Strength)
+            {
+                Best = &Res;
+                BestBodyA = BodyA;
+            }
+        }
+
+        if (Best)
+        {
+            Result.StructureId = Best->Id; // stable across frames (see DetectResonances)
+            Result.StructureType = QueryObj.QueryType;
+            Result.Position = BestBodyA ? BestBodyA->Position : FVector::ZeroVector;
+            Result.Rotation = FQuat::Identity;
+            Result.Strength = static_cast<float>(Best->Strength);
+            Result.Parameters.Add(TEXT("Ratio"), FString::Printf(TEXT("%d:%d"), Best->Ratio.X, Best->Ratio.Y));
+            Result.Parameters.Add(TEXT("Deviation"), FString::Printf(TEXT("%f"), Best->Deviation));
+            Result.Parameters.Add(TEXT("BodyA"), Best->BodyA.ToString());
+            Result.Parameters.Add(TEXT("BodyB"), Best->BodyB.ToString());
+            return true;
         }
     }
     return false;
@@ -273,25 +283,28 @@ bool UOrbitsKernel::GetParameter(FName Name, FString& OutValue) const
 
 bool UOrbitsKernel::VerifyDeterminism(int32 NumSteps) const
 {
-    UOrbitsKernel* VerifySim = NewObject<UOrbitsKernel>();
-    VerifySim->Initialize(OrbitState->Seed);
+    // Two fresh sims from the same seed + bodies, advanced identically, must produce
+    // bitwise-identical state. Comparing against `this` would be wrong: `this` may be
+    // at a different step count than the freshly-advanced sim (the same fix the Fluids
+    // and Waves kernels already use).
+    UOrbitsKernel* SimA = NewObject<UOrbitsKernel>();
+    UOrbitsKernel* SimB = NewObject<UOrbitsKernel>();
+    SimA->Initialize(OrbitState->Seed);
+    SimB->Initialize(OrbitState->Seed);
 
-    // Add identical bodies
     for (const FOrbitsBodyDef& Body : OrbitState->Bodies)
     {
-        VerifySim->AddBody(Body);
+        SimA->AddBody(Body);
+        SimB->AddBody(Body);
     }
 
-    // Tick both for NumSteps
     for (int32 i = 0; i < NumSteps; ++i)
     {
-        VerifySim->Step(0.016666f);
+        SimA->Step(0.016666f);
+        SimB->Step(0.016666f);
     }
 
-    uint64 HashA = ComputeStateHash();
-    uint64 HashB = VerifySim->ComputeStateHash();
-
-    return HashA == HashB;
+    return SimA->ComputeStateHash() == SimB->ComputeStateHash();
 }
 
 FGuid UOrbitsKernel::AddBody(const FOrbitsBodyDef& Def)

@@ -3,6 +3,32 @@
 #include "Misc/AutomationTest.h"
 #include "OrbitsKernel.h"
 
+// Realm template step 1 (Build Plan §9): the kernel is deterministic — the same seed
+// + bodies advanced identically must produce bitwise-identical state. (Orbits was the
+// only kernel without this test, which hid a VerifyDeterminism bug.)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FOrbitsDeterminismTest, "MANIFOLD.Kernels.Orbits.Deterministic", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FOrbitsDeterminismTest::RunTest(const FString& Parameters)
+{
+    UOrbitsKernel* Kernel = NewObject<UOrbitsKernel>();
+    Kernel->Initialize(777ULL);
+
+    FOrbitsBodyDef Star;
+    Star.Mass = 1.989e30;
+    Star.bIsCentral = true;
+    Kernel->AddBody(Star);
+
+    FOrbitsBodyDef Planet;
+    Planet.Mass = 1e24;
+    Planet.Position = FVector(1.496e11, 0.0, 0.0);
+    const double V = FMath::Sqrt((Kernel->G * Star.Mass) / Planet.Position.X);
+    Planet.Velocity = FVector(0.0, V, 0.0);
+    Kernel->AddBody(Planet);
+
+    UTEST_TRUE("Orbits determinism", Kernel->VerifyDeterminism(100));
+    return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FOrbitsStableOrbitsTest, "MANIFOLD.Kernels.Orbits.StableOrbits", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 
 bool FOrbitsStableOrbitsTest::RunTest(const FString& Parameters)

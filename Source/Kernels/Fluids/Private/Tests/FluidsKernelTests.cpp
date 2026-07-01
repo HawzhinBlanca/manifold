@@ -3,6 +3,37 @@
 #include "Misc/AutomationTest.h"
 #include "FluidsKernel.h"
 
+// The detected vortex's StructureId must be DETERMINISTIC across identical runs (it was
+// FGuid::NewGuid(), violating the stable-id contract the other realms uphold). Two
+// same-seed fluids with the same perturbation must return the same vortex id.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFluidsStableVortexIdTest, "MANIFOLD.Kernels.Fluids.StableVortexId", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FFluidsStableVortexIdTest::RunTest(const FString& Parameters)
+{
+    auto BuildVortex = [](UFluidsKernel* K)
+    {
+        K->Initialize(2222ULL);
+        K->AddVelocity(0.5f, 0.45f, 20.0f, 0.0f);
+        K->AddVelocity(0.55f, 0.5f, 0.0f, 20.0f);
+        K->AddVelocity(0.5f, 0.55f, -20.0f, 0.0f);
+        K->AddVelocity(0.45f, 0.5f, 0.0f, -20.0f);
+        for (int32 i = 0; i < 10; ++i) { K->Step(0.016f); }
+    };
+
+    UFluidsKernel* A = NewObject<UFluidsKernel>(); BuildVortex(A);
+    UFluidsKernel* B = NewObject<UFluidsKernel>(); BuildVortex(B);
+
+    FRealmQuery Q(TEXT("VortexCenter"));
+    FRealmQueryResult RA, RB;
+    const bool bOkA = A->Query(Q, RA);
+    const bool bOkB = B->Query(Q, RB);
+    UTEST_TRUE("Both same-seed fluids detect a vortex", bOkA && bOkB);
+    UTEST_TRUE("Vortex id is valid", RA.StructureId.IsValid());
+    UTEST_EQUAL("Same-seed vortex has the same stable id", RA.StructureId, RB.StructureId);
+
+    return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFluidsDeterministicFlowTest, "MANIFOLD.Kernels.Fluids.DeterministicFlow", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 
 bool FFluidsDeterministicFlowTest::RunTest(const FString& Parameters)

@@ -140,9 +140,11 @@ void UCorrespondenceSystem::InitializeMapping(UCorrespondenceMapping* MappingAss
 
 void UCorrespondenceSystem::EnsureDefaultMapping()
 {
-    if (Mapping && Mapping->Specs.Num() > 0)
+    if (Mapping)
     {
-        return; // an explicit (e.g. JSON-authored) mapping is already in place
+        // An explicit mapping was installed (even a deliberately EMPTY one, meaning
+        // "no correspondences") — respect it rather than overriding with the default.
+        return;
     }
 
     // No content supplied: build the canonical default as real spec DATA so the
