@@ -113,3 +113,35 @@ bool FMultiRealmCorrespondenceTest::RunTest(const FString& Parameters)
 
     return true;
 }
+
+// The playable-session logic behind the interactive shell: tick the slice over
+// time, the correspondence lights up (but does NOT auto-transport), then the
+// PLAYER'S verb carries it across the seam. This is the loop a human will feel.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FInteractiveSessionTest, "MANIFOLD.Play.InteractiveSession", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FInteractiveSessionTest::RunTest(const FString& Parameters)
+{
+    UManifoldSlice* Slice = NewObject<UManifoldSlice>();
+    Slice->bAutoTransportOnIgnite = false; // interactive: player triggers transport
+    Slice->Setup(1111ULL, 2222ULL);
+
+    for (int32 i = 0; i < 30; ++i)
+    {
+        Slice->Tick();
+    }
+
+    UTEST_TRUE("Resonance detected", Slice->HasResonance());
+    UTEST_TRUE("Vortex detected", Slice->HasVortex());
+    UTEST_EQUAL("Orbits shows 3:2", Slice->GetOrbitsRatio(), FString(TEXT("3:2")));
+    UTEST_GREATER("Correspondence lit at least once", Slice->GetCorrespondencesIgnited(), 0);
+    UTEST_GREATER("Insight Rate positive", Slice->GetInsightRate(), 0.0f);
+    UTEST_TRUE("Correspondence available to the player", Slice->IsCorrespondenceAvailable());
+    UTEST_EQUAL("No auto-transport in interactive mode", Slice->GetTransportsCompleted(), 0);
+
+    // The player's verb.
+    UTEST_TRUE("Player transport succeeds when a correspondence is lit", Slice->PlayerRequestTransport());
+    UTEST_GREATER("Transport recorded", Slice->GetTransportsCompleted(), 0);
+    UTEST_FALSE("Nothing left to transport immediately after", Slice->PlayerRequestTransport());
+
+    return true;
+}

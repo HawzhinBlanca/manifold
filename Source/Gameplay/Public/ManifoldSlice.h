@@ -60,6 +60,31 @@ public:
     /** Advance both realms for N steps, detecting/igniting/transporting each step. */
     FManifoldSliceResult RunPlaythrough(int32 Steps);
 
+    /** Advance the session by one simulation step (interactive / per-frame use). */
+    void Tick();
+
+    /**
+     * Player verb: transport the currently-lit correspondence across the seam.
+     * Returns true if a correspondence was available and transported.
+     */
+    UFUNCTION(BlueprintCallable, Category = "MANIFOLD")
+    bool PlayerRequestTransport();
+
+    /** When true (default), a detected correspondence auto-transports (headless/CI).
+     *  Interactive play sets this false so the player triggers transport. */
+    UPROPERTY(BlueprintReadWrite, Category = "MANIFOLD")
+    bool bAutoTransportOnIgnite = true;
+
+    // --- Live state (for HUD / gameplay) ---
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD") float GetInsightRate() const;
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD") int32 GetCorrespondencesIgnited() const { return IgnitedCount; }
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD") int32 GetTransportsCompleted() const { return TransportCount; }
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD") bool IsCorrespondenceAvailable() const { return bCorrespondenceAvailable; }
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD") bool HasResonance() const;
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD") bool HasVortex() const;
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD") FString GetOrbitsRatio() const;
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD") int64 GetStepCount() const { return CurrentStep; }
+
     UPROPERTY()
     UOrbitsKernel* Orbits = nullptr;
 
@@ -78,6 +103,11 @@ private:
     int64 CurrentStep = 0;
     float CurrentTime = 0.0f;
 
+    // A lit-but-not-yet-transported correspondence the player can act on.
+    bool bCorrespondenceAvailable = false;
+    FGuid PendingVortexId;
+
     void HandleIgnited(FGuid SourceStructure, FGuid TargetStructure, float Scale);
     void HandleTransport(FGuid Source, FName TargetRealm, FGuid TargetId, float Strength);
+    void DoTransportPendingVortex();
 };

@@ -71,13 +71,38 @@ void UManifoldSlice::HandleIgnited(FGuid /*SourceStructure*/, FGuid /*TargetStru
     Params.Add(TEXT("Scale"), FString::SanitizeFloat(Scale));
     Telemetry->LogEvent(TEXT("CorrespondenceIgnited"), CurrentStep, CurrentTime, Params);
 
-    // The "aha" is the gameplay: transport the fluid vortex's structure into Orbits
-    // as a new orbital body (cross-domain power transfer).
+    // The seam lights up: remember the vortex so it can be transported into Orbits.
     const TArray<FFluidVortex>& Vortices = Fluids->GetActiveVortices();
     if (Vortices.Num() > 0)
     {
-        Correspond->Transport(Vortices[0].Id, TEXT("Orbits"));
+        PendingVortexId = Vortices[0].Id;
+        bCorrespondenceAvailable = true;
+
+        // Headless / CI: fire immediately. Interactive play waits for the player.
+        if (bAutoTransportOnIgnite)
+        {
+            DoTransportPendingVortex();
+        }
     }
+}
+
+void UManifoldSlice::DoTransportPendingVortex()
+{
+    if (bCorrespondenceAvailable && PendingVortexId.IsValid())
+    {
+        Correspond->Transport(PendingVortexId, TEXT("Orbits"));
+        bCorrespondenceAvailable = false;
+    }
+}
+
+bool UManifoldSlice::PlayerRequestTransport()
+{
+    if (!bCorrespondenceAvailable)
+    {
+        return false;
+    }
+    DoTransportPendingVortex();
+    return true;
 }
 
 void UManifoldSlice::HandleTransport(FGuid /*Source*/, FName TargetRealm, FGuid /*TargetId*/, float /*Strength*/)
@@ -89,26 +114,61 @@ void UManifoldSlice::HandleTransport(FGuid /*Source*/, FName TargetRealm, FGuid 
     Telemetry->LogEvent(TEXT("Transport"), CurrentStep, CurrentTime, Params);
 }
 
+void UManifoldSlice::Tick()
+{
+    if (!Orbits || !Fluids || !Correspond) return;
+
+    ++CurrentStep;
+    Orbits->Step(0.1f);
+    Fluids->Step(0.016f);
+    CurrentTime = Fluids->GetSimulationTime();
+
+    // Look across the seam every step; ignition fires the reactions above.
+    Correspond->DetectCorrespondence();
+}
+
 FManifoldSliceResult UManifoldSlice::RunPlaythrough(int32 Steps)
 {
     for (int32 i = 0; i < Steps; ++i)
     {
-        ++CurrentStep;
-        Orbits->Step(0.1f);
-        Fluids->Step(0.016f);
-        CurrentTime = Fluids->GetSimulationTime();
-
-        // Look across the seam every step; ignition fires the reactions above.
-        Correspond->DetectCorrespondence();
+        Tick();
     }
 
     FManifoldSliceResult Result;
-    Result.bResonanceDetected = Orbits->GetActiveResonances().Num() > 0;
-    Result.bVortexDetected = Fluids->GetActiveVortices().Num() > 0;
+    Result.bResonanceDetected = HasResonance();
+    Result.bVortexDetected = HasVortex();
     Result.CorrespondencesIgnited = IgnitedCount;
     Result.TransportsCompleted = TransportCount;
-    Result.InsightRate = Telemetry->CalculateInsightRate();
+    Result.InsightRate = GetInsightRate();
 
     Telemetry->ShutdownTelemetry();
     return Result;
+}
+
+float UManifoldSlice::GetInsightRate() const
+{
+    return Telemetry ? Telemetry->CalculateInsightRate() : 0.0f;
+}
+
+bool UManifoldSlice::HasResonance() const
+{
+    return Orbits && Orbits->GetActiveResonances().Num() > 0;
+}
+
+bool UManifoldSlice::HasVortex() const
+{
+    return Fluids && Fluids->GetActiveVortices().Num() > 0;
+}
+
+FString UManifoldSlice::GetOrbitsRatio() const
+{
+    if (Orbits)
+    {
+        const TArray<FResonanceMatch>& Res = Orbits->GetActiveResonances();
+        if (Res.Num() > 0)
+        {
+            return FString::Printf(TEXT("%d:%d"), Res[0].Ratio.X, Res[0].Ratio.Y);
+        }
+    }
+    return TEXT("-");
 }
