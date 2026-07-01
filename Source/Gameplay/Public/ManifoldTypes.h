@@ -66,6 +66,40 @@ struct MANIFOLDGAMEPLAY_API FManifoldSessionSummary
 
     UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
     int64 Steps = 0;
+
+    /** Session score: discoveries + transports + insight, with a speed bonus on a win. */
+    UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
+    int32 Score = 0;
+};
+
+/**
+ * Persistent player profile — sessions played/won and the best score achieved. Saved
+ * to a versioned .manifoldprofile file so "beat your best" survives across runs.
+ */
+USTRUCT(BlueprintType)
+struct MANIFOLDGAMEPLAY_API FManifoldProfile
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
+    int32 BestScore = 0;
+
+    UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
+    int32 SessionsPlayed = 0;
+
+    UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
+    int32 SessionsWon = 0;
+
+    static constexpr uint32 Magic = 0x4D414E50; // 'MANP'
+    static constexpr uint32 Version = 1;
+
+    friend FArchive& operator<<(FArchive& Ar, FManifoldProfile& P)
+    {
+        Ar << P.BestScore;
+        Ar << P.SessionsPlayed;
+        Ar << P.SessionsWon;
+        return Ar;
+    }
 };
 
 /**

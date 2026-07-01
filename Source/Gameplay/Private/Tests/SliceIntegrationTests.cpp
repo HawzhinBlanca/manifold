@@ -343,6 +343,63 @@ bool FProceduralVariationTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// Scoring: a played session yields a positive score that reflects what the player
+// surfaced, and the summary carries it.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FScoringTest, "MANIFOLD.Play.Scoring", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FScoringTest::RunTest(const FString& Parameters)
+{
+    UManifoldSlice* S = NewObject<UManifoldSlice>();
+    S->Setup(1111ULL, 2222ULL);
+    S->RunPlaythrough(30);
+
+    const int32 Score = S->GetScore();
+    const FManifoldSessionSummary Sum = S->GetSessionSummary();
+    UTEST_GREATER("Score is positive after a session", Score, 0);
+    UTEST_EQUAL("Summary carries the score", Sum.Score, Score);
+    UTEST_GREATER_EQUAL("Score reflects discoveries", Score, Sum.Discoveries * 100);
+
+    return true;
+}
+
+// Persistent profile: sessions fold into a profile (counts + best score), and the
+// profile round-trips through a versioned save file.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProfileRoundTripTest, "MANIFOLD.Play.ProfileRoundTrip", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FProfileRoundTripTest::RunTest(const FString& Parameters)
+{
+    FManifoldProfile P;
+    UTEST_EQUAL("Fresh profile best is zero", P.BestScore, 0);
+
+    FManifoldSessionSummary Won;
+    Won.State = EManifoldSessionState::Won;
+    Won.Score = 500;
+    UManifoldSlice::RecordSessionInProfile(P, Won);
+    UTEST_EQUAL("Played incremented", P.SessionsPlayed, 1);
+    UTEST_EQUAL("Won incremented", P.SessionsWon, 1);
+    UTEST_EQUAL("Best updated", P.BestScore, 500);
+
+    FManifoldSessionSummary Lost;
+    Lost.State = EManifoldSessionState::Lost;
+    Lost.Score = 300; // lower — must not lower the best
+    UManifoldSlice::RecordSessionInProfile(P, Lost);
+    UTEST_EQUAL("Played incremented again", P.SessionsPlayed, 2);
+    UTEST_EQUAL("Won not incremented on a loss", P.SessionsWon, 1);
+    UTEST_EQUAL("Best stays at the higher score", P.BestScore, 500);
+
+    const FString Path = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Test.manifoldprofile"));
+    UTEST_TRUE("Profile saved", UManifoldSlice::SaveProfile(P, Path));
+
+    FManifoldProfile Loaded;
+    UTEST_TRUE("Profile loaded", UManifoldSlice::LoadProfile(Loaded, Path));
+    UTEST_EQUAL("Loaded best", Loaded.BestScore, 500);
+    UTEST_EQUAL("Loaded played", Loaded.SessionsPlayed, 2);
+    UTEST_EQUAL("Loaded won", Loaded.SessionsWon, 1);
+
+    FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*Path);
+    return true;
+}
+
 // Decoy realm (the moat): a red-herring realm exhibits a DIFFERENT ratio, and the
 // correspondence engine must refuse to pair it with the true realms. This proves the
 // game can't be trivially solved by "everything matches" — the player must actually

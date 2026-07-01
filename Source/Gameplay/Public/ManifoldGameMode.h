@@ -49,8 +49,18 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MANIFOLD")
     FManifoldObjective Objective;
 
+    /** Persistent player profile (best score, sessions played/won), loaded on start. */
+    UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
+    FManifoldProfile Profile;
+
 protected:
     float Accumulator = 0.0f;
+
+    /** True once the current (resolved) session has been folded into the profile. */
+    bool bSessionRecorded = false;
+
+    /** Where the player profile is persisted. */
+    FString ProfilePath() const;
 
     /** Real-time procedural synth that plays the slice's audio cues (audible audio). */
     UPROPERTY()

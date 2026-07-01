@@ -264,7 +264,64 @@ FManifoldSessionSummary UManifoldSlice::GetSessionSummary() const
     Summary.Transports = TransportCount;
     Summary.InsightRate = GetInsightRate();
     Summary.Steps = CurrentStep;
+    Summary.Score = GetScore();
     return Summary;
+}
+
+int32 UManifoldSlice::GetScore() const
+{
+    // Reward what the player actually surfaced and carried across, weighted by how
+    // efficiently insight accrued, with a speed bonus for winning under budget.
+    int32 Score = GetTotalDiscoveries() * 100 + TransportCount * 50;
+    Score += FMath::RoundToInt(GetInsightRate() * 1000.0f);
+    if (SessionState == EManifoldSessionState::Won && Objective.StepBudget > 0)
+    {
+        Score += FMath::Max(0, Objective.StepBudget - static_cast<int32>(CurrentStep)) * 2;
+    }
+    return FMath::Max(0, Score);
+}
+
+void UManifoldSlice::RecordSessionInProfile(FManifoldProfile& Profile, const FManifoldSessionSummary& Summary)
+{
+    ++Profile.SessionsPlayed;
+    if (Summary.State == EManifoldSessionState::Won)
+    {
+        ++Profile.SessionsWon;
+    }
+    Profile.BestScore = FMath::Max(Profile.BestScore, Summary.Score);
+}
+
+bool UManifoldSlice::SaveProfile(const FManifoldProfile& Profile, const FString& Path)
+{
+    TArray<uint8> Bytes;
+    FMemoryWriter Writer(Bytes, /*bIsPersistent*/ true);
+    uint32 Magic = FManifoldProfile::Magic;
+    uint32 Version = FManifoldProfile::Version;
+    Writer << Magic;
+    Writer << Version;
+    FManifoldProfile Mutable = Profile; // operator<< is non-const
+    Writer << Mutable;
+    return FFileHelper::SaveArrayToFile(Bytes, *Path);
+}
+
+bool UManifoldSlice::LoadProfile(FManifoldProfile& OutProfile, const FString& Path)
+{
+    TArray<uint8> Bytes;
+    if (!FFileHelper::LoadFileToArray(Bytes, *Path))
+    {
+        return false;
+    }
+    FMemoryReader Reader(Bytes, /*bIsPersistent*/ true);
+    uint32 Magic = 0;
+    uint32 Version = 0;
+    Reader << Magic;
+    Reader << Version;
+    if (Magic != FManifoldProfile::Magic || Version != FManifoldProfile::Version)
+    {
+        return false;
+    }
+    Reader << OutProfile;
+    return !Reader.IsError();
 }
 
 void UManifoldSlice::Tick()

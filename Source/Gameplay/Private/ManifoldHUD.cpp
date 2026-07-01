@@ -44,7 +44,7 @@ void AManifoldHUD::DrawHUD()
     const float PanelX = 32.0f;
     const float PanelY = 28.0f;
     const float PanelW = 560.0f;
-    const float PanelH = 322.0f;
+    const float PanelH = 356.0f;
     DrawPanel(PanelX, PanelY, PanelW, PanelH, PanelBg);
 
     if (Emblem)
@@ -92,6 +92,8 @@ void AManifoldHUD::DrawHUD()
         Line(FString::Printf(TEXT("Objective %d/%d    Audio: %s +%d st"),
             Sum.Discoveries, GM->Objective.TargetDiscoveries, Intent, Cue.IntervalSemitones), Dim);
     }
+    Line(FString::Printf(TEXT("Score %d    Best %d    (won %d/%d)"),
+        Sum.Score, GM->Profile.BestScore, GM->Profile.SessionsWon, GM->Profile.SessionsPlayed), Gold);
 
     // --- Lit-correspondence prompt + controls ---
     if (S->IsCorrespondenceAvailable())
@@ -122,7 +124,7 @@ void AManifoldHUD::DrawHUD()
         {
             DrawText(Title, TitleCol, CX - 190.0f, CY + 44.0f, Big, 1.25f);
         }
-        DrawText(FString::Printf(TEXT("%d discoveries    Insight Rate %.3f    [R] play again"),
-            Sum.Discoveries, Sum.InsightRate), Dim, CX - 190.0f, CY + 72.0f, Font);
+        DrawText(FString::Printf(TEXT("Score %d  (best %d)    %d discoveries    [R] play again"),
+            Sum.Score, GM->Profile.BestScore, Sum.Discoveries), Dim, CX - 230.0f, CY + 72.0f, Font);
     }
 }

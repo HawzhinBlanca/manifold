@@ -99,6 +99,17 @@ public:
     UFUNCTION(BlueprintPure, Category = "MANIFOLD")
     FManifoldSessionSummary GetSessionSummary() const;
 
+    /** Session score: discoveries + transports + insight, plus a speed bonus on a win. */
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD")
+    int32 GetScore() const;
+
+    /** Persist / restore the player profile (best score, sessions played/won). */
+    static bool SaveProfile(const FManifoldProfile& Profile, const FString& Path);
+    static bool LoadProfile(FManifoldProfile& OutProfile, const FString& Path);
+
+    /** Fold a finished session into a profile (updates counts + best score). */
+    static void RecordSessionInProfile(FManifoldProfile& Profile, const FManifoldSessionSummary& Summary);
+
     // --- Replay (deterministic record / reproduce / persist) ---
 
     /** Play a fresh session with these seeds/steps and return a recording of it. */

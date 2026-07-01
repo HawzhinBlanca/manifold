@@ -9,6 +9,7 @@
 #include "GameFramework/DefaultPawn.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "Misc/Paths.h"
 
 AManifoldGameMode::AManifoldGameMode()
 {
@@ -26,9 +27,17 @@ AManifoldGameMode::AManifoldGameMode()
     Objective.StepBudget = 0;
 }
 
+FString AManifoldGameMode::ProfilePath() const
+{
+    return FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Manifold.manifoldprofile"));
+}
+
 void AManifoldGameMode::BeginPlay()
 {
     Super::BeginPlay();
+
+    // Restore the player's profile (best score, sessions) if one exists.
+    UManifoldSlice::LoadProfile(Profile, ProfilePath());
 
     // Real-time procedural synth: no sound asset needed, tones are generated in code.
     Synth = NewObject<UManifoldSynthComponent>(this, TEXT("ManifoldSynth"));
@@ -47,6 +56,7 @@ void AManifoldGameMode::StartSession()
     Slice->Setup(1111ULL, 2222ULL);
     Accumulator = 0.0f;
     LastPlayedCue = 0;
+    bSessionRecorded = false;
 
     // Spawn the debug-draw view of both realms + the resonance/seam ribbons (once).
     if (UWorld* World = GetWorld())
@@ -80,6 +90,14 @@ void AManifoldGameMode::Tick(float DeltaSeconds)
 
     // Voice any cues the slice emitted this frame (discovery chimes, transport resolves).
     PlayNewAudioCues();
+
+    // When the session resolves, fold it into the persistent profile exactly once.
+    if (!bSessionRecorded && Slice->GetSessionState() != EManifoldSessionState::InProgress)
+    {
+        UManifoldSlice::RecordSessionInProfile(Profile, Slice->GetSessionSummary());
+        UManifoldSlice::SaveProfile(Profile, ProfilePath());
+        bSessionRecorded = true;
+    }
 }
 
 void AManifoldGameMode::PlayNewAudioCues()
