@@ -6,6 +6,7 @@
 #include "HarmonicsKernel.h"
 #include "WavesKernel.h"
 #include "RhythmKernel.h"
+#include "GearsKernel.h"
 #include "CorrespondenceSystem.h"
 #include "TelemetrySystem.h"
 #include "Misc/Paths.h"
@@ -23,6 +24,7 @@ void UManifoldSlice::Setup(uint64 OrbitsSeed, uint64 FluidsSeed)
     Harmonics = NewObject<UHarmonicsKernel>(this);
     Waves = NewObject<UWavesKernel>(this);
     Rhythm = NewObject<URhythmKernel>(this);
+    Gears = NewObject<UGearsKernel>(this);
     Decoy = NewObject<UHarmonicsKernel>(this);
     Correspond = NewObject<UCorrespondenceSystem>(this);
     Telemetry = NewObject<UTelemetrySystem>(this);
@@ -33,6 +35,7 @@ void UManifoldSlice::Setup(uint64 OrbitsSeed, uint64 FluidsSeed)
     Harmonics->Initialize(OrbitsSeed ^ 0xABCDEF);
     Waves->Initialize(OrbitsSeed ^ 0x123456);
     Rhythm->Initialize(OrbitsSeed ^ 0x789ABC);
+    Gears->Initialize(OrbitsSeed ^ 0x2468AC);
     Decoy->Initialize(OrbitsSeed ^ 0xFEDCBA);
     Correspond->RegisterKernels(Orbits, Fluids);
 
@@ -44,6 +47,7 @@ void UManifoldSlice::Setup(uint64 OrbitsSeed, uint64 FluidsSeed)
     Correspond->RegisterRealm(TEXT("Harmonics"), TEXT("HarmonicRatio"), Harmonics);
     Correspond->RegisterRealm(TEXT("Waves"), TEXT("WaveHarmonic"), Waves);
     Correspond->RegisterRealm(TEXT("Rhythm"), TEXT("RhythmRatio"), Rhythm);
+    Correspond->RegisterRealm(TEXT("Gears"), TEXT("GearRatio"), Gears);
     Correspond->RegisterRealm(TEXT("Decoy"), TEXT("HarmonicRatio"), Decoy);
 
     Telemetry->InitializeTelemetry(TEXT("SlicePlaythrough.log"));
@@ -123,6 +127,11 @@ void UManifoldSlice::Setup(uint64 OrbitsSeed, uint64 FluidsSeed)
     Rhythm->AddVoice(static_cast<double>(SharedP));
     Rhythm->AddVoice(static_cast<double>(SharedQ));
 
+    // --- Gears: two meshed gears with P and Q teeth — the same P:Q, exactly, in the
+    //     domain of MECHANISM ---
+    Gears->AddGear(SharedP);
+    Gears->AddGear(SharedQ);
+
     // --- Decoy: a harmonic ratio that deliberately does NOT match the hidden one.
     //     The correspondence engine must refuse to pair it with the true realms. ---
     Decoy->AddMode(static_cast<double>(DecoyQ), 1.0);
@@ -138,8 +147,9 @@ FManifoldExpeditionResult UManifoldSlice::RunExpedition(int64 BaseSeed, int32 Nu
     {
         UManifoldSlice* Slice = NewObject<UManifoldSlice>(Package);
 
-        // Escalating difficulty: each level demands more discoveries. Eventually the
-        // target exceeds what a single session can surface, and the expedition ends.
+        // Escalating difficulty: each level demands more discoveries. A single session
+        // can surface at most 11 (1 seam + C(5,2)=10 cross-domain analogies), so the
+        // target eventually exceeds what's discoverable and the expedition ends.
         FManifoldObjective Obj;
         Obj.TargetDiscoveries = 2 + Level * 2;
         Obj.StepBudget = 0;
@@ -402,6 +412,7 @@ void UManifoldSlice::Tick()
     if (Harmonics) { Harmonics->Step(0.016f); }
     if (Waves) { Waves->Step(0.001f); }
     if (Rhythm) { Rhythm->Step(0.016f); }
+    if (Gears) { Gears->Step(0.016f); }
     if (Decoy) { Decoy->Step(0.016f); }
     CurrentTime = Fluids->GetSimulationTime();
 
@@ -481,6 +492,19 @@ FString UManifoldSlice::GetRhythmRatio() const
     if (Rhythm)
     {
         const TArray<FRhythmRatioMatch>& Ratios = Rhythm->GetActiveRatios();
+        if (Ratios.Num() > 0)
+        {
+            return FString::Printf(TEXT("%d:%d"), Ratios[0].Ratio.X, Ratios[0].Ratio.Y);
+        }
+    }
+    return TEXT("-");
+}
+
+FString UManifoldSlice::GetGearsRatio() const
+{
+    if (Gears)
+    {
+        const TArray<FGearRatioMatch>& Ratios = Gears->GetActiveRatios();
         if (Ratios.Num() > 0)
         {
             return FString::Printf(TEXT("%d:%d"), Ratios[0].Ratio.X, Ratios[0].Ratio.Y);

@@ -44,7 +44,7 @@ void AManifoldHUD::DrawHUD()
     const float PanelX = 32.0f;
     const float PanelY = 28.0f;
     const float PanelW = 560.0f;
-    const float PanelH = 356.0f;
+    const float PanelH = 384.0f;
     DrawPanel(PanelX, PanelY, PanelW, PanelH, PanelBg);
 
     if (Emblem)
@@ -73,6 +73,8 @@ void AManifoldHUD::DrawHUD()
         S->HasVortex() ? Cyan : Dim);
     Line(FString::Printf(TEXT("Harmonics  |  ratio %s"), *S->GetHarmonicsRatio()), Violet);
     Line(FString::Printf(TEXT("Rhythm     |  polyrhythm %s"), *S->GetRhythmRatio()), Amber);
+    Line(FString::Printf(TEXT("Gears      |  gear ratio %s"), *S->GetGearsRatio()),
+        FLinearColor(0.7f, 0.75f, 0.8f));
     Line(FString::Printf(TEXT("Decoy      |  ratio %s   (red herring - rule it out)"), *S->GetDecoyRatio()),
         FLinearColor(0.5f, 0.5f, 0.55f));
     Line(FString::Printf(TEXT("Analogies found: %d   (the hidden ratio, across domains)"),

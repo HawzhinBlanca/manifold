@@ -13,6 +13,7 @@ class UFluidsKernel;
 class UHarmonicsKernel;
 class UWavesKernel;
 class URhythmKernel;
+class UGearsKernel;
 class UCorrespondenceSystem;
 class UTelemetrySystem;
 class UManifoldAudioDirector;
@@ -164,6 +165,7 @@ public:
     UFUNCTION(BlueprintPure, Category = "MANIFOLD") FString GetOrbitsRatio() const;
     UFUNCTION(BlueprintPure, Category = "MANIFOLD") FString GetHarmonicsRatio() const;
     UFUNCTION(BlueprintPure, Category = "MANIFOLD") FString GetRhythmRatio() const;
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD") FString GetGearsRatio() const;
 
     /** The decoy realm's ratio — a RED HERRING that deliberately does NOT match the
      *  hidden ratio, so the player must actually discriminate the true correspondence. */
@@ -201,6 +203,9 @@ public:
 
     UPROPERTY()
     URhythmKernel* Rhythm = nullptr;
+
+    UPROPERTY()
+    UGearsKernel* Gears = nullptr;
 
     /** A decoy ratio realm (red herring) that does NOT share the hidden ratio. */
     UPROPERTY()

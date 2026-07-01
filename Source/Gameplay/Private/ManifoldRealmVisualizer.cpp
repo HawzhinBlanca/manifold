@@ -8,6 +8,7 @@
 #include "HarmonicsKernel.h"
 #include "WavesKernel.h"
 #include "RhythmKernel.h"
+#include "GearsKernel.h"
 #include "Components/StaticMeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/StaticMesh.h"
@@ -22,6 +23,7 @@ namespace
     const FLinearColor HarmonicsViolet(0.75f, 0.45f, 1.0f);
     const FLinearColor WavesTeal(0.3f, 0.9f, 0.8f);
     const FLinearColor RhythmAmber(1.0f, 0.6f, 0.35f);
+    const FLinearColor GearsSteel(0.7f, 0.75f, 0.82f);
     const FLinearColor DecoyGrey(0.5f, 0.5f, 0.55f);
     const FLinearColor SeamGold(1.0f, 0.8f, 0.2f);
     constexpr double AstronomicalUnit = 1.496e11; // metres
@@ -181,6 +183,11 @@ void AManifoldRealmVisualizer::Tick(float DeltaSeconds)
     {
         const FIntPoint R = S->Rhythm->GetActiveRatios()[0].Ratio;
         PlaceRatioRealm(RhythmCenter, R.X, R.Y, RhythmAmber);
+    }
+    if (S->Gears && S->Gears->GetActiveRatios().Num() > 0)
+    {
+        const FIntPoint R = S->Gears->GetActiveRatios()[0].Ratio;
+        PlaceRatioRealm(GearsCenter, R.X, R.Y, GearsSteel);
     }
     // The decoy realm, set apart (above) and grey — a visible red herring.
     if (S->Decoy && S->Decoy->GetActiveRatios().Num() > 0)
