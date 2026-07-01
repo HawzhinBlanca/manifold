@@ -53,6 +53,14 @@ class MANIFOLDCORRESPOND_API UCorrespondenceMapping : public UDataAsset
 public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly)
     TArray<FCorrespondenceSpec> Specs;
+
+    /** Parse a correspondence mapping from JSON text (data-driven content, Build Plan D1).
+     *  Returns nullptr if the JSON is malformed. */
+    static UCorrespondenceMapping* CreateFromJsonString(const FString& JsonText, UObject* Outer = nullptr);
+
+    /** Load a correspondence mapping from a JSON file (e.g. Data/Correspondences/*.json).
+     *  Returns nullptr if the file is missing or malformed. */
+    static UCorrespondenceMapping* CreateFromJsonFile(const FString& FilePath, UObject* Outer = nullptr);
 };
 
 /**

@@ -1,0 +1,13 @@
+{
+  "_comment": "MANIFOLD correspondence content (Build Plan D1). Declares the hidden shared structure between the Orbits and Fluids realms: a 3:2 orbital mean-motion resonance corresponds to a fluid vortex center. Solving one gives the eyes to see the other; transporting across this seam is the gameplay.",
+  "id": "OrbitsFluids.Resonance-Vortex",
+  "specs": [
+    {
+      "sourceStructureType": "OrbitalResonance",
+      "targetStructureType": "VortexCenter",
+      "matchingRatio": "3:2",
+      "tolerance": 0.05,
+      "scaleFactor": 1.0
+    }
+  ]
+}

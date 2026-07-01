@@ -4,6 +4,31 @@
 #include "CorrespondenceSystem.h"
 #include "OrbitsKernel.h"
 #include "FluidsKernel.h"
+#include "Misc/Paths.h"
+
+// Shared scenario: a 3:2 orbital resonance in Orbits and a vortex in Fluids —
+// the canonical Orbits<->Fluids correspondence pair.
+static void Manifold_SetupResonanceAndVortex(UOrbitsKernel* Orbits, UFluidsKernel* Fluids)
+{
+    FOrbitsBodyDef Star; Star.Mass = 1.989e30; Star.bIsCentral = true; Orbits->AddBody(Star);
+
+    FOrbitsBodyDef A; A.Mass = 1e24; A.Position = FVector(1.496e11, 0.0, 0.0);
+    const double vA = FMath::Sqrt((Orbits->G * Star.Mass) / A.Position.X); A.Velocity = FVector(0.0, vA, 0.0);
+    Orbits->AddBody(A);
+
+    const double rB = A.Position.X * FMath::Pow(1.5, 2.0 / 3.0);
+    FOrbitsBodyDef B; B.Mass = 1e24; B.Position = FVector(rB, 0.0, 0.0);
+    const double vB = FMath::Sqrt((Orbits->G * Star.Mass) / rB); B.Velocity = FVector(0.0, vB, 0.0);
+    Orbits->AddBody(B);
+    Orbits->Step(0.1f);
+
+    Fluids->AddVelocity(0.5f, 0.45f, 20.0f, 0.0f);
+    Fluids->AddVelocity(0.55f, 0.5f, 0.0f, 20.0f);
+    Fluids->AddVelocity(0.5f, 0.55f, -20.0f, 0.0f);
+    Fluids->AddVelocity(0.45f, 0.5f, 0.0f, -20.0f);
+    Fluids->Step(0.016f);
+    Fluids->Step(0.016f);
+}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCorrespondenceValidationTest, "MANIFOLD.Correspondence.MappingValidation", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 
@@ -103,6 +128,69 @@ bool FTransportVerificationTest::RunTest(const FString& Parameters)
     const FOrbitsBodyDef* Planet = Orbits->GetBody(TargetId);
     UTEST_TRUE("Planet exists in Orbits after transport", Planet != nullptr);
     UTEST_TRUE("Planet has mapped mass", Planet->Mass > 0.0);
+
+    return true;
+}
+
+// WP D1: the correspondence is authored as data (JSON), not hardcoded. Loading the
+// content file and feeding it to the system must ignite the 3:2<->vortex seam.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCorrespondenceDataDrivenTest, "MANIFOLD.Correspondence.DataDrivenMapping", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FCorrespondenceDataDrivenTest::RunTest(const FString& Parameters)
+{
+    const FString MappingPath = FPaths::Combine(FPaths::ProjectDir(), TEXT("Data/Correspondences/OrbitsFluids.json"));
+    UCorrespondenceMapping* Mapping = UCorrespondenceMapping::CreateFromJsonFile(MappingPath, GetTransientPackage());
+
+    UTEST_TRUE("Correspondence content file loaded", Mapping != nullptr);
+    UTEST_EQUAL("One spec parsed from JSON", Mapping->Specs.Num(), 1);
+    UTEST_EQUAL("Source structure parsed", Mapping->Specs[0].SourceStructureType, FName(TEXT("OrbitalResonance")));
+    UTEST_EQUAL("Target structure parsed", Mapping->Specs[0].TargetStructureType, FName(TEXT("VortexCenter")));
+    UTEST_EQUAL("Matching ratio parsed", Mapping->Specs[0].MatchingRatio, FString(TEXT("3:2")));
+
+    UOrbitsKernel* Orbits = NewObject<UOrbitsKernel>();
+    UFluidsKernel* Fluids = NewObject<UFluidsKernel>();
+    UCorrespondenceSystem* Correspond = NewObject<UCorrespondenceSystem>();
+    Orbits->Initialize(1111ULL);
+    Fluids->Initialize(2222ULL);
+    Correspond->RegisterKernels(Orbits, Fluids);
+    Correspond->InitializeMapping(Mapping);
+    Manifold_SetupResonanceAndVortex(Orbits, Fluids);
+
+    bool bIgnited = false;
+    Correspond->OnCorrespondenceIgnited.AddLambda([&bIgnited](FGuid, FGuid, float) { bIgnited = true; });
+
+    UTEST_TRUE("Data-driven detect succeeds", Correspond->DetectCorrespondence());
+    UTEST_TRUE("Data-driven correspondence ignited", bIgnited);
+
+    return true;
+}
+
+// WP D1 (fairness/negative): a spec whose ratio doesn't match the actual resonance
+// must NOT ignite — the system only fires on the authored structure, and with a
+// mapping present it does not fall back to the built-in rule.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCorrespondenceRejectsInvalidSpecTest, "MANIFOLD.Correspondence.DataDrivenRejectsInvalid", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FCorrespondenceRejectsInvalidSpecTest::RunTest(const FString& Parameters)
+{
+    const FString BadJson = TEXT("{\"specs\":[{\"sourceStructureType\":\"OrbitalResonance\",\"targetStructureType\":\"VortexCenter\",\"matchingRatio\":\"5:4\",\"tolerance\":0.05,\"scaleFactor\":1.0}]}");
+    UCorrespondenceMapping* BadMapping = UCorrespondenceMapping::CreateFromJsonString(BadJson, GetTransientPackage());
+    UTEST_TRUE("Bad mapping parsed", BadMapping != nullptr);
+    UTEST_EQUAL("Bad mapping ratio is 5:4", BadMapping->Specs[0].MatchingRatio, FString(TEXT("5:4")));
+
+    UOrbitsKernel* Orbits = NewObject<UOrbitsKernel>();
+    UFluidsKernel* Fluids = NewObject<UFluidsKernel>();
+    UCorrespondenceSystem* Correspond = NewObject<UCorrespondenceSystem>();
+    Orbits->Initialize(1111ULL);
+    Fluids->Initialize(2222ULL);
+    Correspond->RegisterKernels(Orbits, Fluids);
+    Correspond->InitializeMapping(BadMapping);
+    Manifold_SetupResonanceAndVortex(Orbits, Fluids);
+
+    bool bIgnited = false;
+    Correspond->OnCorrespondenceIgnited.AddLambda([&bIgnited](FGuid, FGuid, float) { bIgnited = true; });
+
+    UTEST_FALSE("Mismatched ratio does not detect", Correspond->DetectCorrespondence());
+    UTEST_FALSE("Mismatched ratio does not ignite", bIgnited);
 
     return true;
 }

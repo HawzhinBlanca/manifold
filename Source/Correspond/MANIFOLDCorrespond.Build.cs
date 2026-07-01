@@ -14,7 +14,12 @@ public class MANIFOLDCorrespond : ModuleRules
 			"MANIFOLDKernelsOrbits",
 			"MANIFOLDKernelsFluids"
 		});
-		
+
+		// JSON parsing for data-driven correspondence content (Build Plan D1).
+		PrivateDependencyModuleNames.AddRange(new string[] {
+			"Json"
+		});
+
 		CppStandard = CppStandardVersion.Cpp20;
 	}
 }

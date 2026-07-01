@@ -3,6 +3,60 @@
 #include "CorrespondenceSystem.h"
 #include "OrbitsKernel.h"
 #include "FluidsKernel.h"
+#include "Serialization/JsonSerializer.h"
+#include "Serialization/JsonReader.h"
+#include "Dom/JsonObject.h"
+#include "Dom/JsonValue.h"
+#include "Misc/FileHelper.h"
+
+UCorrespondenceMapping* UCorrespondenceMapping::CreateFromJsonString(const FString& JsonText, UObject* Outer)
+{
+    TSharedPtr<FJsonObject> Root;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonText);
+    if (!FJsonSerializer::Deserialize(Reader, Root) || !Root.IsValid())
+    {
+        return nullptr;
+    }
+
+    UCorrespondenceMapping* Mapping = NewObject<UCorrespondenceMapping>(Outer ? Outer : GetTransientPackage());
+
+    const TArray<TSharedPtr<FJsonValue>>* SpecArray = nullptr;
+    if (Root->TryGetArrayField(TEXT("specs"), SpecArray) && SpecArray)
+    {
+        for (const TSharedPtr<FJsonValue>& Value : *SpecArray)
+        {
+            const TSharedPtr<FJsonObject>* Obj = nullptr;
+            if (!Value->TryGetObject(Obj) || !Obj) continue;
+
+            FCorrespondenceSpec Spec;
+            Spec.SourceStructureType = FName(*(*Obj)->GetStringField(TEXT("sourceStructureType")));
+            Spec.TargetStructureType = FName(*(*Obj)->GetStringField(TEXT("targetStructureType")));
+            Spec.MatchingRatio = (*Obj)->GetStringField(TEXT("matchingRatio"));
+
+            double Tolerance = 0.05;
+            (*Obj)->TryGetNumberField(TEXT("tolerance"), Tolerance);
+            Spec.Tolerance = static_cast<float>(Tolerance);
+
+            double ScaleFactor = 1.0;
+            (*Obj)->TryGetNumberField(TEXT("scaleFactor"), ScaleFactor);
+            Spec.ScaleFactor = static_cast<float>(ScaleFactor);
+
+            Mapping->Specs.Add(Spec);
+        }
+    }
+
+    return Mapping;
+}
+
+UCorrespondenceMapping* UCorrespondenceMapping::CreateFromJsonFile(const FString& FilePath, UObject* Outer)
+{
+    FString JsonText;
+    if (!FFileHelper::LoadFileToString(JsonText, *FilePath))
+    {
+        return nullptr;
+    }
+    return CreateFromJsonString(JsonText, Outer);
+}
 
 UCorrespondenceSystem::UCorrespondenceSystem()
 {

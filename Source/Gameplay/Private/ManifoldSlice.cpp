@@ -5,6 +5,7 @@
 #include "FluidsKernel.h"
 #include "CorrespondenceSystem.h"
 #include "TelemetrySystem.h"
+#include "Misc/Paths.h"
 
 void UManifoldSlice::Setup(uint64 OrbitsSeed, uint64 FluidsSeed)
 {
@@ -17,6 +18,14 @@ void UManifoldSlice::Setup(uint64 OrbitsSeed, uint64 FluidsSeed)
     Fluids->Initialize(FluidsSeed);
     Correspond->RegisterKernels(Orbits, Fluids);
     Telemetry->InitializeTelemetry(TEXT("SlicePlaythrough.log"));
+
+    // Load the data-driven correspondence content (Build Plan D1). If the content
+    // file is missing, the CorrespondenceSystem falls back to its built-in "3:2" rule.
+    const FString MappingPath = FPaths::Combine(FPaths::ProjectDir(), TEXT("Data/Correspondences/OrbitsFluids.json"));
+    if (UCorrespondenceMapping* Mapping = UCorrespondenceMapping::CreateFromJsonFile(MappingPath, this))
+    {
+        Correspond->InitializeMapping(Mapping);
+    }
 
     // Gameplay reactions: on a detected correspondence, transport power across the
     // seam; record every discovery/transport for the Insight Rate.
