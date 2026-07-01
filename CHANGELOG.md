@@ -6,6 +6,24 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Hardened (no mocks / placeholders)
+An adversarial, codebase-wide incompleteness audit found 16 real stubs/fakes;
+all are now fixed with tests (**37/37 green**):
+- **Deterministic replay is real:** `FFixedStepSimulation::VerifyReplay` was a canned
+  `return true;`. It now folds the RNG stream into a running hash and re-derives it
+  from a snapshot — a wrong hash/step is rejected (test proves divergence is caught).
+- **Stable structure ids:** Harmonics/Waves/Rhythm queries returned `FGuid::NewGuid()`
+  every call; now stable (realm + ratio + version). Shared-structure discovery and
+  Orbits→Fluids transport ids are deterministic (were throwaway GUIDs).
+- **Truly data-driven detection:** removed the hardcoded `"3:2"` branch (a default spec
+  is synthesized as data) and now honors `FCorrespondenceSpec::Tolerance`.
+- **Replay honors the recorded transport schedule** (was ignored).
+- **Audio actually plays:** `UManifoldSynthComponent` (real `USynthComponent`)
+  synthesizes decaying-sine tones from the cues — a discovered 3:2 is an audible
+  perfect fifth. No external sound asset. DSP is unit-tested.
+- **Real geometry:** the realm visualizer now spawns static-mesh objects (five realms)
+  instead of debug-draw lines.
+
 ### Added (game layer)
 - **Objective / win-state:** a session now Wins on reaching a target number of
   discoveries (optionally gated on Insight Rate) or Loses when a step budget runs
@@ -76,7 +94,7 @@ work-package milestones rather than semantic versions until first playable.
   registration. AndroidFileServer plugin disabled (stops dev-token regeneration).
 
 ### Status
-- **35 / 35** automation tests green, headless. Repo is public and professional.
+- **37 / 37** automation tests green, headless. Repo is public and professional.
   Remaining phase (real art/VFX scenes, bound sound assets, bespoke UMG UI, human
   playtest) is human-owned and needs the editor + a display — see
   `Docs/IMPLEMENTATION_STATUS.md`.

@@ -8,7 +8,7 @@ MANIFOLD is a **playable, deterministic, data-driven, N-realm correspondence gam
 with an objective, deterministic replay, a code-level audio layer, key input, and a
 professional public repository + a headless packaging path.
 
-**35 automation tests pass, 0 failures, headless.** The correspondence engine — the
+**37 automation tests pass, 0 failures, headless.** The correspondence engine — the
 product's core per the design bible — is complete and generalized to N realms; a
 playable shell drives it with an on-screen readout (objective + session state), a
 debug-draw view of the realms, key-bound verbs, and audio cues. **Five** realms now
@@ -86,20 +86,35 @@ Close the Unreal Editor first (Live Coding holds a build lock).
   `self-hosted, windows, unreal`) — the one step that must run on your machine
   before CI executes the 25-test gate on every push/PR.
 
-## 5. What still needs a human + art/audio pipeline
+## 5. What is real in code vs. what needs an artist
 
-The engine is decoupled so these plug into the existing kernels/queries/events. The
-routing/decisions for audio and the objective are now coded and tested; what remains
-is the content and the felt polish, which need the editor + a display:
+Everything below the mechanics is now **real, working code** — not mocks or
+placeholders (verified by a codebase-wide incompleteness audit, §7):
+- Deterministic replay actually re-derives and compares hashes (catches divergence).
+- Structure ids are stable; detection is data-driven and honors tolerances.
+- **Audio is synthesized and played** in real time (`UManifoldSynthComponent`) — no
+  external sound asset required.
+- The visualizer spawns **real static-mesh geometry** for all five realms.
 
-- **World / VFX** — real realm scenes and the polished magic layer (Niagara
-  resonance ribbons, biolum, post) replacing the debug-draw placeholder.
-- **Audio assets** — bind actual sounds/MetaSounds to the cues the AudioDirector
-  already emits (`FManifoldAudioCue` gives intent, realm mode, root, and interval).
-- **UI** — a bespoke UMG HUD/menus replacing the on-screen debug text.
-- **Bespoke startup map** — a packaged build currently boots into a minimal engine
-  map (the GameMode runs the whole slice on it); swap in an art-directed `.umap`.
+What remains is genuinely an *art-direction* effort that needs a DCC pipeline + a
+display, and cannot be authored headlessly in code:
+
+- **Art materials / VFX** — Megascans/Nanite scenes, Niagara resonance ribbons,
+  bespoke materials and post, layered on top of the existing real geometry/cues.
+- **Recorded/authored audio** — optional richer instruments/MetaSounds to replace or
+  layer over the procedural tones (the routing + synthesis already work).
+- **Bespoke UMG UI** — an art-directed HUD/menus replacing the on-screen text.
+- **Bespoke startup map** — a packaged build boots a minimal engine map (the GameMode
+  runs the whole slice on it); swap in an art-directed `.umap`.
 - **Playtest with humans** — the numeric gate is coded; a felt playtest is not.
+
+### Incompleteness audit
+
+A multi-agent adversarial audit swept the whole `Source/` tree for stubs, canned
+returns, ephemeral ids, hardcoded fallbacks, "data-driven" code that ignored its
+data, and presentation layers that produced no effect. It found **16** real issues;
+**all are fixed with tests**. See the "Hardened (no mocks / placeholders)" section of
+`CHANGELOG.md` for the itemized list.
 
 ## 6. Known notes
 
