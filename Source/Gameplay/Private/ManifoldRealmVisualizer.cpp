@@ -10,9 +10,12 @@
 #include "RhythmKernel.h"
 #include "GearsKernel.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/DirectionalLightComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/DirectionalLight.h"
 #include "Engine/World.h"
+#include "DeterministicRNG.h"
 #include "UObject/ConstructorHelpers.h"
 
 namespace
@@ -47,6 +50,76 @@ AManifoldRealmVisualizer::AManifoldRealmVisualizer()
     if (MatFinder.Succeeded())
     {
         BaseMaterial = MatFinder.Object;
+    }
+}
+
+void AManifoldRealmVisualizer::BeginPlay()
+{
+    Super::BeginPlay();
+
+    UWorld* World = GetWorld();
+    if (World)
+    {
+        // Key + fill directional lighting so the mesh geometry is clearly visible
+        // regardless of what (if any) lighting the startup map ships with.
+        auto SpawnLight = [&](const FRotator& Rot, float Intensity, const FLinearColor& Col)
+        {
+            ADirectionalLight* Light = World->SpawnActor<ADirectionalLight>(
+                ADirectionalLight::StaticClass(), FVector::ZeroVector, Rot);
+            if (Light)
+            {
+                if (UDirectionalLightComponent* LC = Cast<UDirectionalLightComponent>(Light->GetLightComponent()))
+                {
+                    LC->SetMobility(EComponentMobility::Movable);
+                    LC->SetIntensity(Intensity);
+                    LC->SetLightColor(Col);
+                }
+            }
+        };
+        SpawnLight(FRotator(-45.0f, -30.0f, 0.0f), 4.0f, FLinearColor(1.0f, 0.97f, 0.9f)); // warm key
+        SpawnLight(FRotator(15.0f, 150.0f, 0.0f), 2.0f, FLinearColor(0.55f, 0.68f, 1.0f)); // cool fill
+    }
+
+    SpawnStarfield();
+}
+
+void AManifoldRealmVisualizer::SpawnStarfield()
+{
+    if (!SphereMesh) return;
+
+    // Deterministic backdrop: a fixed-seed shell of star points around the scene.
+    FDeterministicRNG Rng(0x4D414E5354415253ULL); // 'MANSTARS'
+    const FVector Center(0.0, 0.0, 300.0);
+
+    for (int32 i = 0; i < StarCount; ++i)
+    {
+        const FVector Dir = Rng.VRand();
+        const float Radius = Rng.FRandRange(2600.0f, 4200.0f);
+        const float Size = Rng.FRandRange(4.0f, 16.0f);
+        const float Bright = Rng.FRandRange(0.3f, 1.0f);
+
+        // Mostly white; a few pale blue or warm gold for variety.
+        FLinearColor Col(Bright, Bright, Bright);
+        const float Tint = Rng.FRand();
+        if (Tint < 0.18f) { Col = FLinearColor(Bright * 0.6f, Bright * 0.8f, Bright); }
+        else if (Tint > 0.88f) { Col = FLinearColor(Bright, Bright * 0.85f, Bright * 0.5f); }
+
+        UStaticMeshComponent* Star = NewObject<UStaticMeshComponent>(this);
+        Star->SetupAttachment(SceneRoot);
+        Star->RegisterComponent();
+        Star->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        Star->SetStaticMesh(SphereMesh);
+        if (BaseMaterial)
+        {
+            Star->SetMaterial(0, BaseMaterial);
+            if (UMaterialInstanceDynamic* MID = Star->CreateAndSetMaterialInstanceDynamic(0))
+            {
+                MID->SetVectorParameterValue(TEXT("Color"), Col);
+            }
+        }
+        Star->SetWorldLocation(Center + Dir * Radius);
+        Star->SetWorldScale3D(FVector(Size / 100.0f));
+        Stars.Add(Star);
     }
 }
 

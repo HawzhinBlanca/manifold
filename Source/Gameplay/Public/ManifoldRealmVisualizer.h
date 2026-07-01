@@ -32,6 +32,7 @@ class MANIFOLDGAMEPLAY_API AManifoldRealmVisualizer : public AActor
 
 public:
     AManifoldRealmVisualizer();
+    virtual void BeginPlay() override;
     virtual void Tick(float DeltaSeconds) override;
 
     UPROPERTY(EditAnywhere, Category = "MANIFOLD") FVector OrbitsCenter    = FVector(-900.0, 0.0, 250.0);
@@ -53,6 +54,14 @@ protected:
     UPROPERTY() UMaterialInterface* BaseMaterial = nullptr;
     UPROPERTY() USceneComponent* SceneRoot = nullptr;
     UPROPERTY() TArray<UStaticMeshComponent*> Pool;
+
+    /** Persistent procedural starfield (spawned once) — the cosmic backdrop. */
+    UPROPERTY() TArray<UStaticMeshComponent*> Stars;
+
+    /** Number of stars in the backdrop shell. */
+    UPROPERTY(EditAnywhere, Category = "MANIFOLD") int32 StarCount = 320;
+
+    void SpawnStarfield();
 
     int32 Cursor = 0;
 
