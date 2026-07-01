@@ -4,14 +4,16 @@ _Everything marked ✅ is verified by an automation test that passes headless._
 
 ## 1. TL;DR
 
-MANIFOLD is now a **playable, deterministic, data-driven, N-realm correspondence
-game** with a professional, public repository and CI scaffolding.
+MANIFOLD is a **playable, deterministic, data-driven, N-realm correspondence game**
+with an objective, deterministic replay, a code-level audio layer, key input, and a
+professional public repository + a headless packaging path.
 
-**25 automation tests pass, 0 failures, headless.** The correspondence engine —
-the product's core per the design bible — is complete and generalized to N realms;
-a playable shell drives it with an on-screen readout, a debug-draw view of the
-realms, and a player transport verb. Four realms now share a 3:2 across different
-physical domains.
+**35 automation tests pass, 0 failures, headless.** The correspondence engine — the
+product's core per the design bible — is complete and generalized to N realms; a
+playable shell drives it with an on-screen readout (objective + session state), a
+debug-draw view of the realms, key-bound verbs, and audio cues. **Five** realms now
+share a 3:2 across different physical domains (celestial, fluid, acoustic, spatial,
+temporal). A session can be Won or Lost, recorded, and replayed bit-for-bit.
 
 ## 2. What is implemented (✅ = test-verified)
 
@@ -27,11 +29,22 @@ physical domains.
 | ✅ S7 | Lazy realization | `MANIFOLD.LazyRealization.*` |
 | ✅ S8 | Telemetry / Insight-Rate | `MANIFOLD.Telemetry.InsightRateEvents` |
 
-### Realms (production template, §9) — a 3:2 across four domains
+### Realms (production template, §9) — a 3:2 across five domains
 - ✅ **Orbits** (celestial: mean-motion resonance)
 - ✅ **Fluids** (vortex)
 - ✅ **Harmonics** (acoustic: coupled-oscillator frequency ratio)
 - ✅ **Waves** (spatial: string standing-wave harmonics) — `MANIFOLD.Kernels.Waves.*`
+- ✅ **Rhythm** (temporal: three-against-two polyrhythm) — `MANIFOLD.Kernels.Rhythm.*`
+
+### Game layer (objective, replay, audio, input)
+- ✅ **Objective / win-state**: Won on target discoveries, Lost on step-budget
+  exhaustion. `MANIFOLD.Play.ObjectiveWin`, `MANIFOLD.Play.ObjectiveLose`.
+- ✅ **Deterministic replay**: whole-slice determinism + record/reproduce + on-disk
+  round-trip. `MANIFOLD.Play.SliceDeterminism`, `MANIFOLD.Play.ReplayRoundTrip`.
+- ✅ **Audio direction**: ratio→interval mapping, per-realm voices, cue routing.
+  `MANIFOLD.Audio.*`, `MANIFOLD.Play.AudioIntegration`.
+- **Enhanced Input**: `[E]` transport, `[R]` restart (AManifoldPlayerController;
+  compile-verified, needs a display to play).
 
 ### Correspondence engine
 - ✅ **Data-driven** content (D1): `Data/Correspondences/OrbitsFluids.json`.
@@ -56,7 +69,8 @@ the debug-draw visualizer. The `ManifoldTransport` console command fires the ver
 
 **Verify (headless):**
 ```powershell
-Tools\CI\run_tests.ps1      # build + all MANIFOLD automation tests (expect 25 Success, 0 Fail)
+Tools\CI\run_tests.ps1      # build editor target + all MANIFOLD tests (expect 35 Success, 0 Fail)
+Tools\CI\package.ps1        # produce a standalone Windows build under dist\Windows
 ```
 Close the Unreal Editor first (Live Coding holds a build lock).
 
@@ -74,12 +88,17 @@ Close the Unreal Editor first (Live Coding holds a build lock).
 
 ## 5. What still needs a human + art/audio pipeline
 
-The engine is decoupled so these plug into the existing kernels/queries/events:
+The engine is decoupled so these plug into the existing kernels/queries/events. The
+routing/decisions for audio and the objective are now coded and tested; what remains
+is the content and the felt polish, which need the editor + a display:
 
 - **World / VFX** — real realm scenes and the polished magic layer (Niagara
   resonance ribbons, biolum, post) replacing the debug-draw placeholder.
-- **Audio** — realm musical modes + chord-resolve on discovery (M4 Max pipeline).
-- **UI** — a real HUD/menus replacing the debug text.
+- **Audio assets** — bind actual sounds/MetaSounds to the cues the AudioDirector
+  already emits (`FManifoldAudioCue` gives intent, realm mode, root, and interval).
+- **UI** — a bespoke UMG HUD/menus replacing the on-screen debug text.
+- **Bespoke startup map** — a packaged build currently boots into a minimal engine
+  map (the GameMode runs the whole slice on it); swap in an art-directed `.umap`.
 - **Playtest with humans** — the numeric gate is coded; a felt playtest is not.
 
 ## 6. Known notes

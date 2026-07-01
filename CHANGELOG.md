@@ -6,6 +6,35 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Added (game layer)
+- **Objective / win-state:** a session now Wins on reaching a target number of
+  discoveries (optionally gated on Insight Rate) or Loses when a step budget runs
+  out — the goal that turns the endless simulation into a game. `FManifoldObjective`,
+  `EManifoldSessionState`, `FManifoldSessionSummary`.
+- **Deterministic replay:** record a session (seeds + transport schedule + result),
+  re-execute it bit-for-bit, and persist it to a versioned `.manifoldreplay` file —
+  the "un-pre-computable yet perfectly reproducible" pillar as a shareable artifact.
+- **Audio direction (the correspondence you can hear):** `UManifoldAudioDirector`
+  maps the game's integer ratios to consonant intervals (a discovered 3:2 rings as a
+  perfect fifth), gives each realm a stable mode + tonic, and emits a cue per
+  discovery/transport. Asset-free and unit-tested; the pipeline just binds sounds.
+- **Enhanced Input:** `AManifoldPlayerController` builds its InputAction /
+  InputMappingContext in code — `[E]` transports the lit correspondence, `[R]`
+  restarts the session. HUD now shows objective, session state, and the last cue.
+- **Fifth realm — Rhythm** (polyrhythm): three-against-two is a 3:2 in the domain of
+  time. A single 3:2 now spans **five** domains (celestial, fluid, acoustic, spatial,
+  temporal), all through the generic N-realm engine.
+- **Packaging:** `Tools/CI/package.ps1` produces a standalone Windows build
+  (BuildCookRun). The build boots into the GameMode, which runs the whole slice.
+
+### Fixed (CI gate)
+- The test harness silently under-reported: it failed to parse (a reserved `-Verbose`
+  switch), invoked UBT through the wrong `dotnet` and built the game (not editor)
+  target, and filtered to aspirational placeholder test names while omitting the real
+  Integration/Play/Waves/Harmonics tests. It now builds the editor target via UE's
+  bundled toolchain, runs every `MANIFOLD.*` test, and gates on the parsed report.
+  Real suite: **35** tests (was reporting a filtered 25).
+
 ### Added
 - **Systems stream (S1–S8):** deterministic core (PCG RNG, fixed-step, replay),
   Orbits kernel (velocity-Verlet n-body + resonance), Fluids kernel (Stam stable
@@ -47,6 +76,7 @@ work-package milestones rather than semantic versions until first playable.
   registration. AndroidFileServer plugin disabled (stops dev-token regeneration).
 
 ### Status
-- **25 / 25** automation tests green, headless. Repo is public and professional.
-  Remaining phase (World/VFX/Audio polish + real UI) is human-owned — see
+- **35 / 35** automation tests green, headless. Repo is public and professional.
+  Remaining phase (real art/VFX scenes, bound sound assets, bespoke UMG UI, human
+  playtest) is human-owned and needs the editor + a display — see
   `Docs/IMPLEMENTATION_STATUS.md`.
