@@ -888,8 +888,44 @@ FManifoldReplay UManifoldSlice::RecordReplay(int64 OrbitsSeed, int64 FluidsSeed,
     return Replay;
 }
 
+FManifoldReplay UManifoldSlice::RecordConstellationReplay(int64 Seed, int32 InConstellationSize)
+{
+    SetupConstellation(Seed, InConstellationSize);
+    const TArray<int32> Answer = Constellation; // the correct subset (deterministic)
+    PlayerLockConstellation(Answer);
+
+    FManifoldReplay Replay;
+    Replay.Mode = 1;
+    Replay.OrbitsSeed = static_cast<uint64>(Seed);
+    Replay.FluidsSeed = static_cast<uint64>(Seed);
+    Replay.Steps = 0;
+    Replay.ConstellationSize = ConstellationSize;
+    Replay.LockSelection = Answer;
+    Replay.FinalDiscoveries = GetTotalDiscoveries();
+    Replay.FinalTransports = TransportCount;
+    Replay.FinalInsightRate = GetInsightRate();
+    return Replay;
+}
+
 FManifoldSliceResult UManifoldSlice::RunReplay(const FManifoldReplay& Replay)
 {
+    // Constellation replay: rebuild the deterministic puzzle from the seed and re-lock the
+    // recorded subset. SetupConstellation + PlayerLockConstellation reproduce it exactly.
+    if (Replay.Mode == 1)
+    {
+        SetupConstellation(static_cast<int64>(Replay.OrbitsSeed), Replay.ConstellationSize);
+        PlayerLockConstellation(Replay.LockSelection);
+
+        FManifoldSliceResult Result;
+        Result.bResonanceDetected = HasResonance();
+        Result.bVortexDetected = HasVortex();
+        Result.CorrespondencesIgnited = IgnitedCount;
+        Result.TransportsCompleted = TransportCount;
+        Result.InsightRate = GetInsightRate();
+        if (Telemetry) { Telemetry->ShutdownTelemetry(); }
+        return Result;
+    }
+
     // Faithful reproduction that HONORS the recorded transport schedule: the player's
     // verb is re-issued on exactly the recorded steps (not auto-fired), so the run is
     // reproduced the way it was actually played. Determinism guarantees the same seeds

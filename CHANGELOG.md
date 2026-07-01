@@ -37,7 +37,12 @@ cross-domain inference. **56/56 green.**
   wasted probes, objective and a "CONSTELLATION LOCKED" banner with rank. A 96-seed
   realization sweep (`MANIFOLD.Play.ConstellationRealizationSweep`) proves every kernel
   realizes its assigned ratio and no decoy spuriously corresponds across the seed space.
-  A 5-dimension adversarial review returned zero confirmed findings. **57/57 green.**
+  A 5-dimension adversarial review returned zero confirmed findings.
+- **Shareable & reproducible.** A constellation session records as a `.manifoldreplay`
+  (format bumped to v2: mode + constellation size + locked subset) and reproduces
+  bit-for-bit from its seed on a fresh slice — `RecordConstellationReplay` /
+  `RunReplay` (mode-aware). Test: `MANIFOLD.Play.ConstellationReplay` (record → reproduce
+  → save/load → reproduce). **58/58 green.**
 
 ### Hardened (no mocks / placeholders)
 An adversarial, codebase-wide incompleteness audit found 16 real stubs/fakes;
@@ -179,7 +184,7 @@ confirmed finding, with none deferred. E.g.:
   registration. AndroidFileServer plugin disabled (stops dev-token regeneration).
 
 ### Status
-- **51 / 51** automation tests green, headless. Repo is public and professional.
+- **58 / 58** automation tests green, headless. Repo is public and professional.
   Remaining phase (real art/VFX scenes, bound sound assets, bespoke UMG UI, human
   playtest) is human-owned and needs the editor + a display — see
   `Docs/IMPLEMENTATION_STATUS.md`.

@@ -188,9 +188,22 @@ struct MANIFOLDGAMEPLAY_API FManifoldReplay
     UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
     float FinalInsightRate = 0.0f;
 
+    // --- Constellation Lock (Mode == 1) ---
+    // Which mode this replay records: 0 = Classic (transport schedule above), 1 =
+    // Constellation Lock (reproduced from the seed + the locked subset below).
+    UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
+    uint8 Mode = 0;
+
+    UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
+    int32 ConstellationSize = 0;
+
+    /** The subset of realm indices the player locked (constellation mode). */
+    UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
+    TArray<int32> LockSelection;
+
     /** Format tag so old files are rejected rather than silently misread. */
     static constexpr uint32 Magic = 0x4D414E52; // 'MANR'
-    static constexpr uint32 Version = 1;
+    static constexpr uint32 Version = 2;
 
     friend FArchive& operator<<(FArchive& Ar, FManifoldReplay& R)
     {
@@ -201,6 +214,9 @@ struct MANIFOLDGAMEPLAY_API FManifoldReplay
         Ar << R.FinalDiscoveries;
         Ar << R.FinalTransports;
         Ar << R.FinalInsightRate;
+        Ar << R.Mode;
+        Ar << R.ConstellationSize;
+        Ar << R.LockSelection;
         return Ar;
     }
 };

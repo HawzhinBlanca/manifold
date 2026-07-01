@@ -130,9 +130,16 @@ public:
     UFUNCTION(BlueprintCallable, Category = "MANIFOLD")
     FManifoldReplay RecordReplay(int64 OrbitsSeed, int64 FluidsSeed, int32 Steps);
 
-    /** Re-run a recording on a fresh slice; the result must match what was recorded. */
+    /** Re-run a recording on a fresh slice; the result must match what was recorded.
+     *  Handles both Classic (transport schedule) and Constellation (locked subset) modes. */
     UFUNCTION(BlueprintCallable, Category = "MANIFOLD")
     FManifoldSliceResult RunReplay(const FManifoldReplay& Replay);
+
+    /** Record a Constellation-Lock session as a reproducible replay: build the puzzle from
+     *  the seed, lock the correct subset, and capture the seed + subset + result. Re-running
+     *  it via RunReplay reproduces the session exactly (SetupConstellation is deterministic). */
+    UFUNCTION(BlueprintCallable, Category = "MANIFOLD|Constellation")
+    FManifoldReplay RecordConstellationReplay(int64 Seed, int32 ConstellationSize = 3);
 
     /** Capture the CURRENT (interactively-played) session as a shareable replay: its
      *  seeds, the exact steps the player transported, and the result so far. Re-running

@@ -254,6 +254,43 @@ bool FConstellationRealizationSweepTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// A Constellation-Lock session is a reproducible, shareable artifact: recorded from its
+// seed + locked subset, it reproduces bit-for-bit on a fresh slice and survives a
+// save/load round-trip through the versioned .manifoldreplay format.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FConstellationReplayTest, "MANIFOLD.Play.ConstellationReplay", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FConstellationReplayTest::RunTest(const FString& Parameters)
+{
+    UManifoldSlice* Recorder = NewObject<UManifoldSlice>();
+    const FManifoldReplay Replay = Recorder->RecordConstellationReplay(555, 3);
+    UTEST_EQUAL("recorded mode is constellation", static_cast<int32>(Replay.Mode), 1);
+    UTEST_EQUAL("recorded C(3,2)=3 discoveries", Replay.FinalDiscoveries, 3);
+    UTEST_EQUAL("recorded subset has K members", Replay.LockSelection.Num(), 3);
+
+    // Reproduce on a fresh slice — same seed + subset => same win.
+    UManifoldSlice* Player = NewObject<UManifoldSlice>();
+    Player->RunReplay(Replay);
+    UTEST_EQUAL("reproduced discoveries match record", Player->GetTotalDiscoveries(), Replay.FinalDiscoveries);
+    UTEST_EQUAL("reproduced session won",
+        static_cast<int32>(Player->GetSessionState()), static_cast<int32>(EManifoldSessionState::Won));
+
+    // Persist + reload through the versioned file format.
+    const FString Path = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("TestConstellation.manifoldreplay"));
+    UTEST_TRUE("save replay", UManifoldSlice::SaveReplay(Replay, Path));
+    FManifoldReplay Loaded;
+    UTEST_TRUE("load replay", UManifoldSlice::LoadReplay(Loaded, Path));
+    UTEST_EQUAL("loaded mode is constellation", static_cast<int32>(Loaded.Mode), 1);
+    UTEST_TRUE("loaded subset matches", Loaded.LockSelection == Replay.LockSelection);
+
+    UManifoldSlice* Player2 = NewObject<UManifoldSlice>();
+    Player2->RunReplay(Loaded);
+    UTEST_EQUAL("loaded replay reproduces the win",
+        static_cast<int32>(Player2->GetSessionState()), static_cast<int32>(EManifoldSessionState::Won));
+
+    FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*Path);
+    return true;
+}
+
 // Control build (Build Plan D3): with NO correspondence content the loop must NOT
 // manufacture insight — the moat is that unsolved seams stay unsolved. Here we run
 // only the Fluids realm (no resonance to correspond with), so nothing ignites.
