@@ -103,6 +103,14 @@ public:
     UFUNCTION(BlueprintPure, Category = "MANIFOLD")
     int32 GetScore() const;
 
+    /** Performance grade for the current score (S is best). */
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD")
+    EManifoldRank GetRank() const { return RankForScore(GetScore()); }
+
+    /** Map a score to a rank tier. */
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD")
+    static EManifoldRank RankForScore(int32 Score);
+
     /** Persist / restore the player profile (best score, sessions played/won). */
     static bool SaveProfile(const FManifoldProfile& Profile, const FString& Path);
     static bool LoadProfile(FManifoldProfile& OutProfile, const FString& Path);

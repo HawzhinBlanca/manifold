@@ -122,7 +122,17 @@ void AManifoldHUD::DrawHUD()
         const FLinearColor TitleCol = bWon ? Gold : FLinearColor(1.0f, 0.35f, 0.35f);
         if (Big)
         {
-            DrawText(Title, TitleCol, CX - 190.0f, CY + 44.0f, Big, 1.25f);
+            DrawText(Title, TitleCol, CX - 230.0f, CY + 44.0f, Big, 1.25f);
+        }
+        // Big rank grade.
+        const TCHAR* RankLetter =
+            Sum.Rank == EManifoldRank::S ? TEXT("S") :
+            Sum.Rank == EManifoldRank::A ? TEXT("A") :
+            Sum.Rank == EManifoldRank::B ? TEXT("B") :
+            Sum.Rank == EManifoldRank::C ? TEXT("C") : TEXT("D");
+        if (Big)
+        {
+            DrawText(FString::Printf(TEXT("RANK %s"), RankLetter), Gold, CX + 150.0f, CY + 40.0f, Big, 1.8f);
         }
         DrawText(FString::Printf(TEXT("Score %d  (best %d)    %d discoveries    [R] play again"),
             Sum.Score, GM->Profile.BestScore, Sum.Discoveries), Dim, CX - 230.0f, CY + 72.0f, Font);

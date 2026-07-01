@@ -415,7 +415,32 @@ bool FScoringTest::RunTest(const FString& Parameters)
     const FManifoldSessionSummary Sum = S->GetSessionSummary();
     UTEST_GREATER("Score is positive after a session", Score, 0);
     UTEST_EQUAL("Summary carries the score", Sum.Score, Score);
-    UTEST_GREATER_EQUAL("Score reflects discoveries", Score, Sum.Discoveries * 100);
+    UTEST_GREATER_EQUAL("Score reflects discoveries (1000 each)", Score, Sum.Discoveries * 1000);
+
+    return true;
+}
+
+// Rank tiers: the score maps to a grade (D..S), the summary carries it, and a full
+// session earns a real grade.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRankTest, "MANIFOLD.Play.Rank", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FRankTest::RunTest(const FString& Parameters)
+{
+    UTEST_EQUAL("D below 3000", (int32)UManifoldSlice::RankForScore(0), (int32)EManifoldRank::D);
+    UTEST_EQUAL("C at 3000", (int32)UManifoldSlice::RankForScore(3000), (int32)EManifoldRank::C);
+    UTEST_EQUAL("B at 5000", (int32)UManifoldSlice::RankForScore(5000), (int32)EManifoldRank::B);
+    UTEST_EQUAL("A at 7000", (int32)UManifoldSlice::RankForScore(7000), (int32)EManifoldRank::A);
+    UTEST_EQUAL("S at 9000", (int32)UManifoldSlice::RankForScore(9000), (int32)EManifoldRank::S);
+    UTEST_TRUE("Rank is monotonic in score",
+        (int32)UManifoldSlice::RankForScore(10000) >= (int32)UManifoldSlice::RankForScore(2000));
+
+    UManifoldSlice* S = NewObject<UManifoldSlice>();
+    S->Setup(1111ULL, 2222ULL);
+    S->RunPlaythrough(30);
+    const FManifoldSessionSummary Sum = S->GetSessionSummary();
+    UTEST_TRUE("A full session earns at least a C", (int32)Sum.Rank >= (int32)EManifoldRank::C);
+    UTEST_EQUAL("Summary rank matches the score mapping",
+        (int32)Sum.Rank, (int32)UManifoldSlice::RankForScore(Sum.Score));
 
     return true;
 }

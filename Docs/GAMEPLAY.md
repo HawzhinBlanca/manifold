@@ -55,11 +55,13 @@ sharing a run or a replay).
 Your score rewards what you surfaced and how efficiently:
 
 ```
-score = discoveries × 100 + transports × 50 + round(InsightRate × 1000) + speed bonus
+score = discoveries × 1000 + transports × 250 + round(InsightRate × 100) + speed bonus
 ```
 
-The **speed bonus** applies when you win under a step budget. Your **best score** and
-sessions played/won persist between runs in a `.manifoldprofile` file — beat your best.
+The **speed bonus** applies when you win under a step budget. Each session is graded
+**D → C → B → A → S** (at 3000 / 5000 / 7000 / 9000 points); a full clean run earns an
+**A** or **S**. Your **best score** and sessions played/won persist between runs in a
+`.manifoldprofile` file — beat your best.
 
 ## Expedition
 

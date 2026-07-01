@@ -44,6 +44,19 @@ struct MANIFOLDGAMEPLAY_API FManifoldObjective
 };
 
 /**
+ * Performance grade for a session, derived from its score (S is best).
+ */
+UENUM(BlueprintType)
+enum class EManifoldRank : uint8
+{
+    D,
+    C,
+    B,
+    A,
+    S
+};
+
+/**
  * The end-of-session readout — the numbers a player (and the QA gate) sees when a
  * session resolves.
  */
@@ -70,6 +83,10 @@ struct MANIFOLDGAMEPLAY_API FManifoldSessionSummary
     /** Session score: discoveries + transports + insight, with a speed bonus on a win. */
     UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
     int32 Score = 0;
+
+    /** Performance grade derived from the score (S is best). */
+    UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
+    EManifoldRank Rank = EManifoldRank::D;
 };
 
 /**

@@ -300,20 +300,31 @@ FManifoldSessionSummary UManifoldSlice::GetSessionSummary() const
     Summary.InsightRate = GetInsightRate();
     Summary.Steps = CurrentStep;
     Summary.Score = GetScore();
+    Summary.Rank = RankForScore(Summary.Score);
     return Summary;
 }
 
 int32 UManifoldSlice::GetScore() const
 {
-    // Reward what the player actually surfaced and carried across, weighted by how
-    // efficiently insight accrued, with a speed bonus for winning under budget.
-    int32 Score = GetTotalDiscoveries() * 100 + TransportCount * 50;
-    Score += FMath::RoundToInt(GetInsightRate() * 1000.0f);
+    // Discoveries dominate (each is worth 1000), then transports; insight is a modest
+    // efficiency bonus (rate, not the raw ~x1000 term that used to swamp everything);
+    // plus a speed bonus for winning well under budget.
+    int32 Score = GetTotalDiscoveries() * 1000 + TransportCount * 250;
+    Score += FMath::RoundToInt(GetInsightRate() * 100.0f);
     if (SessionState == EManifoldSessionState::Won && Objective.StepBudget > 0)
     {
-        Score += FMath::Max(0, Objective.StepBudget - static_cast<int32>(CurrentStep)) * 2;
+        Score += FMath::Max(0, Objective.StepBudget - static_cast<int32>(CurrentStep)) * 10;
     }
     return FMath::Max(0, Score);
+}
+
+EManifoldRank UManifoldSlice::RankForScore(int32 Score)
+{
+    if (Score >= 9000) return EManifoldRank::S;
+    if (Score >= 7000) return EManifoldRank::A;
+    if (Score >= 5000) return EManifoldRank::B;
+    if (Score >= 3000) return EManifoldRank::C;
+    return EManifoldRank::D;
 }
 
 void UManifoldSlice::RecordSessionInProfile(FManifoldProfile& Profile, const FManifoldSessionSummary& Summary)
