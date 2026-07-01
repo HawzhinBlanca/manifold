@@ -4,6 +4,7 @@
 #include "OrbitsKernel.h"
 #include "FluidsKernel.h"
 #include "HarmonicsKernel.h"
+#include "WavesKernel.h"
 #include "CorrespondenceSystem.h"
 #include "TelemetrySystem.h"
 #include "Misc/Paths.h"
@@ -13,18 +14,22 @@ void UManifoldSlice::Setup(uint64 OrbitsSeed, uint64 FluidsSeed)
     Orbits = NewObject<UOrbitsKernel>(this);
     Fluids = NewObject<UFluidsKernel>(this);
     Harmonics = NewObject<UHarmonicsKernel>(this);
+    Waves = NewObject<UWavesKernel>(this);
     Correspond = NewObject<UCorrespondenceSystem>(this);
     Telemetry = NewObject<UTelemetrySystem>(this);
 
     Orbits->Initialize(OrbitsSeed);
     Fluids->Initialize(FluidsSeed);
     Harmonics->Initialize(OrbitsSeed ^ 0xABCDEF);
+    Waves->Initialize(OrbitsSeed ^ 0x123456);
     Correspond->RegisterKernels(Orbits, Fluids);
 
-    // Generic N-realm engine: any two realms exposing the same ratio correspond.
-    // (Orbits 3:2 <-> Harmonics 3:2 is the second, cross-domain "aha".)
+    // Generic N-realm engine: any realms exposing the same ratio correspond.
+    // A 3:2 shows up across THREE domains — celestial, acoustic, spatial — the
+    // cross-domain analogy that is the heart of MANIFOLD.
     Correspond->RegisterRealm(TEXT("Orbits"), TEXT("OrbitalResonance"), Orbits);
     Correspond->RegisterRealm(TEXT("Harmonics"), TEXT("HarmonicRatio"), Harmonics);
+    Correspond->RegisterRealm(TEXT("Waves"), TEXT("WaveHarmonic"), Waves);
 
     Telemetry->InitializeTelemetry(TEXT("SlicePlaythrough.log"));
 
@@ -75,6 +80,10 @@ void UManifoldSlice::Setup(uint64 OrbitsSeed, uint64 FluidsSeed)
     //     as the orbital resonance — the cross-domain analogy). ---
     Harmonics->AddMode(2.0, 1.0);
     Harmonics->AddMode(3.0, 1.0);
+
+    // --- Waves scenario: the 2nd and 3rd string harmonics form a 3:2 as well. ---
+    Waves->ExciteHarmonic(2, 1.0);
+    Waves->ExciteHarmonic(3, 1.0);
 }
 
 void UManifoldSlice::HandleIgnited(FGuid /*SourceStructure*/, FGuid /*TargetStructure*/, float Scale)
@@ -136,6 +145,7 @@ void UManifoldSlice::Tick()
     Orbits->Step(0.1f);
     Fluids->Step(0.016f);
     if (Harmonics) { Harmonics->Step(0.016f); }
+    if (Waves) { Waves->Step(0.001f); }
     CurrentTime = Fluids->GetSimulationTime();
 
     // Orbits <-> Fluids (data-driven spec): ignition lights the transport seam.

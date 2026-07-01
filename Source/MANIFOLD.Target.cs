@@ -13,6 +13,7 @@ public class MANIFOLDTarget : TargetRules
 			"MANIFOLDKernelsOrbits", 
 			"MANIFOLDKernelsFluids",
 			"MANIFOLDKernelsHarmonics",
+			"MANIFOLDKernelsWaves",
 			"MANIFOLDCorrespond",
 			"MANIFOLDTelemetry",
 			"MANIFOLDGameplay"

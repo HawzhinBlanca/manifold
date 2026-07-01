@@ -9,6 +9,7 @@
 class UOrbitsKernel;
 class UFluidsKernel;
 class UHarmonicsKernel;
+class UWavesKernel;
 class UCorrespondenceSystem;
 class UTelemetrySystem;
 
@@ -97,6 +98,9 @@ public:
 
     UPROPERTY()
     UHarmonicsKernel* Harmonics = nullptr;
+
+    UPROPERTY()
+    UWavesKernel* Waves = nullptr;
 
     UPROPERTY()
     UCorrespondenceSystem* Correspond = nullptr;

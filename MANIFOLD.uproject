@@ -25,6 +25,11 @@
 			"LoadingPhase": "Default"
 		},
 		{
+			"Name": "MANIFOLDKernelsWaves",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
 			"Name": "MANIFOLDCorrespond",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
