@@ -24,6 +24,16 @@ all are now fixed with tests (**37/37 green**):
 - **Real geometry:** the realm visualizer now spawns static-mesh objects (five realms)
   instead of debug-draw lines.
 
+### Added (game depth & replayability)
+- **Decoy realm (the moat):** a red-herring realm exhibits a deliberately non-matching
+  ratio; the correspondence engine refuses to pair it with the true realms, so the game
+  can't be won by assuming "everything matches" — the player must discriminate. Shown on
+  the HUD and as a set-apart grey cluster in the 3D view. `MANIFOLD.Play.DecoyRealm`.
+- **Scoring + persistent high-score profile:** a deterministic session score (discoveries
+  + transports + insight + speed bonus) and a versioned `.manifoldprofile` (best score,
+  sessions played/won) the GameMode loads and updates — "beat your best" across runs.
+  `MANIFOLD.Play.Scoring`, `MANIFOLD.Play.ProfileRoundTrip`.
+
 ### Added (game layer)
 - **Procedural puzzle variation:** each session picks a coprime ratio (3:2, 4:3, 5:4,
   5:3, 2:1, 5:2, 7:4, 7:5, 8:5, 9:8) deterministically from its seed and configures all
@@ -100,7 +110,7 @@ all are now fixed with tests (**37/37 green**):
   registration. AndroidFileServer plugin disabled (stops dev-token regeneration).
 
 ### Status
-- **39 / 39** automation tests green, headless. Repo is public and professional.
+- **42 / 42** automation tests green, headless. Repo is public and professional.
   Remaining phase (real art/VFX scenes, bound sound assets, bespoke UMG UI, human
   playtest) is human-owned and needs the editor + a display — see
   `Docs/IMPLEMENTATION_STATUS.md`.

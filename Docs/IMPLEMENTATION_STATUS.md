@@ -8,10 +8,10 @@ MANIFOLD is a **playable, deterministic, data-driven, N-realm correspondence gam
 with an objective, deterministic replay, a code-level audio layer, key input, and a
 professional public repository + a headless packaging path.
 
-**39 automation tests pass, 0 failures, headless.** The correspondence engine — the
+**42 automation tests pass, 0 failures, headless.** The correspondence engine — the
 product's core per the design bible — is complete and generalized to N realms; a
-playable shell drives it with an on-screen readout (objective + session state), a
-debug-draw view of the realms, key-bound verbs, and audio cues. **Five** realms now
+playable shell drives it with a branded HUD (objective + session state + score), real
+mesh geometry for the realms, key-bound verbs, and audible synthesized cues. **Five** realms now
 share a 3:2 across different physical domains (celestial, fluid, acoustic, spatial,
 temporal). A session can be Won or Lost, recorded, and replayed bit-for-bit.
 
@@ -39,6 +39,10 @@ temporal). A session can be Won or Lost, recorded, and replayed bit-for-bit.
 ### Game layer (procedural, objective, replay, audio, input)
 - ✅ **Procedural puzzle variation**: each seed hides a different coprime ratio across
   all five realms; same seed reproduces. `MANIFOLD.Play.ProceduralVariation`.
+- ✅ **Decoy realm (the moat)**: a red-herring realm with a non-matching ratio the engine
+  refuses to pair — the player must discriminate. `MANIFOLD.Play.DecoyRealm`.
+- ✅ **Scoring + persistent profile**: session score + best-score/sessions saved across
+  runs. `MANIFOLD.Play.Scoring`, `MANIFOLD.Play.ProfileRoundTrip`.
 - ✅ **Objective / win-state**: Won on target discoveries, Lost on step-budget
   exhaustion. `MANIFOLD.Play.ObjectiveWin`, `MANIFOLD.Play.ObjectiveLose`.
 - ✅ **Deterministic replay**: whole-slice determinism + record/reproduce + on-disk
@@ -69,12 +73,13 @@ temporal). A session can be Won or Lost, recorded, and replayed bit-for-bit.
 ## 3. How to play / verify
 
 **Play (at the editor):** open the project, open any empty level, press Play.
-`GlobalDefaultGameMode` is `ManifoldGameMode`, so the slice runs with the HUD and
-the debug-draw visualizer. The `ManifoldTransport` console command fires the verb.
+`GlobalDefaultGameMode` is `ManifoldGameMode`, so the slice runs with the branded HUD
+and the mesh visualizer. `[E]` transports, `[R]` restarts (or the `ManifoldTransport`
+console command).
 
 **Verify (headless):**
 ```powershell
-Tools\CI\run_tests.ps1      # build editor target + all MANIFOLD tests (expect 39 Success, 0 Fail)
+Tools\CI\run_tests.ps1      # build editor target + all MANIFOLD tests (expect 42 Success, 0 Fail)
 Tools\CI\package.ps1        # produce a standalone Windows build under dist\Windows
 ```
 Close the Unreal Editor first (Live Coding holds a build lock).
@@ -89,7 +94,7 @@ Close the Unreal Editor first (Live Coding holds a build lock).
   resolution required.
 - `Tools/CI/setup-runner.ps1` registers a self-hosted runner (labels
   `self-hosted, windows, unreal`) — the one step that must run on your machine
-  before CI executes the 25-test gate on every push/PR.
+  before CI executes the automation gate on every push/PR.
 
 ## 5. What is real in code vs. what needs an artist
 
