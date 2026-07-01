@@ -96,6 +96,23 @@ void AManifoldGameMode::Tick(float DeltaSeconds)
     // Voice any cues the slice emitted this frame (discovery chimes, transport resolves).
     PlayNewAudioCues();
 
+    // Gentle ambient pad: every few seconds, softly voice a realm's tonic so the world
+    // always has a living, evolving hum under the event chimes.
+    AmbientTimer += DeltaSeconds;
+    if (Synth && Slice && Slice->Audio && AmbientTimer >= 3.0f)
+    {
+        AmbientTimer = 0.0f;
+        static const FName Realms[] = {
+            TEXT("Orbits"), TEXT("Harmonics"), TEXT("Waves"), TEXT("Rhythm"), TEXT("Gears")
+        };
+        const FName Realm = Realms[AmbientRealmIndex % 5];
+        ++AmbientRealmIndex;
+
+        FManifoldAudioCue Cue = Slice->Audio->CueForRealmAmbient(Realm);
+        Cue.Intensity = 0.25f; // soft, sits under everything
+        Synth->PlayCue(Cue);
+    }
+
     // When the session resolves, fold it into the persistent profile exactly once.
     if (!bSessionRecorded && Slice->GetSessionState() != EManifoldSessionState::InProgress)
     {

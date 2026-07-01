@@ -69,6 +69,10 @@ protected:
     /** Index of the next unplayed cue in the slice's cue log. */
     int32 LastPlayedCue = 0;
 
+    /** Timer + realm cursor for the gentle ambient pad (a soft recurring drone). */
+    float AmbientTimer = 0.0f;
+    int32 AmbientRealmIndex = 0;
+
     /** Build a fresh interactive session (slice + objective) and the realm view. */
     void StartSession();
 
