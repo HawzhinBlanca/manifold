@@ -12,12 +12,12 @@ what genuinely still needs a human with an art/audio pipeline and a display.
 
 The **correspondence engine — the actual product per the design bible (§2 "the
 correspondence engine is the product; visuals are a layer")** — is implemented,
-deterministic, data-driven, and fully test-covered. A third realm was added to
-prove the production template scales. What remains is the **presentation layer**
-(worlds, VFX, audio, UI, input) — the lanes the Build Plan assigns to "You",
-which need Megascans/Blender/Substance/skybox-AI/audio tooling and a live display.
+deterministic, data-driven, generalized to N realms, and fully test-covered. What
+remains is the **presentation layer** (worlds, VFX, audio, UI, input) — the lanes
+the Build Plan assigns to "You", which need Megascans/Blender/Substance/skybox-AI/
+audio tooling and a live display.
 
-**19 automation tests pass, 0 failures, headless.**
+**20 automation tests pass, 0 failures, headless.**
 
 ---
 
@@ -52,10 +52,14 @@ which need Megascans/Blender/Substance/skybox-AI/audio tooling and a live displa
   it, and rejects mismatched ratios.
   `MANIFOLD.Correspondence.{DataDrivenMapping,DataDrivenRejectsInvalid}`.
 
-### Scaling proof (realm production template, §9)
+### Scaling & generalization
 - ✅ **Harmonics realm** — a third `IRealmKernel` (coupled oscillators) added
-  without touching the others, exposing the same integer-ratio structure as
-  Orbits. `MANIFOLD.Kernels.Harmonics.{DeterministicPhases,HarmonicRatio}`.
+  without touching the others, exposing an integer-ratio structure.
+  `MANIFOLD.Kernels.Harmonics.{DeterministicPhases,HarmonicRatio}`.
+- ✅ **N-realm correspondence engine** — `RegisterRealm` + shared-structure
+  detection ignites a correspondence between ANY two realms exposing the same
+  ratio. Orbits (orbital 3:2) ⇄ Harmonics (harmonic 3:2) correspond across
+  totally different domains. `MANIFOLD.Integration.MultiRealmCorrespondence`.
 
 ---
 
@@ -71,7 +75,7 @@ which need Megascans/Blender/Substance/skybox-AI/audio tooling and a live displa
   "<repo>\MANIFOLD.uproject" -ExecCmds="Automation RunTests MANIFOLD; Quit" `
   -unattended -nullrhi -nosplash -nopause -stdout
 ```
-Expect: `19 Success, 0 Fail`. The editor MUST be closed first (Live Coding lock).
+Expect: `20 Success, 0 Fail`. The editor MUST be closed first (Live Coding lock).
 
 ---
 
@@ -105,15 +109,16 @@ kernels/queries/events without touching simulation code.
    list) is correct on disk and builds locally, but is NOT version-controlled.
    A fresh clone would lack it. Decide: commit it with `git add -f`, or keep a
    template. The build **targets** (which are committed) do list every module.
-2. **Correspondence is Orbits⇄Fluids specific.** `UCorrespondenceSystem` takes
-   two named kernels and queries `OrbitalResonance`/`VortexCenter` directly. To
-   let the new **Harmonics** realm correspond (orbital 3:2 ⇄ harmonic 3:2 is the
-   obvious next "aha"), generalize it to a registry of N kernels that matches any
-   pair by shared structure ratio. The Harmonics kernel already exposes the right
-   `HarmonicRatio` query for this.
+2. **Two correspondence modalities exist.** (a) The generic shared-structure
+   engine (`RegisterRealm` / `DetectSharedStructureCorrespondences`) works for any
+   N realms that expose a ratio. (b) The original data-spec path
+   (`RegisterKernels` + JSON) remains Orbits⇄Fluids-specific because a vortex has
+   no ratio — it maps resonance→vortex by declared spec. Both are fine; if you
+   want Fluids in the generic engine, give `VortexCenter` a comparable structure
+   key.
 3. **Resonance `StructureId` is regenerated per query** (ephemeral GUID), so the
-   ignite-dedup guard is effectively a no-op — the slice re-ignites each step.
-   Harmless for tests; give resonances stable IDs before shipping.
+   ignite-dedup guard on the data-spec path is a no-op — the slice re-ignites each
+   step. Harmless for tests; give resonances stable IDs before shipping.
 4. **Config/** (`DefaultEngine.ini`, `DefaultInput.ini`) is editor-generated and
    currently untracked (it contains a generated AndroidFileServer SecurityToken).
    Commit deliberately if you want it under version control.
@@ -122,13 +127,14 @@ kernels/queries/events without touching simulation code.
 
 ## 6. Suggested next steps (in priority order)
 
-1. **Generalize the correspondence engine to N realms** (code, testable) → then
-   author `Harmonics⇄Orbits` content and a test. Highest-value remaining code.
-2. **Bring up the interactive shell** now that a display is attached: a minimal
+1. **Bring up the interactive shell** now that a display is attached: a minimal
    GameMode + camera + on-screen readout of Insight Rate, so the loop is playable.
-3. **W1 concept bibles** for Orbits & Fluids, then assemble the two scenes (W2/W3).
-4. **V1/V2/V4 reusable VFX**, applied per realm.
-5. **A1 realm modes + chord-resolve**, wired to the S8 telemetry events.
+   This is the first thing that needs you at the editor.
+2. **W1 concept bibles** for Orbits & Fluids, then assemble the two scenes (W2/W3).
+3. **V1/V2/V4 reusable VFX**, applied per realm.
+4. **A1 realm modes + chord-resolve**, wired to the S8 telemetry events.
+5. **More realms + correspondence content** — the template and generic engine make
+   this cheap: add a kernel, register it, and any shared ratio auto-corresponds.
 6. **P2 playtest** → Insight-Rate-vs-control gate decision.
 
 ---
@@ -138,6 +144,8 @@ kernels/queries/events without touching simulation code.
 All work above is committed on branch **`feat/systems-stream-s1-s8`**:
 
 ```
+86080c0 feat(correspond): generalize the correspondence engine to N realms
+1e315a1 docs: implementation status & handoff — verified state + human-owned roadmap
 bd6be39 feat(realm): add Harmonics — third realm proving the production template scales
 2adc9a6 feat(D1): data-driven Orbits<->Fluids correspondence content (JSON)
 54ef12b feat(gameplay): vertical-slice loop orchestration + end-to-end integration tests
