@@ -1,0 +1,18 @@
+# MANIFOLD code owners — folder ownership is literal (Build Plan §7).
+# Replace @hawzhinblanca with per-stream owners as the team grows.
+
+*                       @hawzhinblanca
+
+# Systems / code
+/Source/                @hawzhinblanca
+/Tools/                 @hawzhinblanca
+
+# Design / content
+/Data/                  @hawzhinblanca
+
+# World / VFX (art assets, via LFS)
+/Content/               @hawzhinblanca
+
+# Docs
+/Docs/                  @hawzhinblanca
+*.md                    @hawzhinblanca

@@ -1,0 +1,31 @@
+name: Bug report
+description: Something is broken or a test is red
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Clear description of the bug and the expected behaviour.
+    validations:
+      required: true
+  - type: input
+    id: test
+    attributes:
+      label: Failing test (if any)
+      placeholder: MANIFOLD.Kernels.Orbits.StableOrbits
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Build MANIFOLDEditor
+        2. Run `Tools\CI\run_tests.ps1 -WorkPackage S3`
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      placeholder: UE 5.8, VS2022 17.14, Windows 11

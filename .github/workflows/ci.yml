@@ -1,0 +1,46 @@
+name: MANIFOLD CI
+
+# The engine (Unreal Engine 5.8) is not available on GitHub-hosted runners, so CI
+# runs on a SELF-HOSTED Windows runner that has UE 5.8, the VS2022 C++ toolchain,
+# the .NET Framework 4.8 SDK, and Git LFS installed. Label that runner `[self-hosted,
+# windows, unreal]`. Until such a runner is registered, this workflow is a no-op
+# placeholder that documents the gate.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build + Automation tests (headless)
+    runs-on: [self-hosted, windows, unreal]
+    env:
+      UE_ROOT: 'C:\Program Files\Epic Games\UE_5.8'
+    steps:
+      - name: Checkout (with LFS)
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Build MANIFOLDEditor
+        shell: pwsh
+        run: |
+          & "$env:UE_ROOT\Engine\Build\BatchFiles\Build.bat" `
+            MANIFOLDEditor Win64 Development `
+            -Project="$($PWD.Path)\MANIFOLD.uproject" -WaitMutex -FromMsBuild
+
+      - name: Run automation tests (nullrhi, unattended)
+        shell: pwsh
+        run: |
+          & "$env:UE_ROOT\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" `
+            "$($PWD.Path)\MANIFOLD.uproject" `
+            -ExecCmds="Automation RunTests MANIFOLD; Quit" `
+            -unattended -nullrhi -nosplash -nopause -stdout -NoLogTimes -TestExit="Automation Test Queue Empty"
+          if ($LASTEXITCODE -ne 0) { throw "Automation tests failed (exit $LASTEXITCODE)" }

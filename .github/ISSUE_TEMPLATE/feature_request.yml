@@ -1,0 +1,28 @@
+name: Feature / work package
+description: Propose a new realm, correspondence, mechanic, or system
+labels: [enhancement]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal (one sentence)
+      description: What should exist that doesn't yet?
+    validations:
+      required: true
+  - type: input
+    id: stream
+    attributes:
+      label: Stream / owner
+      placeholder: S (Systems) / W (World) / V (VFX) / D (Design) / A (Audio)
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance test
+      description: The mechanically verifiable check that proves it's done.
+    validations:
+      required: true
+  - type: textarea
+    id: pillar
+    attributes:
+      label: Pillar check
+      description: How does this respect the design pillars? (Pillars beat tasks.)

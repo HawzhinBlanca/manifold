@@ -1,31 +1,50 @@
-﻿# Unreal Engine
-[Bb]inaries/
-[Bb]uild/
-[Dd]erivedDataCache/
-[Ii]ntermediate/
-[Ss]aved/
-.vs/
-.vscode/
+# ============================================================================
+#  MANIFOLD — Unreal Engine 5 .gitignore
+#  Ignore generated/build output only. Source, content, config, the .uproject,
+#  and all docs ARE version-controlled.
+# ============================================================================
+
+# --- Unreal generated / build output (never commit) ---
+Binaries/
+Build/
+DerivedDataCache/
+Intermediate/
+Saved/
+
+# --- Generated IDE project files (regenerated from the .uproject) ---
 *.sln
-*.vcxproj*
-*.uproject
-*.uprojectuser
 *.suo
 *.opensdf
 *.sdf
-*.user
-*.userprefs
-*.log
+*.VC.db
+*.VC.opendb
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.xcodeproj/
+*.xcworkspace/
 
-# Build
-Build/
-Binaries/
-
-# IDE
+# --- Editors / tooling ---
+.vs/
+.vscode/
 .idea/
+*.code-workspace
 *.swp
 *.swo
 
-# OS
+# --- Crash dumps / profiling artifacts ---
+*.dmp
+*.stackdump
+
+# --- OS cruft ---
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# ============================================================================
+#  Intentionally TRACKED (do not add to ignore):
+#    MANIFOLD.uproject, Config/, Content/, Source/, Data/, Docs/, Tools/,
+#    .github/, README.md, LICENSE, CONTRIBUTING.md, CHANGELOG.md, .editorconfig
+#  Binary content (*.uasset/*.umap/art/audio) is tracked via Git LFS
+#  (see .gitattributes).
+# ============================================================================
