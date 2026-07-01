@@ -162,6 +162,12 @@ struct MANIFOLDKERNELSORBITS_API FResonanceMatch
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     double Strength = 0.0;
 
+    /** Stable identity of this resonance, derived deterministically from the body
+     *  pair — persists across recomputes so the correspondence engine and the
+     *  player can reference the same structure frame to frame. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FGuid Id;
+
     FResonanceMatch() = default;
 
     friend FArchive& operator<<(FArchive& Ar, FResonanceMatch& R)
@@ -172,6 +178,7 @@ struct MANIFOLDKERNELSORBITS_API FResonanceMatch
         Ar << R.ActualRatio;
         Ar << R.Deviation;
         Ar << R.Strength;
+        Ar << R.Id;
         return Ar;
     }
 };

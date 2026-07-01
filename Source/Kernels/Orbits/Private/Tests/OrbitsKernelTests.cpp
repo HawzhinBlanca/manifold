@@ -110,3 +110,38 @@ bool FOrbitsResonanceRatiosTest::RunTest(const FString& Parameters)
 
     return true;
 }
+
+// A detected resonance must keep a STABLE identity across frames (derived from the
+// body pair), so the correspondence engine dedups correctly and the player can
+// select the same structure frame to frame.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FOrbitsStableResonanceIdTest, "MANIFOLD.Kernels.Orbits.StableResonanceId", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FOrbitsStableResonanceIdTest::RunTest(const FString& Parameters)
+{
+    UOrbitsKernel* Kernel = NewObject<UOrbitsKernel>();
+    Kernel->Initialize(54321ULL);
+
+    FOrbitsBodyDef Star; Star.Mass = 1.989e30; Star.bIsCentral = true; Kernel->AddBody(Star);
+    FOrbitsBodyDef A; A.Mass = 1e24; A.Position = FVector(1.496e11, 0.0, 0.0);
+    const double vA = FMath::Sqrt((Kernel->G * Star.Mass) / A.Position.X); A.Velocity = FVector(0.0, vA, 0.0);
+    Kernel->AddBody(A);
+    const double rB = A.Position.X * FMath::Pow(1.5, 2.0 / 3.0);
+    FOrbitsBodyDef B; B.Mass = 1e24; B.Position = FVector(rB, 0.0, 0.0);
+    const double vB = FMath::Sqrt((Kernel->G * Star.Mass) / rB); B.Velocity = FVector(0.0, vB, 0.0);
+    Kernel->AddBody(B);
+
+    FRealmQuery Query(TEXT("OrbitalResonance"));
+
+    Kernel->Step(0.1f);
+    FRealmQueryResult R1;
+    UTEST_TRUE("First query finds a resonance", Kernel->Query(Query, R1));
+    UTEST_TRUE("Resonance id is valid", R1.StructureId.IsValid());
+
+    Kernel->Step(0.1f);
+    FRealmQueryResult R2;
+    UTEST_TRUE("Second query finds a resonance", Kernel->Query(Query, R2));
+
+    UTEST_EQUAL("Resonance StructureId is stable across frames", R1.StructureId, R2.StructureId);
+
+    return true;
+}

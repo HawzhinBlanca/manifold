@@ -201,7 +201,7 @@ bool UOrbitsKernel::Query(const FRealmQuery& QueryObj, FRealmQueryResult& Result
                     continue;
                 }
 
-                Result.StructureId = FGuid::NewGuid();
+                Result.StructureId = Res.Id; // stable across frames (see DetectResonances)
                 Result.StructureType = QueryObj.QueryType;
                 Result.Position = BodyA ? BodyA->Position : FVector::ZeroVector;
                 Result.Rotation = FQuat::Identity;
@@ -411,6 +411,12 @@ void UOrbitsKernel::DetectResonances(double MaxDeviation, int32 MaxRatio)
                 Match.Deviation = BestDev;
                 // Strength falls off exponentially with deviation
                 Match.Strength = FMath::Exp(-200.0 * BestDev);
+                // Stable identity from the (unordered) body pair — same pair, same id.
+                Match.Id = FGuid(
+                    BodyIds[i].A ^ BodyIds[j].A,
+                    BodyIds[i].B ^ BodyIds[j].B,
+                    BodyIds[i].C ^ BodyIds[j].C,
+                    BodyIds[i].D ^ BodyIds[j].D);
                 OrbitState->ActiveResonances.Add(Match);
             }
         }
