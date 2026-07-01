@@ -217,6 +217,43 @@ bool FConstellationOctaveSurfaceTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// Robustness sweep across many seeds (both relations, every octave family, many subsets,
+// K in {2,3}): the correct lock ALWAYS ignites exactly C(K,2) analogies and wins. This one
+// test transitively proves (a) EVERY kernel realizes its assigned ratio (else discoveries
+// fall short) and (b) decoys NEVER spuriously correspond (else discoveries overshoot). A
+// single bad seed fails the test and names itself.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FConstellationRealizationSweepTest, "MANIFOLD.Play.ConstellationRealizationSweep", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FConstellationRealizationSweepTest::RunTest(const FString& Parameters)
+{
+    for (int32 Seed = 0; Seed < 96; ++Seed)
+    {
+        const int32 K = (Seed % 2 == 0) ? 3 : 2;
+        const int32 Expected = K * (K - 1) / 2;
+
+        UManifoldSlice* Slice = NewObject<UManifoldSlice>();
+        Slice->SetupConstellation(static_cast<int64>(Seed), K);
+
+        const TArray<int32> Answer = Slice->GetConstellation();
+        if (!TestEqual(FString::Printf(TEXT("seed %d: %d hidden members"), Seed, K), Answer.Num(), K)) { return false; }
+
+        // The six surface ratios must be REALIZED (no realm silently shows "-").
+        for (int32 idx = 0; idx < 6; ++idx)
+        {
+            if (!TestNotEqual(FString::Printf(TEXT("seed %d: realm %d has a surface ratio"), Seed, idx),
+                Slice->GetRealmSurfaceRatio(idx), FString(TEXT("-")))) { return false; }
+        }
+
+        if (!TestTrue(FString::Printf(TEXT("seed %d: correct lock wins"), Seed),
+            Slice->PlayerLockConstellation(Answer))) { return false; }
+        if (!TestEqual(FString::Printf(TEXT("seed %d: exactly C(K,2) discoveries"), Seed),
+            Slice->GetTotalDiscoveries(), Expected)) { return false; }
+        if (!TestEqual(FString::Printf(TEXT("seed %d: session Won"), Seed),
+            static_cast<int32>(Slice->GetSessionState()), static_cast<int32>(EManifoldSessionState::Won))) { return false; }
+    }
+    return true;
+}
+
 // Control build (Build Plan D3): with NO correspondence content the loop must NOT
 // manufacture insight — the moat is that unsolved seams stay unsolved. Here we run
 // only the Fluids realm (no resonance to correspond with), so nothing ignites.
