@@ -26,15 +26,18 @@ all are now fixed with tests (**37/37 green**):
 
 ### Audited (whole-codebase sweep + targeted reviews)
 Five adversarial passes (an incompleteness audit, three targeted reviews, and a
-comprehensive whole-codebase audit) found and fixed **27** real issues total, e.g.:
+comprehensive whole-codebase audit) found and fixed **29** real issues total — every
+confirmed finding, with none deferred. E.g.:
 - Orbits `VerifyDeterminism` compared un-stepped `this` vs a stepped sim (false
   negative) — the only kernel doing so, and the only one with no determinism test;
   fixed + test added.
 - Fluids vortex ids, and the profile/replay loaders, hardened for determinism and
   corrupt-input safety; telemetry file-handle leaks closed; the slice resets on reuse.
 - The audio phase-wrap, the emblem texture/colour, and the CI gate itself were all
-  corrected. Remaining flagged items are latent (only bite realms with 3+ elements or
-  ratios >10, which this game never has) and left as documented, defensible design.
+  corrected.
+- The two "latent" findings were also completed (not deferred): the correspondence
+  engine now exposes ALL of a realm's ratios (`QueryAll`, matched all-vs-all), and
+  Harmonics/Rhythm detect integer ratios exactly via GCD (no ≤10 cap).
 
 ### Added (presentation polish — code-authored)
 - **Cosmic backdrop**: a deterministic procedural starfield shell + key/fill scene
