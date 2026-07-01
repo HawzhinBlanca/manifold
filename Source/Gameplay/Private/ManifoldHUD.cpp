@@ -3,9 +3,17 @@
 #include "ManifoldHUD.h"
 #include "ManifoldGameMode.h"
 #include "ManifoldSlice.h"
+#include "ManifoldEmblem.h"
+#include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "Engine/Font.h"
+#include "Engine/Texture2D.h"
 #include "Engine/World.h"
+
+void AManifoldHUD::DrawPanel(float X, float Y, float W, float H, const FLinearColor& Color)
+{
+    DrawRect(Color, X, Y, W, H);
+}
 
 void AManifoldHUD::DrawHUD()
 {
@@ -14,64 +22,105 @@ void AManifoldHUD::DrawHUD()
     UWorld* World = GetWorld();
     AManifoldGameMode* GM = World ? World->GetAuthGameMode<AManifoldGameMode>() : nullptr;
     if (!GM || !GM->Slice) return;
-
     UManifoldSlice* S = GM->Slice;
-    UFont* Font = GEngine ? GEngine->GetMediumFont() : nullptr;
 
-    float X = 40.0f;
-    float Y = 40.0f;
+    // Build the branded emblem texture once.
+    if (!Emblem)
+    {
+        Emblem = ManifoldEmblem::CreateTexture(256);
+    }
+
+    UFont* Font = GEngine ? GEngine->GetMediumFont() : nullptr;
+    UFont* Big = GEngine ? GEngine->GetLargeFont() : Font;
+
+    const FLinearColor Gold(1.0f, 0.85f, 0.2f);
+    const FLinearColor Cyan(0.3f, 0.8f, 1.0f);
+    const FLinearColor Dim(0.62f, 0.66f, 0.74f);
+    const FLinearColor Violet(0.8f, 0.5f, 1.0f);
+    const FLinearColor Amber(1.0f, 0.6f, 0.4f);
+    const FLinearColor PanelBg(0.02f, 0.03f, 0.07f, 0.72f);
+
+    // --- Title bar: emblem + wordmark + framed readout panel ---
+    const float PanelX = 32.0f;
+    const float PanelY = 28.0f;
+    const float PanelW = 560.0f;
+    const float PanelH = 292.0f;
+    DrawPanel(PanelX, PanelY, PanelW, PanelH, PanelBg);
+
+    if (Emblem)
+    {
+        // Emblem top-left inside the panel.
+        DrawTexture(Emblem, PanelX + 14.0f, PanelY + 14.0f, 56.0f, 56.0f, 0, 0, 1, 1);
+    }
+    if (Big)
+    {
+        DrawText(TEXT("MANIFOLD"), Gold, PanelX + 84.0f, PanelY + 20.0f, Big, 1.35f);
+    }
+    DrawText(TEXT("the correspondence engine"), Dim, PanelX + 86.0f, PanelY + 52.0f, Font);
+
+    float X = PanelX + 20.0f;
+    float Y = PanelY + 86.0f;
     auto Line = [&](const FString& Text, const FLinearColor& Color)
     {
         DrawText(Text, Color, X, Y, Font);
         Y += 24.0f;
     };
 
-    const FLinearColor Gold(1.0f, 0.85f, 0.2f);
-    const FLinearColor Cyan(0.3f, 0.8f, 1.0f);
-    const FLinearColor Dim(0.6f, 0.6f, 0.6f);
-
-    Line(TEXT("MANIFOLD  -  vertical slice"), FLinearColor::White);
     Line(FString::Printf(TEXT("Step %lld"), S->GetStepCount()), Dim);
     Line(FString::Printf(TEXT("Orbits     |  resonance %s"), *S->GetOrbitsRatio()),
         S->HasResonance() ? Gold : Dim);
     Line(FString::Printf(TEXT("Fluids     |  vortex %s"), S->HasVortex() ? TEXT("present") : TEXT("-")),
         S->HasVortex() ? Cyan : Dim);
-    Line(FString::Printf(TEXT("Harmonics  |  ratio %s"), *S->GetHarmonicsRatio()),
-        FLinearColor(0.8f, 0.5f, 1.0f));
-    Line(FString::Printf(TEXT("Rhythm     |  polyrhythm %s"), *S->GetRhythmRatio()),
-        FLinearColor(1.0f, 0.6f, 0.4f));
-    Line(FString::Printf(TEXT("Cross-domain analogies found: %d   (one 3:2 across five domains)"),
-        S->GetSharedDiscoveries()),
-        S->GetSharedDiscoveries() > 0 ? Gold : Dim);
+    Line(FString::Printf(TEXT("Harmonics  |  ratio %s"), *S->GetHarmonicsRatio()), Violet);
+    Line(FString::Printf(TEXT("Rhythm     |  polyrhythm %s"), *S->GetRhythmRatio()), Amber);
+    Line(FString::Printf(TEXT("Analogies found: %d   (one 3:2 across five domains)"),
+        S->GetSharedDiscoveries()), S->GetSharedDiscoveries() > 0 ? Gold : Dim);
     Line(FString::Printf(TEXT("Insight Rate %.3f   (lit %d, transported %d)"),
         S->GetInsightRate(), S->GetCorrespondencesIgnited(), S->GetTransportsCompleted()),
         FLinearColor::Green);
 
-    // Objective + session outcome — the goal that makes this a game.
+    // --- Objective + last audio cue ---
     const FManifoldSessionSummary Sum = S->GetSessionSummary();
-    FString StateText;
-    FLinearColor StateColor = Cyan;
-    switch (Sum.State)
-    {
-        case EManifoldSessionState::Won:  StateText = TEXT("WON");  StateColor = Gold; break;
-        case EManifoldSessionState::Lost: StateText = TEXT("LOST"); StateColor = FLinearColor(1.0f, 0.3f, 0.3f); break;
-        default:                          StateText = TEXT("in progress"); break;
-    }
-    Line(FString::Printf(TEXT("Objective  |  discoveries %d   [%s]"), Sum.Discoveries, *StateText), StateColor);
-
-    // The correspondence you can hear: show the last audio cue in musical terms.
     if (S->GetAudioCueCount() > 0)
     {
         const FManifoldAudioCue Cue = S->GetLastAudioCue();
-        const TCHAR* IntentText =
+        const TCHAR* Intent =
             Cue.Intent == EManifoldCueIntent::DiscoveryChime ? TEXT("chime") :
             Cue.Intent == EManifoldCueIntent::ChordResolve   ? TEXT("resolve") : TEXT("ambient");
-        Line(FString::Printf(TEXT("Audio      |  %s  root %d  +%d st"), IntentText, Cue.RootMidi, Cue.IntervalSemitones), Dim);
+        Line(FString::Printf(TEXT("Objective %d/%d    Audio: %s +%d st"),
+            Sum.Discoveries, GM->Objective.TargetDiscoveries, Intent, Cue.IntervalSemitones), Dim);
     }
 
+    // --- Lit-correspondence prompt + controls ---
     if (S->IsCorrespondenceAvailable())
     {
-        Line(TEXT(">> CORRESPONDENCE LIT  -  press [E] to transport across the seam"), Gold);
+        DrawText(TEXT(">> CORRESPONDENCE LIT  -  press [E] to carry it across the seam"),
+            Gold, PanelX + 20.0f, PanelY + PanelH - 30.0f, Font);
     }
-    Line(TEXT("[E] transport   [R] restart session"), Dim);
+    else
+    {
+        DrawText(TEXT("[E] transport    [R] restart"), Dim, PanelX + 20.0f, PanelY + PanelH - 30.0f, Font);
+    }
+
+    // --- Win / lose banner, centered ---
+    if (Sum.State != EManifoldSessionState::InProgress)
+    {
+        const float CX = Canvas ? Canvas->ClipX * 0.5f : 640.0f;
+        const float CY = Canvas ? Canvas->ClipY * 0.42f : 360.0f;
+        const bool bWon = Sum.State == EManifoldSessionState::Won;
+
+        DrawPanel(CX - 300.0f, CY - 70.0f, 600.0f, 168.0f, FLinearColor(0.02f, 0.03f, 0.07f, 0.85f));
+        if (Emblem)
+        {
+            DrawTexture(Emblem, CX - 48.0f, CY - 58.0f, 96.0f, 96.0f, 0, 0, 1, 1);
+        }
+        const FString Title = bWon ? TEXT("CORRESPONDENCE COMPLETE") : TEXT("SESSION LOST");
+        const FLinearColor TitleCol = bWon ? Gold : FLinearColor(1.0f, 0.35f, 0.35f);
+        if (Big)
+        {
+            DrawText(Title, TitleCol, CX - 190.0f, CY + 44.0f, Big, 1.25f);
+        }
+        DrawText(FString::Printf(TEXT("%d discoveries    Insight Rate %.3f    [R] play again"),
+            Sum.Discoveries, Sum.InsightRate), Dim, CX - 190.0f, CY + 72.0f, Font);
+    }
 }

@@ -6,10 +6,12 @@
 #include "GameFramework/HUD.h"
 #include "ManifoldHUD.generated.h"
 
+class UTexture2D;
+
 /**
- * AManifoldHUD — minimal on-screen readout of the live session: each realm's
- * structure, whether a correspondence is lit, and the running Insight Rate.
- * A debug-legible front end until the full UI/VFX layer exists.
+ * AManifoldHUD — the game's branded on-screen UI: the procedural MANIFOLD emblem, the
+ * title, a framed live readout of each realm's structure + the Insight Rate, the lit
+ * correspondence prompt, and a win/lose banner when the session resolves.
  */
 UCLASS()
 class MANIFOLDGAMEPLAY_API AManifoldHUD : public AHUD
@@ -18,4 +20,11 @@ class MANIFOLDGAMEPLAY_API AManifoldHUD : public AHUD
 
 public:
     virtual void DrawHUD() override;
+
+private:
+    /** The procedurally-generated emblem texture (built once, on first draw). */
+    UPROPERTY()
+    UTexture2D* Emblem = nullptr;
+
+    void DrawPanel(float X, float Y, float W, float H, const FLinearColor& Color);
 };
