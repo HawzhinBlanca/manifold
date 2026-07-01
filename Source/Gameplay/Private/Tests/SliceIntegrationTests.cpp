@@ -317,6 +317,35 @@ bool FReplayRoundTripTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// Generic engine, generalized: a realm can expose MULTIPLE structure ratios, and two
+// realms correspond on EVERY shared ratio (not just each realm's strongest). Proves the
+// QueryAll path + all-vs-all matching. A 3-mode Harmonics realm exposes 3 ratios.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FQueryAllMultiRatioTest, "MANIFOLD.Integration.QueryAllMultiRatio", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FQueryAllMultiRatioTest::RunTest(const FString& Parameters)
+{
+    // Modes 2,3,4 -> ratios 3:2, 2:1, 4:3 (three distinct structures in one realm).
+    UHarmonicsKernel* A = NewObject<UHarmonicsKernel>();
+    A->Initialize(1ULL); A->AddMode(2.0, 1.0); A->AddMode(3.0, 1.0); A->AddMode(4.0, 1.0); A->Step(0.01f);
+    UHarmonicsKernel* B = NewObject<UHarmonicsKernel>();
+    B->Initialize(2ULL); B->AddMode(2.0, 1.0); B->AddMode(3.0, 1.0); B->AddMode(4.0, 1.0); B->Step(0.01f);
+
+    FRealmQuery Q(TEXT("HarmonicRatio"));
+    TArray<FRealmQueryResult> RA;
+    Cast<IRealmKernel>(A)->QueryAll(Q, RA);
+    UTEST_GREATER("QueryAll exposes multiple ratios (not just the strongest)", RA.Num(), 1);
+
+    UCorrespondenceSystem* C = NewObject<UCorrespondenceSystem>();
+    C->RegisterRealm(TEXT("A"), TEXT("HarmonicRatio"), A);
+    C->RegisterRealm(TEXT("B"), TEXT("HarmonicRatio"), B);
+    const int32 Found = C->DetectSharedStructureCorrespondences();
+    UTEST_GREATER("Two multi-ratio realms correspond on more than one shared ratio", Found, 1);
+    // A realm must not correspond with itself.
+    UTEST_EQUAL("Idempotent on re-detect", C->DetectSharedStructureCorrespondences(), 0);
+
+    return true;
+}
+
 // Procedural variation: each seed hides a DIFFERENT ratio across all realms (so the
 // game can't be pre-solved), and the same seed always hides the same ratio (so runs
 // are reproducible). After play, every ratio realm actually realizes that hidden ratio.

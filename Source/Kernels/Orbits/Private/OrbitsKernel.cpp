@@ -227,6 +227,32 @@ bool UOrbitsKernel::Query(const FRealmQuery& QueryObj, FRealmQueryResult& Result
     return false;
 }
 
+void UOrbitsKernel::QueryAll(const FRealmQuery& QueryDesc, TArray<FRealmQueryResult>& OutResults) const
+{
+    if (QueryDesc.QueryType != TEXT("OrbitalResonance")) return;
+
+    const double MinStr = QueryDesc.MinStrength;
+    for (const FResonanceMatch& Res : OrbitState->ActiveResonances)
+    {
+        if (Res.Strength < MinStr) continue;
+
+        const FOrbitsBodyDef* BodyA = GetBody(Res.BodyA);
+        if (BodyA && QueryDesc.SearchBounds.IsValid && !QueryDesc.SearchBounds.IsInside(BodyA->Position))
+        {
+            continue;
+        }
+
+        FRealmQueryResult Result;
+        Result.StructureId = Res.Id;
+        Result.StructureType = QueryDesc.QueryType;
+        Result.Position = BodyA ? BodyA->Position : FVector::ZeroVector;
+        Result.Strength = static_cast<float>(Res.Strength);
+        Result.Parameters.Add(TEXT("Ratio"), FString::Printf(TEXT("%d:%d"), Res.Ratio.X, Res.Ratio.Y));
+        Result.Parameters.Add(TEXT("Deviation"), FString::Printf(TEXT("%f"), Res.Deviation));
+        OutResults.Add(Result);
+    }
+}
+
 TArray<FName> UOrbitsKernel::GetSupportedQueryTypes() const
 {
     return { TEXT("OrbitalResonance") };

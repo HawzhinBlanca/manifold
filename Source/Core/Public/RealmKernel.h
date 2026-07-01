@@ -140,6 +140,16 @@ public:
     virtual bool Query(const FRealmQuery& Query, FRealmQueryResult& Result) const = 0;
 
     /**
+     * Query ALL structural features of a type, not just the single strongest. The
+     * generic correspondence engine uses this so two realms sharing ANY structure (not
+     * necessarily each realm's strongest) still correspond. The default returns the
+     * single Query() result; realms with multiple structures override to return them
+     * all. (For a realm that only ever exposes one structure this is identical to
+     * Query(), so it changes nothing for such realms.)
+     */
+    virtual void QueryAll(const FRealmQuery& QueryDesc, TArray<FRealmQueryResult>& OutResults) const;
+
+    /**
      * Get all available query types this kernel supports.
      * Correspondence system uses this to know what structures can be mapped.
      */
@@ -286,3 +296,16 @@ struct MANIFOLDCORE_API FRealmQueryResult
 
     FRealmQueryResult() = default;
 };
+
+/**
+ * Default QueryAll: return the single Query() result (defined here, after
+ * FRealmQueryResult is complete). Realms with multiple structures override it.
+ */
+inline void IRealmKernel::QueryAll(const FRealmQuery& QueryDesc, TArray<FRealmQueryResult>& OutResults) const
+{
+    FRealmQueryResult Result;
+    if (Query(QueryDesc, Result))
+    {
+        OutResults.Add(Result);
+    }
+}

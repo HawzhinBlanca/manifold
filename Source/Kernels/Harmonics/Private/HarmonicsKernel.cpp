@@ -150,6 +150,26 @@ bool UHarmonicsKernel::Query(const FRealmQuery& QueryObj, FRealmQueryResult& Res
     return false;
 }
 
+void UHarmonicsKernel::QueryAll(const FRealmQuery& QueryDesc, TArray<FRealmQueryResult>& OutResults) const
+{
+    if (QueryDesc.QueryType != TEXT("HarmonicRatio")) return;
+
+    const float MinStr = QueryDesc.MinStrength;
+    for (const FHarmonicRatioMatch& Match : HState->ActiveRatios)
+    {
+        if (Match.Strength < MinStr) continue;
+
+        FRealmQueryResult Result;
+        Result.StructureId = FGuid(GetTypeHash(GetRealmId()),
+            static_cast<uint32>(Match.Ratio.X), static_cast<uint32>(Match.Ratio.Y),
+            GetSimulationVersion());
+        Result.StructureType = QueryDesc.QueryType;
+        Result.Strength = static_cast<float>(Match.Strength);
+        Result.Parameters.Add(TEXT("Ratio"), FString::Printf(TEXT("%d:%d"), Match.Ratio.X, Match.Ratio.Y));
+        OutResults.Add(Result);
+    }
+}
+
 TArray<FName> UHarmonicsKernel::GetSupportedQueryTypes() const
 {
     return { TEXT("HarmonicRatio") };
@@ -232,6 +252,25 @@ void UHarmonicsKernel::DetectHarmonicRatios(double MaxDeviation, int32 MaxRatio)
 
             // Higher:lower convention so 3 Hz vs 2 Hz is labelled 3:2 (matches Orbits).
             const double RatioVal = FMath::Max(Fa, Fb) / FMath::Min(Fa, Fb);
+
+            // Exact reduced ratio when both frequencies are (near-)integers, like the
+            // Waves/Gears kernels — so integer ratios ABOVE MaxRatio are still detected
+            // exactly instead of being silently missed.
+            const double Hi = FMath::Max(Fa, Fb);
+            const double Lo = FMath::Min(Fa, Fb);
+            const int32 HiI = FMath::RoundToInt(Hi);
+            const int32 LoI = FMath::RoundToInt(Lo);
+            if (HiI > 0 && LoI > 0 && FMath::Abs(Hi - HiI) < 1e-6 && FMath::Abs(Lo - LoI) < 1e-6)
+            {
+                const int32 G = FMath::GreatestCommonDivisor(HiI, LoI);
+                FHarmonicRatioMatch ExactMatch;
+                ExactMatch.Ratio = FIntPoint(HiI / G, LoI / G);
+                ExactMatch.ActualRatio = RatioVal;
+                ExactMatch.Deviation = 0.0;
+                ExactMatch.Strength = 1.0;
+                HState->ActiveRatios.Add(ExactMatch);
+                continue;
+            }
 
             int32 BestP = 1;
             int32 BestQ = 1;

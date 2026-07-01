@@ -149,6 +149,26 @@ bool URhythmKernel::Query(const FRealmQuery& QueryObj, FRealmQueryResult& Result
     return false;
 }
 
+void URhythmKernel::QueryAll(const FRealmQuery& QueryDesc, TArray<FRealmQueryResult>& OutResults) const
+{
+    if (QueryDesc.QueryType != TEXT("RhythmRatio")) return;
+
+    const float MinStr = QueryDesc.MinStrength;
+    for (const FRhythmRatioMatch& Match : RState->ActiveRatios)
+    {
+        if (Match.Strength < MinStr) continue;
+
+        FRealmQueryResult Result;
+        Result.StructureId = FGuid(GetTypeHash(GetRealmId()),
+            static_cast<uint32>(Match.Ratio.X), static_cast<uint32>(Match.Ratio.Y),
+            GetSimulationVersion());
+        Result.StructureType = QueryDesc.QueryType;
+        Result.Strength = static_cast<float>(Match.Strength);
+        Result.Parameters.Add(TEXT("Ratio"), FString::Printf(TEXT("%d:%d"), Match.Ratio.X, Match.Ratio.Y));
+        OutResults.Add(Result);
+    }
+}
+
 TArray<FName> URhythmKernel::GetSupportedQueryTypes() const
 {
     return { TEXT("RhythmRatio") };
@@ -230,6 +250,24 @@ void URhythmKernel::DetectRhythmRatios(double MaxDeviation, int32 MaxRatio)
 
             // Higher:lower convention so 3-against-2 is labelled 3:2 (matches Orbits).
             const double RatioVal = FMath::Max(Ta, Tb) / FMath::Min(Ta, Tb);
+
+            // Exact reduced ratio when both tempos are (near-)integers, like Waves/Gears,
+            // so integer polyrhythms above MaxRatio are detected exactly.
+            const double Hi = FMath::Max(Ta, Tb);
+            const double Lo = FMath::Min(Ta, Tb);
+            const int32 HiI = FMath::RoundToInt(Hi);
+            const int32 LoI = FMath::RoundToInt(Lo);
+            if (HiI > 0 && LoI > 0 && FMath::Abs(Hi - HiI) < 1e-6 && FMath::Abs(Lo - LoI) < 1e-6)
+            {
+                const int32 G = FMath::GreatestCommonDivisor(HiI, LoI);
+                FRhythmRatioMatch ExactMatch;
+                ExactMatch.Ratio = FIntPoint(HiI / G, LoI / G);
+                ExactMatch.ActualRatio = RatioVal;
+                ExactMatch.Deviation = 0.0;
+                ExactMatch.Strength = 1.0;
+                RState->ActiveRatios.Add(ExactMatch);
+                continue;
+            }
 
             int32 BestP = 1;
             int32 BestQ = 1;

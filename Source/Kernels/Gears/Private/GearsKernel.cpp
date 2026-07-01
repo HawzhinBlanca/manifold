@@ -148,6 +148,26 @@ bool UGearsKernel::Query(const FRealmQuery& QueryObj, FRealmQueryResult& Result)
     return false;
 }
 
+void UGearsKernel::QueryAll(const FRealmQuery& QueryDesc, TArray<FRealmQueryResult>& OutResults) const
+{
+    if (QueryDesc.QueryType != TEXT("GearRatio")) return;
+
+    const float MinStr = QueryDesc.MinStrength;
+    for (const FGearRatioMatch& Match : GState->ActiveRatios)
+    {
+        if (Match.Strength < MinStr) continue;
+
+        FRealmQueryResult Result;
+        Result.StructureId = FGuid(GetTypeHash(GetRealmId()),
+            static_cast<uint32>(Match.Ratio.X), static_cast<uint32>(Match.Ratio.Y),
+            GetSimulationVersion());
+        Result.StructureType = QueryDesc.QueryType;
+        Result.Strength = static_cast<float>(Match.Strength);
+        Result.Parameters.Add(TEXT("Ratio"), FString::Printf(TEXT("%d:%d"), Match.Ratio.X, Match.Ratio.Y));
+        OutResults.Add(Result);
+    }
+}
+
 TArray<FName> UGearsKernel::GetSupportedQueryTypes() const
 {
     return { TEXT("GearRatio") };

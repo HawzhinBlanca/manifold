@@ -82,7 +82,8 @@ void UCorrespondenceSystem::RegisterRealm(FName RealmId, FName StructureQueryTyp
 
 int32 UCorrespondenceSystem::DetectSharedStructureCorrespondences()
 {
-    // Ask each realm for its structure ratio.
+    // Ask each realm for ALL its structure ratios (not just the strongest), so two
+    // realms that share ANY ratio correspond — even a realm that exposes several.
     TArray<TPair<FName, FString>> RealmRatios;
     for (const FRegisteredRealm& Realm : RegisteredRealms)
     {
@@ -90,8 +91,9 @@ int32 UCorrespondenceSystem::DetectSharedStructureCorrespondences()
         if (!Kernel) continue;
 
         FRealmQuery Query(Realm.StructureQueryType);
-        FRealmQueryResult Result;
-        if (Kernel->Query(Query, Result))
+        TArray<FRealmQueryResult> Results;
+        Kernel->QueryAll(Query, Results);
+        for (const FRealmQueryResult& Result : Results)
         {
             const FString Ratio = Result.Parameters.FindRef(TEXT("Ratio"));
             if (!Ratio.IsEmpty())
@@ -101,12 +103,13 @@ int32 UCorrespondenceSystem::DetectSharedStructureCorrespondences()
         }
     }
 
-    // Any two realms that share a structure ratio correspond across the seam.
+    // Any two DIFFERENT realms that share a structure ratio correspond across the seam.
     int32 NewCount = 0;
     for (int32 i = 0; i < RealmRatios.Num(); ++i)
     {
         for (int32 j = i + 1; j < RealmRatios.Num(); ++j)
         {
+            if (RealmRatios[i].Key == RealmRatios[j].Key) continue;  // same realm
             if (RealmRatios[i].Value != RealmRatios[j].Value) continue;
 
             const FString Key = FString::Printf(TEXT("%s|%s|%s"),

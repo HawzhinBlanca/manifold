@@ -138,6 +138,7 @@ public:
     virtual uint64 ComputeStateHash() const override;
 
     virtual bool Query(const FRealmQuery& Query, FRealmQueryResult& Result) const override;
+    virtual void QueryAll(const FRealmQuery& QueryDesc, TArray<FRealmQueryResult>& OutResults) const override;
     virtual TArray<FName> GetSupportedQueryTypes() const override;
 
     virtual TMap<FName, FString> GetParameterSchema() const override;
