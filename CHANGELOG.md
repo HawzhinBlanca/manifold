@@ -25,6 +25,10 @@ all are now fixed with tests (**37/37 green**):
   instead of debug-draw lines.
 
 ### Added (game depth & replayability)
+- **Expedition mode:** a campaign of escalating-difficulty levels (rising discovery
+  targets) played back to back until one can't be cleared, with a cumulative score and
+  a natural difficulty wall (a session surfaces at most 7 discoveries, so target 8 ends
+  the run). Deterministic in the base seed. `MANIFOLD.Play.Expedition`.
 - **Decoy realm (the moat):** a red-herring realm exhibits a deliberately non-matching
   ratio; the correspondence engine refuses to pair it with the true realms, so the game
   can't be won by assuming "everything matches" — the player must discriminate. Shown on
@@ -110,7 +114,7 @@ all are now fixed with tests (**37/37 green**):
   registration. AndroidFileServer plugin disabled (stops dev-token regeneration).
 
 ### Status
-- **42 / 42** automation tests green, headless. Repo is public and professional.
+- **43 / 43** automation tests green, headless. Repo is public and professional.
   Remaining phase (real art/VFX scenes, bound sound assets, bespoke UMG UI, human
   playtest) is human-owned and needs the editor + a display — see
   `Docs/IMPLEMENTATION_STATUS.md`.
