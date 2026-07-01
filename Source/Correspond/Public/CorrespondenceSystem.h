@@ -92,6 +92,25 @@ struct MANIFOLDCORRESPOND_API FRegisteredRealm
 };
 
 /**
+ * The structural equivalence relation under which two realms' ratios count as "the
+ * same structure". This is the heart of the Constellation Lock puzzle: the player
+ * must INFER which relation is active this session, then normalize the six visible
+ * (surface-distinct) ratios in their head and pick the subset that truly corresponds.
+ *
+ *  - Exact:           literal reduced ratio (today's behavior; 3:2 ~ 3:2 only).
+ *  - OctaveInvariant: equal after dividing out factors of 2, i.e. pitch-class /
+ *                     period-doubling equivalence — 3:2, 6:4 and 3:1 all correspond.
+ *  - Reciprocal:      a ratio corresponds to its inverse (p:q ~ q:p) — "the same
+ *                     interval seen from the other side".
+ */
+enum class ECorrespondenceRelation : uint8
+{
+    Exact,
+    OctaveInvariant,
+    Reciprocal
+};
+
+/**
  * Correspondence System manager
  */
 UCLASS(BlueprintType)
@@ -129,6 +148,23 @@ public:
      */
     int32 DetectSharedStructureCorrespondences();
 
+    /**
+     * Canonicalize a "p:q" ratio string under a relation, so that any two ratios which
+     * correspond under that relation map to the SAME normalized string (and any two
+     * that don't map to different strings). Non-ratio / non-positive input is returned
+     * unchanged. Pure and deterministic — the single source of truth for what
+     * "corresponds" means, shared by the detector and the Constellation Lock verb.
+     */
+    static FString NormalizeRatio(const FString& Ratio, ECorrespondenceRelation Relation);
+
+    /** Set the relation the generic N-realm detector matches under (default Exact).
+     *  Exact reproduces the literal-ratio behavior; the others enable the harder
+     *  Constellation Lock puzzle where corresponding realms look different on the surface. */
+    void SetActiveRelation(ECorrespondenceRelation InRelation) { ActiveRelation = InRelation; }
+
+    /** The relation currently in force for shared-structure detection. */
+    ECorrespondenceRelation GetActiveRelation() const { return ActiveRelation; }
+
     // =====================================================================
     // EVENTS
     // =====================================================================
@@ -155,6 +191,9 @@ protected:
 
     /** Dedup key set ("RealmA|RealmB|Ratio") so a shared structure ignites once. */
     TSet<FString> IgnitedSharedStructures;
+
+    /** Relation the shared-structure detector matches under (default Exact = literal). */
+    ECorrespondenceRelation ActiveRelation = ECorrespondenceRelation::Exact;
 
     /** Guarantee a data-driven mapping exists: if none was supplied, synthesize the
      *  canonical default spec (OrbitalResonance 3:2 <-> VortexCenter) so detection is

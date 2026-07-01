@@ -80,6 +80,49 @@ void UCorrespondenceSystem::RegisterRealm(FName RealmId, FName StructureQueryTyp
     RegisteredRealms.Add(Realm);
 }
 
+FString UCorrespondenceSystem::NormalizeRatio(const FString& Ratio, ECorrespondenceRelation Relation)
+{
+    FString LeftStr, RightStr;
+    if (!Ratio.Split(TEXT(":"), &LeftStr, &RightStr))
+    {
+        return Ratio; // not a "p:q" ratio — leave untouched
+    }
+
+    int32 P = FCString::Atoi(*LeftStr);
+    int32 Q = FCString::Atoi(*RightStr);
+    if (P <= 0 || Q <= 0)
+    {
+        return Ratio; // non-positive / unparsable — leave untouched
+    }
+
+    // Octave-invariance: divide out all factors of 2 from each term BEFORE reducing,
+    // so period-doublings collapse into one class (3:2, 6:4, 3:1 -> 3:1).
+    if (Relation == ECorrespondenceRelation::OctaveInvariant)
+    {
+        while ((P & 1) == 0) { P >>= 1; }
+        while ((Q & 1) == 0) { Q >>= 1; }
+    }
+
+    // Reduce to lowest terms (the canonical form for Exact; also tidies the others).
+    auto GcdOf = [](int32 A, int32 B)
+    {
+        while (B != 0) { const int32 T = A % B; A = B; B = T; }
+        return A < 0 ? -A : A;
+    };
+    const int32 G = GcdOf(P, Q);
+    if (G > 0) { P /= G; Q /= G; }
+
+    // Reciprocity: p:q corresponds to q:p, so collapse order to a canonical min:max key.
+    if (Relation == ECorrespondenceRelation::Reciprocal)
+    {
+        const int32 Lo = FMath::Min(P, Q);
+        const int32 Hi = FMath::Max(P, Q);
+        P = Lo; Q = Hi;
+    }
+
+    return FString::Printf(TEXT("%d:%d"), P, Q);
+}
+
 int32 UCorrespondenceSystem::DetectSharedStructureCorrespondences()
 {
     // Ask each realm for ALL its structure ratios (not just the strongest), so two
@@ -103,32 +146,38 @@ int32 UCorrespondenceSystem::DetectSharedStructureCorrespondences()
         }
     }
 
-    // Any two DIFFERENT realms that share a structure ratio correspond across the seam.
+    // Any two DIFFERENT realms whose ratios correspond UNDER THE ACTIVE RELATION match
+    // across the seam. Under Exact this is literal equality (today's behavior); under
+    // Octave/Reciprocal, realms that look different on the surface (6:4 vs 3:2 vs 3:1)
+    // can still correspond — the Constellation Lock puzzle. The normalized form is the
+    // shared identity used for the compare, the dedup key, and the broadcast.
     int32 NewCount = 0;
     for (int32 i = 0; i < RealmRatios.Num(); ++i)
     {
+        const FString NormI = NormalizeRatio(RealmRatios[i].Value, ActiveRelation);
         for (int32 j = i + 1; j < RealmRatios.Num(); ++j)
         {
             if (RealmRatios[i].Key == RealmRatios[j].Key) continue;  // same realm
-            if (RealmRatios[i].Value != RealmRatios[j].Value) continue;
+            const FString NormJ = NormalizeRatio(RealmRatios[j].Value, ActiveRelation);
+            if (NormI != NormJ) continue;  // don't correspond under the active relation
 
             const FString Key = FString::Printf(TEXT("%s|%s|%s"),
                 *RealmRatios[i].Key.ToString(),
                 *RealmRatios[j].Key.ToString(),
-                *RealmRatios[i].Value);
+                *NormI);
 
             if (!IgnitedSharedStructures.Contains(Key))
             {
                 IgnitedSharedStructures.Add(Key);
                 // Stable identity for the shared structure: deterministic from the
-                // (order-independent) realm pair + ratio, so the same analogy always
-                // has the same id (no throwaway GUIDs).
+                // (order-independent) realm pair + normalized ratio, so the same analogy
+                // always has the same id (no throwaway GUIDs).
                 const uint32 HashA = GetTypeHash(RealmRatios[i].Key);
                 const uint32 HashB = GetTypeHash(RealmRatios[j].Key);
-                const uint32 RatioHash = GetTypeHash(RealmRatios[i].Value);
+                const uint32 RatioHash = GetTypeHash(NormI);
                 const FGuid StableId(HashA ^ HashB, HashA + HashB, RatioHash, 0x5AA5u);
                 OnSharedStructureDiscovered.Broadcast(
-                    RealmRatios[i].Key, RealmRatios[j].Key, RealmRatios[i].Value, StableId);
+                    RealmRatios[i].Key, RealmRatios[j].Key, NormI, StableId);
                 ++NewCount;
             }
         }

@@ -6,6 +6,21 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Added (depth — Constellation Lock foundation)
+- **Relation-aware correspondence engine.** The generic N-realm detector no longer
+  matches only on *literal* equal ratios — it matches under a per-session structural
+  **relation**: `Exact` (literal, the default — reproduces prior behavior byte-for-byte),
+  `OctaveInvariant` (equal after dividing out factors of 2, so 3:2, 6:4 and 3:1 all
+  correspond), or `Reciprocal` (p:q ~ q:p). `UCorrespondenceSystem::NormalizeRatio` is
+  the single, pure source of truth for "corresponds", shared by the detector and (next)
+  the Constellation-Lock verb. This is the groundwork for the harder puzzle where every
+  realm shows a *different* surface ratio and the player must infer the hidden relation +
+  select the corresponding subset, instead of eye-spotting one odd realm.
+  Tests: `MANIFOLD.Correspondence.RelationNormalize` (all three relations + robustness),
+  `MANIFOLD.Correspondence.ConstellationOctave` (surface-distinct realms correspond under
+  Octave while a decoy stays out, and the same realms do *not* correspond under Exact —
+  proving the relation genuinely changes behavior). **53/53 green.**
+
 ### Hardened (no mocks / placeholders)
 An adversarial, codebase-wide incompleteness audit found 16 real stubs/fakes;
 all are now fixed with tests (**37/37 green**):

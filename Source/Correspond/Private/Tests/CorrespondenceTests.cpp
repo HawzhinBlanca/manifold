@@ -30,6 +30,47 @@ static void Manifold_SetupResonanceAndVortex(UOrbitsKernel* Orbits, UFluidsKerne
     Fluids->Step(0.016f);
 }
 
+// Constellation Lock — the relation normalizer is the single source of truth for what
+// "corresponds". Two ratios correspond under a relation IFF they normalize to the same
+// string. This proves each relation collapses the right classes and keeps the wrong ones
+// apart, including that Exact reproduces the literal-ratio behavior (so all prior tests hold).
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCorrespondenceRelationNormalizeTest, "MANIFOLD.Correspondence.RelationNormalize", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FCorrespondenceRelationNormalizeTest::RunTest(const FString& Parameters)
+{
+    using EN = ECorrespondenceRelation;
+    auto Norm = [](const FString& R, EN Rel) { return UCorrespondenceSystem::NormalizeRatio(R, Rel); };
+
+    // --- Exact: literal reduced ratio; already-reduced input is unchanged (the
+    //     invariant that keeps the existing 51 tests green). ---
+    UTEST_EQUAL("Exact 3:2 stays 3:2", Norm(TEXT("3:2"), EN::Exact), FString(TEXT("3:2")));
+    UTEST_EQUAL("Exact reduces 6:4 -> 3:2", Norm(TEXT("6:4"), EN::Exact), FString(TEXT("3:2")));
+    UTEST_NOT_EQUAL("Exact keeps 3:2 and 3:1 distinct",
+        Norm(TEXT("3:2"), EN::Exact), Norm(TEXT("3:1"), EN::Exact));
+
+    // --- OctaveInvariant: divide out factors of 2, then reduce. 3:2, 6:4 and 3:1 all
+    //     collapse to the same class; 5:4 does not join them. ---
+    UTEST_EQUAL("Octave 6:4 == 3:2", Norm(TEXT("6:4"), EN::OctaveInvariant), Norm(TEXT("3:2"), EN::OctaveInvariant));
+    UTEST_EQUAL("Octave 3:2 == 3:1", Norm(TEXT("3:2"), EN::OctaveInvariant), Norm(TEXT("3:1"), EN::OctaveInvariant));
+    UTEST_EQUAL("Octave 3:2 == 12:8", Norm(TEXT("3:2"), EN::OctaveInvariant), Norm(TEXT("12:8"), EN::OctaveInvariant));
+    UTEST_NOT_EQUAL("Octave keeps 3:2 and 5:4 apart",
+        Norm(TEXT("3:2"), EN::OctaveInvariant), Norm(TEXT("5:4"), EN::OctaveInvariant));
+    UTEST_NOT_EQUAL("Octave keeps 5:3 (->5:3) and 5:4 (->5:1) apart",
+        Norm(TEXT("5:3"), EN::OctaveInvariant), Norm(TEXT("5:4"), EN::OctaveInvariant));
+
+    // --- Reciprocal: p:q corresponds to q:p (order-independent min:max key). ---
+    UTEST_EQUAL("Reciprocal 3:2 == 2:3", Norm(TEXT("3:2"), EN::Reciprocal), Norm(TEXT("2:3"), EN::Reciprocal));
+    UTEST_EQUAL("Reciprocal 5:4 == 4:5", Norm(TEXT("5:4"), EN::Reciprocal), Norm(TEXT("4:5"), EN::Reciprocal));
+    UTEST_NOT_EQUAL("Reciprocal keeps 3:2 and 5:4 apart",
+        Norm(TEXT("3:2"), EN::Reciprocal), Norm(TEXT("5:4"), EN::Reciprocal));
+
+    // --- Robustness: non-ratio / non-positive input is returned unchanged (never crashes). ---
+    UTEST_EQUAL("Non-ratio passes through", Norm(TEXT("hello"), EN::Exact), FString(TEXT("hello")));
+    UTEST_EQUAL("Zero denominator passes through", Norm(TEXT("3:0"), EN::OctaveInvariant), FString(TEXT("3:0")));
+
+    return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCorrespondenceValidationTest, "MANIFOLD.Correspondence.MappingValidation", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 
 bool FCorrespondenceValidationTest::RunTest(const FString& Parameters)

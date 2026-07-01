@@ -37,6 +37,68 @@ bool FSliceVerticalLoopTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// Constellation Lock (engine level): under the OctaveInvariant relation, two realms whose
+// SURFACE ratios differ (3:1 vs 3:2) still correspond because they share an octave class,
+// while a realm outside that class (5:4) does not — the precise discrimination the
+// subset-hunt puzzle needs. The SAME three realms produce ZERO correspondences under
+// Exact, proving the active relation genuinely changes what "corresponds" means.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FConstellationOctaveEngineTest, "MANIFOLD.Correspondence.ConstellationOctave", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FConstellationOctaveEngineTest::RunTest(const FString& Parameters)
+{
+    // Each "realm" is a Harmonics kernel whose two modes fix its surface ratio Hi:Lo.
+    auto MakeRealm = [](int32 Lo, int32 Hi)
+    {
+        UHarmonicsKernel* K = NewObject<UHarmonicsKernel>();
+        K->Initialize(1ULL);
+        K->AddMode(static_cast<double>(Lo), 1.0);
+        K->AddMode(static_cast<double>(Hi), 1.0);
+        K->Step(0.01f);
+        return K;
+    };
+    UHarmonicsKernel* RealmA = MakeRealm(1, 3); // surface 3:1
+    UHarmonicsKernel* RealmB = MakeRealm(2, 3); // surface 3:2 (octave-equivalent to 3:1)
+    UHarmonicsKernel* RealmC = MakeRealm(4, 5); // surface 5:4 (a different octave class)
+
+    // --- Exact: 3:1, 3:2 and 5:4 are all literally different -> no correspondences. ---
+    {
+        UCorrespondenceSystem* Sys = NewObject<UCorrespondenceSystem>();
+        Sys->RegisterRealm(TEXT("A"), TEXT("HarmonicRatio"), RealmA);
+        Sys->RegisterRealm(TEXT("B"), TEXT("HarmonicRatio"), RealmB);
+        Sys->RegisterRealm(TEXT("C"), TEXT("HarmonicRatio"), RealmC);
+        Sys->SetActiveRelation(ECorrespondenceRelation::Exact);
+        UTEST_EQUAL("Exact: surface-distinct realms do not correspond",
+            Sys->DetectSharedStructureCorrespondences(), 0);
+    }
+
+    // --- OctaveInvariant: A(3:1) and B(3:2) collapse to the same class; C stays out. ---
+    {
+        UCorrespondenceSystem* Sys = NewObject<UCorrespondenceSystem>();
+        int32 Discoveries = 0;
+        TSet<FName> Partners;
+        Sys->OnSharedStructureDiscovered.AddLambda(
+            [&Discoveries, &Partners](FName A, FName B, FString /*Ratio*/, FGuid /*Id*/)
+            {
+                ++Discoveries;
+                Partners.Add(A);
+                Partners.Add(B);
+            });
+        Sys->RegisterRealm(TEXT("A"), TEXT("HarmonicRatio"), RealmA);
+        Sys->RegisterRealm(TEXT("B"), TEXT("HarmonicRatio"), RealmB);
+        Sys->RegisterRealm(TEXT("C"), TEXT("HarmonicRatio"), RealmC);
+        Sys->SetActiveRelation(ECorrespondenceRelation::OctaveInvariant);
+
+        UTEST_EQUAL("Octave: exactly one correspondence (A<->B)",
+            Sys->DetectSharedStructureCorrespondences(), 1);
+        UTEST_EQUAL("Octave: discovery fired exactly once", Discoveries, 1);
+        UTEST_TRUE("Octave: the pair is A and B",
+            Partners.Contains(FName(TEXT("A"))) && Partners.Contains(FName(TEXT("B"))));
+        UTEST_FALSE("Octave: decoy C never corresponds", Partners.Contains(FName(TEXT("C"))));
+    }
+
+    return true;
+}
+
 // Control build (Build Plan D3): with NO correspondence content the loop must NOT
 // manufacture insight — the moat is that unsolved seams stay unsolved. Here we run
 // only the Fluids realm (no resonance to correspond with), so nothing ignites.
