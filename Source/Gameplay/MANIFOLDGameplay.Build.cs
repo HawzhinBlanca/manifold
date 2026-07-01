@@ -16,6 +16,7 @@ public class MANIFOLDGameplay : ModuleRules
             "MANIFOLDCore",
             "MANIFOLDKernelsOrbits",
             "MANIFOLDKernelsFluids",
+            "MANIFOLDKernelsHarmonics",
             "MANIFOLDCorrespond",
             "MANIFOLDTelemetry"
         });

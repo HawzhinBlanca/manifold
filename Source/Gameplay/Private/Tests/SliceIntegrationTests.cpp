@@ -4,6 +4,7 @@
 #include "ManifoldSlice.h"
 #include "OrbitsKernel.h"
 #include "FluidsKernel.h"
+#include "HarmonicsKernel.h"
 #include "CorrespondenceSystem.h"
 #include "TelemetrySystem.h"
 
@@ -64,6 +65,51 @@ bool FSliceControlNoCorrespondenceTest::RunTest(const FString& Parameters)
 
     UTEST_EQUAL("Control: no resonance with a single planet", Control->Orbits->GetActiveResonances().Num(), 0);
     UTEST_EQUAL("Control: Insight Rate stays zero without a correspondence", Control->Telemetry->CalculateInsightRate(), 0.0f);
+
+    return true;
+}
+
+// The core mechanic, generalized to N realms: ANY two realms exposing the same
+// structure ratio correspond. Here Orbits (3:2 mean-motion resonance) and Harmonics
+// (3:2 frequency ratio) share the "3:2" structure across totally different domains —
+// the cross-domain analogy that is the heart of MANIFOLD.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMultiRealmCorrespondenceTest, "MANIFOLD.Integration.MultiRealmCorrespondence", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMultiRealmCorrespondenceTest::RunTest(const FString& Parameters)
+{
+    // Orbits with a 3:2 mean-motion resonance.
+    UOrbitsKernel* Orbits = NewObject<UOrbitsKernel>();
+    Orbits->Initialize(1111ULL);
+    FOrbitsBodyDef Star; Star.Mass = 1.989e30; Star.bIsCentral = true; Orbits->AddBody(Star);
+    FOrbitsBodyDef A; A.Mass = 1e24; A.Position = FVector(1.496e11, 0.0, 0.0);
+    const double vA = FMath::Sqrt((Orbits->G * Star.Mass) / A.Position.X); A.Velocity = FVector(0.0, vA, 0.0);
+    Orbits->AddBody(A);
+    const double rB = A.Position.X * FMath::Pow(1.5, 2.0 / 3.0);
+    FOrbitsBodyDef B; B.Mass = 1e24; B.Position = FVector(rB, 0.0, 0.0);
+    const double vB = FMath::Sqrt((Orbits->G * Star.Mass) / rB); B.Velocity = FVector(0.0, vB, 0.0);
+    Orbits->AddBody(B);
+    Orbits->Step(0.1f);
+
+    // Harmonics with a 3:2 frequency ratio (2 Hz vs 3 Hz).
+    UHarmonicsKernel* Harmonics = NewObject<UHarmonicsKernel>();
+    Harmonics->Initialize(999ULL);
+    Harmonics->AddMode(2.0, 1.0);
+    Harmonics->AddMode(3.0, 1.0);
+    Harmonics->Step(0.01f);
+
+    UCorrespondenceSystem* Correspond = NewObject<UCorrespondenceSystem>();
+    Correspond->RegisterRealm(TEXT("Orbits"), TEXT("OrbitalResonance"), Orbits);
+    Correspond->RegisterRealm(TEXT("Harmonics"), TEXT("HarmonicRatio"), Harmonics);
+
+    bool bIgnited = false;
+    Correspond->OnCorrespondenceIgnited.AddLambda([&bIgnited](FGuid, FGuid, float) { bIgnited = true; });
+
+    const int32 Found = Correspond->DetectSharedStructureCorrespondences();
+    UTEST_GREATER("Shared 3:2 structure found across Orbits and Harmonics", Found, 0);
+    UTEST_TRUE("Cross-domain correspondence ignited", bIgnited);
+
+    // Idempotent: the same shared structure does not re-ignite.
+    UTEST_EQUAL("No duplicate ignition on re-detect", Correspond->DetectSharedStructureCorrespondences(), 0);
 
     return true;
 }

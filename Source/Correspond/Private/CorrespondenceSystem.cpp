@@ -71,6 +71,60 @@ void UCorrespondenceSystem::RegisterKernels(UObject* InOrbitsKernel, UObject* In
     FluidsKernel = InFluidsKernel;
 }
 
+void UCorrespondenceSystem::RegisterRealm(FName RealmId, FName StructureQueryType, UObject* Kernel)
+{
+    FRegisteredRealm Realm;
+    Realm.RealmId = RealmId;
+    Realm.StructureQueryType = StructureQueryType;
+    Realm.Kernel = Kernel;
+    RegisteredRealms.Add(Realm);
+}
+
+int32 UCorrespondenceSystem::DetectSharedStructureCorrespondences()
+{
+    // Ask each realm for its structure ratio.
+    TArray<TPair<FName, FString>> RealmRatios;
+    for (const FRegisteredRealm& Realm : RegisteredRealms)
+    {
+        IRealmKernel* Kernel = Cast<IRealmKernel>(Realm.Kernel);
+        if (!Kernel) continue;
+
+        FRealmQuery Query(Realm.StructureQueryType);
+        FRealmQueryResult Result;
+        if (Kernel->Query(Query, Result))
+        {
+            const FString Ratio = Result.Parameters.FindRef(TEXT("Ratio"));
+            if (!Ratio.IsEmpty())
+            {
+                RealmRatios.Add(TPair<FName, FString>(Realm.RealmId, Ratio));
+            }
+        }
+    }
+
+    // Any two realms that share a structure ratio correspond across the seam.
+    int32 NewCount = 0;
+    for (int32 i = 0; i < RealmRatios.Num(); ++i)
+    {
+        for (int32 j = i + 1; j < RealmRatios.Num(); ++j)
+        {
+            if (RealmRatios[i].Value != RealmRatios[j].Value) continue;
+
+            const FString Key = FString::Printf(TEXT("%s|%s|%s"),
+                *RealmRatios[i].Key.ToString(),
+                *RealmRatios[j].Key.ToString(),
+                *RealmRatios[i].Value);
+
+            if (!IgnitedSharedStructures.Contains(Key))
+            {
+                IgnitedSharedStructures.Add(Key);
+                OnCorrespondenceIgnited.Broadcast(FGuid::NewGuid(), FGuid::NewGuid(), 1.0f);
+                ++NewCount;
+            }
+        }
+    }
+    return NewCount;
+}
+
 void UCorrespondenceSystem::InitializeMapping(UCorrespondenceMapping* MappingAsset)
 {
     Mapping = MappingAsset;

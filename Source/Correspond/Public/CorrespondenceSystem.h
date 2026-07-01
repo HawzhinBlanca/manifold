@@ -64,6 +64,26 @@ public:
 };
 
 /**
+ * A realm registered with the correspondence engine, plus the query type that
+ * exposes its structure (Build Plan §9: every realm exposes its structure for mappings).
+ */
+USTRUCT()
+struct MANIFOLDCORRESPOND_API FRegisteredRealm
+{
+    GENERATED_BODY()
+
+    UPROPERTY()
+    FName RealmId;
+
+    /** The query type that returns this realm's structure with a "Ratio" parameter. */
+    UPROPERTY()
+    FName StructureQueryType;
+
+    UPROPERTY()
+    UObject* Kernel = nullptr;
+};
+
+/**
  * Correspondence System manager
  */
 UCLASS(BlueprintType)
@@ -74,7 +94,7 @@ class MANIFOLDCORRESPOND_API UCorrespondenceSystem : public UObject
 public:
     UCorrespondenceSystem();
 
-    /** Register source and target kernels */
+    /** Register source and target kernels (the original Orbits<->Fluids slice path). */
     void RegisterKernels(UObject* InOrbitsKernel, UObject* InFluidsKernel);
 
     /** Initialize from mapping asset */
@@ -85,6 +105,21 @@ public:
 
     /** Transport a state change from source structure to target realm */
     bool Transport(FGuid SourceStructureId, FName TargetRealm);
+
+    // =====================================================================
+    // GENERIC N-REALM CORRESPONDENCE (the core mechanic, scaled)
+    // =====================================================================
+
+    /** Register any realm by id + the query type that exposes its structure ratio. */
+    void RegisterRealm(FName RealmId, FName StructureQueryType, UObject* Kernel);
+
+    /**
+     * Detect correspondences between ANY two registered realms that expose the
+     * same structure ratio (e.g. orbital 3:2 <-> harmonic 3:2 — the cross-domain
+     * analogy generalized to N realms). Broadcasts OnCorrespondenceIgnited for each
+     * newly-found pair (idempotent across calls). Returns the count of NEW ones.
+     */
+    int32 DetectSharedStructureCorrespondences();
 
     // =====================================================================
     // EVENTS
@@ -104,4 +139,11 @@ protected:
 
     UPROPERTY()
     TArray<FGuid> IgnitedCorrespondences;
+
+    /** Realms registered for generic N-realm correspondence. */
+    UPROPERTY()
+    TArray<FRegisteredRealm> RegisteredRealms;
+
+    /** Dedup key set ("RealmA|RealmB|Ratio") so a shared structure ignites once. */
+    TSet<FString> IgnitedSharedStructures;
 };
