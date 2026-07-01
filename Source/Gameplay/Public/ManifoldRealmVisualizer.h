@@ -65,6 +65,9 @@ protected:
 
     int32 Cursor = 0;
 
+    /** Accumulated spin so the ratio-pair clusters gently orbit (a living scene). */
+    float SpinAngle = 0.0f;
+
     /** Frame-pooled sphere placement: reuse components, hide the leftovers. */
     void BeginFrame();
     void EndFrame();

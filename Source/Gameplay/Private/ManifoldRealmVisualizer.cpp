@@ -195,10 +195,13 @@ void AManifoldRealmVisualizer::PlaceRatioRealm(const FVector& Center, int32 P, i
 {
     if (P <= 0 || Q <= 0) return;
 
-    // Two beads sized in proportion to the ratio: the shape IS the ratio.
+    // Two beads sized in proportion to the ratio (the shape IS the ratio), gently
+    // orbiting each other in the plane facing the camera so the pairing feels alive.
     const float Unit = 14.0f;
-    PlaceSphere(Center + FVector(0.0, -55.0, 0.0), Unit * P, Color);
-    PlaceSphere(Center + FVector(0.0,  55.0, 0.0), Unit * Q, Color);
+    const float Sep = 55.0f;
+    const FVector Off(0.0, Sep * FMath::Cos(SpinAngle), Sep * FMath::Sin(SpinAngle));
+    PlaceSphere(Center + Off, Unit * P, Color);
+    PlaceSphere(Center - Off, Unit * Q, Color);
 }
 
 void AManifoldRealmVisualizer::Tick(float DeltaSeconds)
@@ -211,6 +214,8 @@ void AManifoldRealmVisualizer::Tick(float DeltaSeconds)
     AManifoldGameMode* GM = World->GetAuthGameMode<AManifoldGameMode>();
     if (!GM || !GM->Slice) return;
     UManifoldSlice* S = GM->Slice;
+
+    SpinAngle += DeltaSeconds * 0.6f; // gentle orbit of the ratio pairs
 
     BeginFrame();
 
