@@ -39,6 +39,7 @@ public:
     UPROPERTY(EditAnywhere, Category = "MANIFOLD") FVector HarmonicsCenter = FVector(   0.0, 0.0, 250.0);
     UPROPERTY(EditAnywhere, Category = "MANIFOLD") FVector WavesCenter     = FVector( 450.0, 0.0, 250.0);
     UPROPERTY(EditAnywhere, Category = "MANIFOLD") FVector RhythmCenter    = FVector( 900.0, 0.0, 250.0);
+    UPROPERTY(EditAnywhere, Category = "MANIFOLD") FVector DecoyCenter     = FVector(   0.0, 0.0, 560.0);
 
     /** World units per astronomical unit (Orbits are ~1e11 m). */
     UPROPERTY(EditAnywhere, Category = "MANIFOLD") float OrbitsScale = 180.0f;

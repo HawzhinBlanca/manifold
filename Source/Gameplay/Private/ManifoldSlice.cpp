@@ -20,6 +20,7 @@ void UManifoldSlice::Setup(uint64 OrbitsSeed, uint64 FluidsSeed)
     Harmonics = NewObject<UHarmonicsKernel>(this);
     Waves = NewObject<UWavesKernel>(this);
     Rhythm = NewObject<URhythmKernel>(this);
+    Decoy = NewObject<UHarmonicsKernel>(this);
     Correspond = NewObject<UCorrespondenceSystem>(this);
     Telemetry = NewObject<UTelemetrySystem>(this);
     Audio = NewObject<UManifoldAudioDirector>(this);
@@ -29,15 +30,18 @@ void UManifoldSlice::Setup(uint64 OrbitsSeed, uint64 FluidsSeed)
     Harmonics->Initialize(OrbitsSeed ^ 0xABCDEF);
     Waves->Initialize(OrbitsSeed ^ 0x123456);
     Rhythm->Initialize(OrbitsSeed ^ 0x789ABC);
+    Decoy->Initialize(OrbitsSeed ^ 0xFEDCBA);
     Correspond->RegisterKernels(Orbits, Fluids);
 
-    // Generic N-realm engine: any realms exposing the same ratio correspond.
-    // A 3:2 now shows up across FIVE domains — celestial, acoustic, spatial, and
-    // temporal — the cross-domain analogy that is the heart of MANIFOLD.
+    // Generic N-realm engine: any realms exposing the same ratio correspond. The
+    // hidden ratio shows up across FOUR ratio domains — celestial, acoustic, spatial,
+    // temporal — plus a DECOY realm whose ratio deliberately differs, so the engine
+    // must (and does) refuse the false correspondence.
     Correspond->RegisterRealm(TEXT("Orbits"), TEXT("OrbitalResonance"), Orbits);
     Correspond->RegisterRealm(TEXT("Harmonics"), TEXT("HarmonicRatio"), Harmonics);
     Correspond->RegisterRealm(TEXT("Waves"), TEXT("WaveHarmonic"), Waves);
     Correspond->RegisterRealm(TEXT("Rhythm"), TEXT("RhythmRatio"), Rhythm);
+    Correspond->RegisterRealm(TEXT("Decoy"), TEXT("HarmonicRatio"), Decoy);
 
     Telemetry->InitializeTelemetry(TEXT("SlicePlaythrough.log"));
 
@@ -47,6 +51,13 @@ void UManifoldSlice::Setup(uint64 OrbitsSeed, uint64 FluidsSeed)
     // — the design's "un-pre-computable" pillar, made real.
     PickSharedRatio(OrbitsSeed, SharedP, SharedQ);
     const double RatioD = static_cast<double>(SharedP) / static_cast<double>(SharedQ);
+
+    // The decoy gets a DIFFERENT ratio: advance the seed until it picks another one.
+    {
+        uint64 DecoySeed = OrbitsSeed + 1;
+        do { PickSharedRatio(DecoySeed++, DecoyP, DecoyQ); }
+        while (DecoyP == SharedP && DecoyQ == SharedQ);
+    }
 
     // Correspondence content, generated as data from the chosen ratio (data-driven:
     // the CorrespondenceSystem matches Orbits<->Fluids against this spec + tolerance).
@@ -108,6 +119,11 @@ void UManifoldSlice::Setup(uint64 OrbitsSeed, uint64 FluidsSeed)
     // --- Rhythm: a P-against-Q polyrhythm — the same structure in the domain of TIME ---
     Rhythm->AddVoice(static_cast<double>(SharedP));
     Rhythm->AddVoice(static_cast<double>(SharedQ));
+
+    // --- Decoy: a harmonic ratio that deliberately does NOT match the hidden one.
+    //     The correspondence engine must refuse to pair it with the true realms. ---
+    Decoy->AddMode(static_cast<double>(DecoyQ), 1.0);
+    Decoy->AddMode(static_cast<double>(DecoyP), 1.0);
 }
 
 void UManifoldSlice::PickSharedRatio(uint64 Seed, int32& OutP, int32& OutQ)
@@ -261,6 +277,7 @@ void UManifoldSlice::Tick()
     if (Harmonics) { Harmonics->Step(0.016f); }
     if (Waves) { Waves->Step(0.001f); }
     if (Rhythm) { Rhythm->Step(0.016f); }
+    if (Decoy) { Decoy->Step(0.016f); }
     CurrentTime = Fluids->GetSimulationTime();
 
     // Orbits <-> Fluids (data-driven spec): ignition lights the transport seam.
@@ -339,6 +356,19 @@ FString UManifoldSlice::GetRhythmRatio() const
     if (Rhythm)
     {
         const TArray<FRhythmRatioMatch>& Ratios = Rhythm->GetActiveRatios();
+        if (Ratios.Num() > 0)
+        {
+            return FString::Printf(TEXT("%d:%d"), Ratios[0].Ratio.X, Ratios[0].Ratio.Y);
+        }
+    }
+    return TEXT("-");
+}
+
+FString UManifoldSlice::GetDecoyRatio() const
+{
+    if (Decoy)
+    {
+        const TArray<FHarmonicRatioMatch>& Ratios = Decoy->GetActiveRatios();
         if (Ratios.Num() > 0)
         {
             return FString::Printf(TEXT("%d:%d"), Ratios[0].Ratio.X, Ratios[0].Ratio.Y);

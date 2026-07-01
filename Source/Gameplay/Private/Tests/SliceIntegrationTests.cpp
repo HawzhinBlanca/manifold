@@ -343,6 +343,31 @@ bool FProceduralVariationTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// Decoy realm (the moat): a red-herring realm exhibits a DIFFERENT ratio, and the
+// correspondence engine must refuse to pair it with the true realms. This proves the
+// game can't be trivially solved by "everything matches" — the player must actually
+// discriminate the real correspondence from the false one.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDecoyRealmTest, "MANIFOLD.Play.DecoyRealm", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FDecoyRealmTest::RunTest(const FString& Parameters)
+{
+    UManifoldSlice* S = NewObject<UManifoldSlice>();
+    S->Setup(1111ULL, 2222ULL);
+    S->RunPlaythrough(30);
+
+    // The decoy realizes a real ratio, but a DIFFERENT one from the hidden ratio.
+    UTEST_TRUE("Decoy exhibits a ratio", S->GetDecoyRatio() != FString(TEXT("-")));
+    UTEST_NOT_EQUAL("Decoy ratio differs from the hidden ratio (red herring)",
+        S->GetDecoyRatio(), S->GetSharedRatio());
+
+    // The four TRUE ratio realms correspond pairwise (C(4,2) = 6). The decoy shares
+    // its ratio with none of them, so the engine adds no false correspondence.
+    UTEST_EQUAL("Engine refuses the false correspondence (no decoy inflation)",
+        S->GetSharedDiscoveries(), 6);
+
+    return true;
+}
+
 // Stable structure identity: a realm's Query must return the SAME id for the same
 // detected structure across calls (not a fresh GUID each time), so the correspondence
 // layer can dedup and transport by it. Regression guard for the Harmonics/Waves/Rhythm

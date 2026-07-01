@@ -140,6 +140,10 @@ public:
     UFUNCTION(BlueprintPure, Category = "MANIFOLD") FString GetHarmonicsRatio() const;
     UFUNCTION(BlueprintPure, Category = "MANIFOLD") FString GetRhythmRatio() const;
 
+    /** The decoy realm's ratio — a RED HERRING that deliberately does NOT match the
+     *  hidden ratio, so the player must actually discriminate the true correspondence. */
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD") FString GetDecoyRatio() const;
+
     /** The hidden ratio this session's realms all secretly share (picked from the
      *  seed). Different seeds hide different ratios — the puzzle is which one. */
     UFUNCTION(BlueprintPure, Category = "MANIFOLD")
@@ -166,6 +170,10 @@ public:
     UPROPERTY()
     URhythmKernel* Rhythm = nullptr;
 
+    /** A decoy ratio realm (red herring) that does NOT share the hidden ratio. */
+    UPROPERTY()
+    UHarmonicsKernel* Decoy = nullptr;
+
     UPROPERTY()
     UCorrespondenceSystem* Correspond = nullptr;
 
@@ -183,6 +191,10 @@ private:
     // The hidden ratio this session's realms share (chosen from the seed in Setup).
     int32 SharedP = 3;
     int32 SharedQ = 2;
+
+    // The decoy realm's (deliberately non-matching) ratio.
+    int32 DecoyP = 5;
+    int32 DecoyQ = 4;
     int64 CurrentStep = 0;
     float CurrentTime = 0.0f;
 
