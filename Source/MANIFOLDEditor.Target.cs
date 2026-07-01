@@ -12,8 +12,9 @@ public class MANIFOLDEditorTarget : TargetRules
 			"MANIFOLDCore", 
 			"MANIFOLDKernelsOrbits", 
 			"MANIFOLDKernelsFluids", 
-			"MANIFOLDCorrespond", 
-			"MANIFOLDTelemetry" 
+			"MANIFOLDCorrespond",
+			"MANIFOLDTelemetry",
+			"MANIFOLDGameplay"
 		});
 	}
 }
