@@ -39,8 +39,9 @@ code (verified by a codebase-wide adversarial audit). What remains is art direct
 
 - ✅ **38 / 38** automation tests pass, headless, 0 failures
 - ✅ Deterministic fixed-step simulation (bitwise-reproducible; real replay verification)
-- ✅ **Five** realms (Orbits, Fluids, Harmonics, Waves, Rhythm) sharing one `3:2` across
-  celestial / fluid / acoustic / spatial / temporal domains, via a generic N-realm engine
+- ✅ **Six** realms (Orbits, Fluids, Harmonics, Waves, Rhythm, Gears) sharing one hidden
+  ratio across celestial / fluid / acoustic / spatial / temporal / mechanical domains,
+  via a generic N-realm engine — plus a **decoy** realm the engine refuses to false-match
 - ✅ Game loop with an **objective** (win/lose) and **deterministic, shareable replays**
 - ✅ **Audio you can hear** — procedural synthesis; a discovered `3:2` sounds a perfect fifth
 - ✅ **Real 3D geometry** for every realm + a **branded HUD** with a procedural emblem

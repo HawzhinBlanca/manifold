@@ -36,10 +36,11 @@ The console command `ManifoldTransport` does the same as `E`; `ManifoldRestart` 
 | **Harmonics** | acoustic | two oscillator modes whose frequencies form the ratio |
 | **Waves** | spatial | two string harmonics forming the ratio |
 | **Rhythm** | time | a polyrhythm (three-against-two = 3:2) |
+| **Gears** | mechanism | two meshed gears whose tooth counts form the ratio (exact) |
 | **Decoy** | — | a **red herring**: a ratio that deliberately does *not* match |
 
-Four of these (Orbits, Harmonics, Waves, Rhythm) always share the session's hidden
-ratio; the Decoy never does. The correspondence engine refuses to pair the decoy with
+Five of these (Orbits, Harmonics, Waves, Rhythm, Gears) always share the session's
+hidden ratio; the Decoy never does. The correspondence engine refuses to pair the decoy with
 the true realms — so you can't win by assuming everything matches. You have to
 *discriminate*.
 
@@ -66,8 +67,8 @@ The **speed bonus** applies when you win under a step budget. Each session is gr
 ## Expedition
 
 Expedition mode strings sessions into a campaign: each level demands more discoveries
-than the last (2, 4, 6, …). A single session can surface at most **7** discoveries
-(one seam correspondence + six cross-domain analogies among the four true realms), so
+than the last (2, 4, 6, …). A single session can surface at most **11** discoveries
+(one seam correspondence + ten cross-domain analogies among the five true realms), so
 the run has a natural difficulty wall — it ends the first time you can't clear a level.
 Your expedition score is the sum of the levels you cleared.
 
