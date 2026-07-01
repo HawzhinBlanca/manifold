@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
+#include "ManifoldTypes.h"
 #include "ManifoldSlice.generated.h"
 
 class UOrbitsKernel;
@@ -77,6 +78,41 @@ public:
     UPROPERTY(BlueprintReadWrite, Category = "MANIFOLD")
     bool bAutoTransportOnIgnite = true;
 
+    // --- Objective / session (the win condition that makes this a game) ---
+
+    /** Set the win condition for this session (target discoveries, step budget). */
+    UFUNCTION(BlueprintCallable, Category = "MANIFOLD")
+    void SetObjective(const FManifoldObjective& InObjective) { Objective = InObjective; }
+
+    /** Total discoveries so far = Orbits<->Fluids ignitions + cross-domain analogies. */
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD")
+    int32 GetTotalDiscoveries() const { return IgnitedCount + SharedDiscoveries; }
+
+    /** Where the session stands relative to its objective. */
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD")
+    EManifoldSessionState GetSessionState() const { return SessionState; }
+
+    /** Snapshot of the session outcome (state + score + insight). */
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD")
+    FManifoldSessionSummary GetSessionSummary() const;
+
+    // --- Replay (deterministic record / reproduce / persist) ---
+
+    /** Play a fresh session with these seeds/steps and return a recording of it. */
+    UFUNCTION(BlueprintCallable, Category = "MANIFOLD")
+    FManifoldReplay RecordReplay(int64 OrbitsSeed, int64 FluidsSeed, int32 Steps);
+
+    /** Re-run a recording on a fresh slice; the result must match what was recorded. */
+    UFUNCTION(BlueprintCallable, Category = "MANIFOLD")
+    FManifoldSliceResult RunReplay(const FManifoldReplay& Replay);
+
+    /** Steps at which a transport fired this session (the reproduced schedule). */
+    const TArray<int32>& GetTransportSchedule() const { return TransportStepLog; }
+
+    /** Persist / restore a recording to a .manifoldreplay file. */
+    static bool SaveReplay(const FManifoldReplay& Replay, const FString& Path);
+    static bool LoadReplay(FManifoldReplay& OutReplay, const FString& Path);
+
     // --- Live state (for HUD / gameplay) ---
     UFUNCTION(BlueprintPure, Category = "MANIFOLD") float GetInsightRate() const;
     UFUNCTION(BlueprintPure, Category = "MANIFOLD") int32 GetCorrespondencesIgnited() const { return IgnitedCount; }
@@ -119,7 +155,15 @@ private:
     bool bCorrespondenceAvailable = false;
     FGuid PendingVortexId;
 
+    // Objective / session outcome.
+    FManifoldObjective Objective;
+    EManifoldSessionState SessionState = EManifoldSessionState::InProgress;
+
+    // Steps at which a transport fired — the schedule a replay reproduces.
+    TArray<int32> TransportStepLog;
+
     void HandleIgnited(FGuid SourceStructure, FGuid TargetStructure, float Scale);
     void HandleTransport(FGuid Source, FName TargetRealm, FGuid TargetId, float Strength);
     void DoTransportPendingVortex();
+    void EvaluateObjective();
 };

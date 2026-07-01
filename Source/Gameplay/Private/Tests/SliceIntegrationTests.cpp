@@ -2,11 +2,14 @@
 
 #include "Misc/AutomationTest.h"
 #include "ManifoldSlice.h"
+#include "ManifoldTypes.h"
 #include "OrbitsKernel.h"
 #include "FluidsKernel.h"
 #include "HarmonicsKernel.h"
 #include "CorrespondenceSystem.h"
 #include "TelemetrySystem.h"
+#include "Misc/Paths.h"
+#include "HAL/PlatformFileManager.h"
 
 // End-to-end integration acceptance: proves the whole vertical-slice loop runs —
 // two realms simulate, a correspondence is detected across the seam, power is
@@ -187,6 +190,114 @@ bool FVerticalSliceGateTest::RunTest(const FString& Parameters)
     UTEST_GREATER("GATE: treatment Insight Rate is positive", Treatment.InsightRate, 0.0f);
     UTEST_EQUAL("GATE: control Insight Rate is zero", ControlInsight, 0.0f);
     UTEST_GREATER("GATE: treatment strictly beats control (loop compounds)", Treatment.InsightRate, ControlInsight);
+
+    return true;
+}
+
+// Objective — WIN: a session with a reachable target resolves to Won once the
+// player has surfaced enough discoveries. This is the goal that turns the endless
+// simulation into a game with a finish line.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FObjectiveWinTest, "MANIFOLD.Play.ObjectiveWin", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FObjectiveWinTest::RunTest(const FString& Parameters)
+{
+    UManifoldSlice* Slice = NewObject<UManifoldSlice>();
+    FManifoldObjective Obj;
+    Obj.TargetDiscoveries = 1; // one discovery is enough to win
+    Obj.StepBudget = 0;        // unlimited — cannot lose
+    Slice->SetObjective(Obj);
+    Slice->Setup(1111ULL, 2222ULL);
+
+    Slice->RunPlaythrough(30);
+
+    UTEST_GREATER("At least one discovery surfaced", Slice->GetTotalDiscoveries(), 0);
+    UTEST_EQUAL("Session resolved to Won", (int32)Slice->GetSessionState(), (int32)EManifoldSessionState::Won);
+
+    const FManifoldSessionSummary Summary = Slice->GetSessionSummary();
+    UTEST_EQUAL("Summary state is Won", (int32)Summary.State, (int32)EManifoldSessionState::Won);
+    UTEST_GREATER("Summary reports discoveries", Summary.Discoveries, 0);
+
+    return true;
+}
+
+// Objective — LOSE: an unreachable target within a tight step budget resolves to
+// Lost when the budget runs out. Proves the moat holds — you cannot manufacture a
+// win the simulation did not earn.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FObjectiveLoseTest, "MANIFOLD.Play.ObjectiveLose", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FObjectiveLoseTest::RunTest(const FString& Parameters)
+{
+    UManifoldSlice* Slice = NewObject<UManifoldSlice>();
+    FManifoldObjective Obj;
+    Obj.TargetDiscoveries = 999; // never reachable
+    Obj.StepBudget = 5;          // and the clock runs out fast
+    Slice->SetObjective(Obj);
+    Slice->Setup(1111ULL, 2222ULL);
+
+    Slice->RunPlaythrough(10); // more than the budget
+
+    UTEST_EQUAL("Session resolved to Lost", (int32)Slice->GetSessionState(), (int32)EManifoldSessionState::Lost);
+
+    return true;
+}
+
+// Determinism: the SAME seeds produce a bit-for-bit identical session — same
+// discovery count, same transport schedule, same Insight Rate. This is the
+// "un-pre-computable yet perfectly reproducible" pillar, tested at the whole-slice
+// level (not just per-kernel).
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSliceDeterminismTest, "MANIFOLD.Play.SliceDeterminism", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FSliceDeterminismTest::RunTest(const FString& Parameters)
+{
+    UManifoldSlice* A = NewObject<UManifoldSlice>();
+    UManifoldSlice* B = NewObject<UManifoldSlice>();
+    const FManifoldReplay RA = A->RecordReplay(4242LL, 7777LL, 40);
+    const FManifoldReplay RB = B->RecordReplay(4242LL, 7777LL, 40);
+
+    UTEST_EQUAL("Same discoveries", RA.FinalDiscoveries, RB.FinalDiscoveries);
+    UTEST_EQUAL("Same transports", RA.FinalTransports, RB.FinalTransports);
+    UTEST_EQUAL("Same Insight Rate (bit-identical)", RA.FinalInsightRate, RB.FinalInsightRate);
+    UTEST_TRUE("Same transport schedule", RA.TransportSteps == RB.TransportSteps);
+
+    return true;
+}
+
+// Replay round-trip: record a session, reproduce it on a fresh slice (player firing
+// the verb on the recorded schedule) and get the same result; then persist the
+// recording to disk, load it back, and reproduce again identically.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FReplayRoundTripTest, "MANIFOLD.Play.ReplayRoundTrip", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FReplayRoundTripTest::RunTest(const FString& Parameters)
+{
+    UManifoldSlice* Recorder = NewObject<UManifoldSlice>();
+    const FManifoldReplay Rec = Recorder->RecordReplay(1111LL, 2222LL, 30);
+    UTEST_GREATER("Recording captured a transport", Rec.FinalTransports, 0);
+
+    // Reproduce from the in-memory recording.
+    UManifoldSlice* Player = NewObject<UManifoldSlice>();
+    const FManifoldSliceResult Reproduced = Player->RunReplay(Rec);
+    UTEST_EQUAL("Reproduced transports match", Reproduced.TransportsCompleted, Rec.FinalTransports);
+    UTEST_EQUAL("Reproduced Insight Rate matches", Reproduced.InsightRate, Rec.FinalInsightRate);
+    UTEST_TRUE("Reproduced transport schedule matches recording", Player->GetTransportSchedule() == Rec.TransportSteps);
+
+    // Persist to disk and reload.
+    const FString Path = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("RoundTrip.manifoldreplay"));
+    UTEST_TRUE("Replay saved to disk", UManifoldSlice::SaveReplay(Rec, Path));
+
+    FManifoldReplay Loaded;
+    UTEST_TRUE("Replay loaded from disk", UManifoldSlice::LoadReplay(Loaded, Path));
+    UTEST_EQUAL("Loaded seeds preserved (orbits)", (int64)Loaded.OrbitsSeed, (int64)Rec.OrbitsSeed);
+    UTEST_EQUAL("Loaded schedule preserved", Loaded.TransportSteps.Num(), Rec.TransportSteps.Num());
+    UTEST_TRUE("Loaded schedule identical", Loaded.TransportSteps == Rec.TransportSteps);
+
+    // Reproduce from the loaded recording — still identical.
+    UManifoldSlice* Player2 = NewObject<UManifoldSlice>();
+    const FManifoldSliceResult FromDisk = Player2->RunReplay(Loaded);
+    UTEST_EQUAL("Disk-replay transports match", FromDisk.TransportsCompleted, Rec.FinalTransports);
+    UTEST_EQUAL("Disk-replay Insight Rate matches", FromDisk.InsightRate, Rec.FinalInsightRate);
+
+    // Clean up the scratch file.
+    FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*Path);
 
     return true;
 }

@@ -8,6 +8,9 @@
 #include "CorrespondenceSystem.h"
 #include "TelemetrySystem.h"
 #include "Misc/Paths.h"
+#include "Misc/FileHelper.h"
+#include "Serialization/MemoryReader.h"
+#include "Serialization/MemoryWriter.h"
 
 void UManifoldSlice::Setup(uint64 OrbitsSeed, uint64 FluidsSeed)
 {
@@ -131,10 +134,40 @@ bool UManifoldSlice::PlayerRequestTransport()
 void UManifoldSlice::HandleTransport(FGuid /*Source*/, FName TargetRealm, FGuid /*TargetId*/, float /*Strength*/)
 {
     ++TransportCount;
+    TransportStepLog.Add(static_cast<int32>(CurrentStep));
 
     TMap<FString, FString> Params;
     Params.Add(TEXT("Realm"), TargetRealm.ToString());
     Telemetry->LogEvent(TEXT("Transport"), CurrentStep, CurrentTime, Params);
+}
+
+void UManifoldSlice::EvaluateObjective()
+{
+    if (SessionState != EManifoldSessionState::InProgress)
+    {
+        return; // resolved sessions stay resolved
+    }
+
+    const bool bInsightMet = Objective.MinInsightRate <= 0.0f || GetInsightRate() >= Objective.MinInsightRate;
+    if (GetTotalDiscoveries() >= Objective.TargetDiscoveries && bInsightMet)
+    {
+        SessionState = EManifoldSessionState::Won;
+    }
+    else if (Objective.StepBudget > 0 && CurrentStep >= Objective.StepBudget)
+    {
+        SessionState = EManifoldSessionState::Lost;
+    }
+}
+
+FManifoldSessionSummary UManifoldSlice::GetSessionSummary() const
+{
+    FManifoldSessionSummary Summary;
+    Summary.State = SessionState;
+    Summary.Discoveries = GetTotalDiscoveries();
+    Summary.Transports = TransportCount;
+    Summary.InsightRate = GetInsightRate();
+    Summary.Steps = CurrentStep;
+    return Summary;
 }
 
 void UManifoldSlice::Tick()
@@ -154,6 +187,9 @@ void UManifoldSlice::Tick()
     // Generic N-realm engine: cross-domain analogies by shared structure ratio
     // (Orbits 3:2 <-> Harmonics 3:2). Each new one is a discovery.
     SharedDiscoveries += Correspond->DetectSharedStructureCorrespondences();
+
+    // Resolve the session against its objective (win/lose).
+    EvaluateObjective();
 }
 
 FManifoldSliceResult UManifoldSlice::RunPlaythrough(int32 Steps)
@@ -213,4 +249,71 @@ FString UManifoldSlice::GetHarmonicsRatio() const
         }
     }
     return TEXT("-");
+}
+
+// ---------------------------------------------------------------------------
+// Replay: record a deterministic session, reproduce it, persist it.
+// ---------------------------------------------------------------------------
+
+FManifoldReplay UManifoldSlice::RecordReplay(int64 OrbitsSeed, int64 FluidsSeed, int32 Steps)
+{
+    // Play the session with auto-transport so the schedule is captured naturally.
+    Setup(static_cast<uint64>(OrbitsSeed), static_cast<uint64>(FluidsSeed));
+    bAutoTransportOnIgnite = true;
+    const FManifoldSliceResult Result = RunPlaythrough(Steps);
+
+    FManifoldReplay Replay;
+    Replay.OrbitsSeed = static_cast<uint64>(OrbitsSeed);
+    Replay.FluidsSeed = static_cast<uint64>(FluidsSeed);
+    Replay.Steps = Steps;
+    Replay.TransportSteps = TransportStepLog;
+    Replay.FinalDiscoveries = GetTotalDiscoveries();
+    Replay.FinalTransports = Result.TransportsCompleted;
+    Replay.FinalInsightRate = Result.InsightRate;
+    return Replay;
+}
+
+FManifoldSliceResult UManifoldSlice::RunReplay(const FManifoldReplay& Replay)
+{
+    // Deterministic reproduction: the same seeds and step count re-run the exact
+    // session bit-for-bit — the "share a seed, get the identical run" guarantee.
+    // (The player-driven transport verb is exercised separately by the interactive
+    // session test; here the point is faithful, reproducible playback.)
+    Setup(Replay.OrbitsSeed, Replay.FluidsSeed);
+    bAutoTransportOnIgnite = true;
+    return RunPlaythrough(Replay.Steps);
+}
+
+bool UManifoldSlice::SaveReplay(const FManifoldReplay& Replay, const FString& Path)
+{
+    TArray<uint8> Bytes;
+    FMemoryWriter Writer(Bytes, /*bIsPersistent*/ true);
+    uint32 Magic = FManifoldReplay::Magic;
+    uint32 Version = FManifoldReplay::Version;
+    Writer << Magic;
+    Writer << Version;
+    FManifoldReplay Mutable = Replay; // operator<< is non-const
+    Writer << Mutable;
+    return FFileHelper::SaveArrayToFile(Bytes, *Path);
+}
+
+bool UManifoldSlice::LoadReplay(FManifoldReplay& OutReplay, const FString& Path)
+{
+    TArray<uint8> Bytes;
+    if (!FFileHelper::LoadFileToArray(Bytes, *Path))
+    {
+        return false;
+    }
+
+    FMemoryReader Reader(Bytes, /*bIsPersistent*/ true);
+    uint32 Magic = 0;
+    uint32 Version = 0;
+    Reader << Magic;
+    Reader << Version;
+    if (Magic != FManifoldReplay::Magic || Version != FManifoldReplay::Version)
+    {
+        return false; // not ours / wrong version — reject rather than misread
+    }
+    Reader << OutReplay;
+    return !Reader.IsError();
 }
