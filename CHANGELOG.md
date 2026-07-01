@@ -24,6 +24,18 @@ all are now fixed with tests (**37/37 green**):
 - **Real geometry:** the realm visualizer now spawns static-mesh objects (five realms)
   instead of debug-draw lines.
 
+### Audited (whole-codebase sweep + targeted reviews)
+Five adversarial passes (an incompleteness audit, three targeted reviews, and a
+comprehensive whole-codebase audit) found and fixed **27** real issues total, e.g.:
+- Orbits `VerifyDeterminism` compared un-stepped `this` vs a stepped sim (false
+  negative) — the only kernel doing so, and the only one with no determinism test;
+  fixed + test added.
+- Fluids vortex ids, and the profile/replay loaders, hardened for determinism and
+  corrupt-input safety; telemetry file-handle leaks closed; the slice resets on reuse.
+- The audio phase-wrap, the emblem texture/colour, and the CI gate itself were all
+  corrected. Remaining flagged items are latent (only bite realms with 3+ elements or
+  ratios >10, which this game never has) and left as documented, defensible design.
+
 ### Added (presentation polish — code-authored)
 - **Cosmic backdrop**: a deterministic procedural starfield shell + key/fill scene
   lighting so the realms sit in space and are clearly lit.
@@ -131,7 +143,7 @@ all are now fixed with tests (**37/37 green**):
   registration. AndroidFileServer plugin disabled (stops dev-token regeneration).
 
 ### Status
-- **47 / 47** automation tests green, headless. Repo is public and professional.
+- **49 / 49** automation tests green, headless. Repo is public and professional.
   Remaining phase (real art/VFX scenes, bound sound assets, bespoke UMG UI, human
   playtest) is human-owned and needs the editor + a display — see
   `Docs/IMPLEMENTATION_STATUS.md`.
