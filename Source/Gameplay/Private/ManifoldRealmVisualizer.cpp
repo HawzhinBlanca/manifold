@@ -129,6 +129,7 @@ void AManifoldRealmVisualizer::SpawnStarfield()
             if (UMaterialInstanceDynamic* MID = Star->CreateAndSetMaterialInstanceDynamic(0))
             {
                 MID->SetVectorParameterValue(TEXT("Color"), Col);
+                MID->SetVectorParameterValue(TEXT("BaseColor"), Col);
             }
         }
         Star->SetWorldLocation(Center + Dir * Radius);
@@ -187,7 +188,10 @@ void AManifoldRealmVisualizer::PlaceSphere(const FVector& WorldPos, float Diamet
     Comp->SetWorldScale3D(FVector(DiameterUnits / EngineSphereDiameter));
     if (UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(Comp->GetMaterial(0)))
     {
+        // Set the common param names so the color applies whatever the base material
+        // calls it (non-existent params are harmless no-ops).
         MID->SetVectorParameterValue(TEXT("Color"), Color);
+        MID->SetVectorParameterValue(TEXT("BaseColor"), Color);
     }
 }
 
