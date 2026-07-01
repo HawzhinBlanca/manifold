@@ -29,6 +29,9 @@ game can't be fully solved.
 
 > **Design pillar:** _the correspondence engine is the product; visuals are a layer._
 
+📖 New here? Read **[How to Play](Docs/GAMEPLAY.md)** — the loop, controls, the five
+realms + decoy, scoring, and expedition mode.
+
 ## Status
 
 **Playable, deterministic, and fully code-complete** — no mocks or placeholders in
