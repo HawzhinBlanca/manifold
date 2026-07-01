@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
+#include "ManifoldTypes.h"
 #include "ManifoldGameMode.generated.h"
 
 class UManifoldSlice;
@@ -29,16 +30,27 @@ public:
     UManifoldSlice* Slice = nullptr;
 
     /**
-     * Player verb. Console command `ManifoldTransport` (or bind a key to it):
-     * transport the currently-lit correspondence across the seam.
+     * Player verb. Console command `ManifoldTransport`, or the [E] key (bound by
+     * AManifoldPlayerController): transport the currently-lit correspondence.
      */
     UFUNCTION(Exec, BlueprintCallable, Category = "MANIFOLD")
     void ManifoldTransport();
+
+    /** Restart the session from scratch ([R] key or `ManifoldRestart` console). */
+    UFUNCTION(Exec, BlueprintCallable, Category = "MANIFOLD")
+    void ManifoldRestart();
 
     /** Fixed simulation cadence (seconds) so the feel is frame-rate independent. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MANIFOLD")
     float StepInterval = 0.05f;
 
+    /** Win condition applied to each session. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MANIFOLD")
+    FManifoldObjective Objective;
+
 protected:
     float Accumulator = 0.0f;
+
+    /** Build a fresh interactive session (slice + objective) and the realm view. */
+    void StartSession();
 };

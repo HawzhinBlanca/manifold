@@ -20,6 +20,7 @@ void UManifoldSlice::Setup(uint64 OrbitsSeed, uint64 FluidsSeed)
     Waves = NewObject<UWavesKernel>(this);
     Correspond = NewObject<UCorrespondenceSystem>(this);
     Telemetry = NewObject<UTelemetrySystem>(this);
+    Audio = NewObject<UManifoldAudioDirector>(this);
 
     Orbits->Initialize(OrbitsSeed);
     Fluids->Initialize(FluidsSeed);
@@ -97,6 +98,20 @@ void UManifoldSlice::HandleIgnited(FGuid /*SourceStructure*/, FGuid /*TargetStru
     Params.Add(TEXT("Scale"), FString::SanitizeFloat(Scale));
     Telemetry->LogEvent(TEXT("CorrespondenceIgnited"), CurrentStep, CurrentTime, Params);
 
+    // The discovery is sounded as its ratio: the 3:2 the physics found rings out as
+    // a perfect fifth over the Orbits realm's tonic.
+    if (Audio)
+    {
+        int32 Num = 3, Den = 2; // the canonical shared structure, if no live ratio yet
+        if (Orbits)
+        {
+            const TArray<FResonanceMatch>& Res = Orbits->GetActiveResonances();
+            if (Res.Num() > 0) { Num = Res[0].Ratio.X; Den = Res[0].Ratio.Y; }
+        }
+        LastAudioCue = Audio->CueForDiscovery(TEXT("Orbits"), Num, Den);
+        AudioCues.Add(LastAudioCue);
+    }
+
     // The seam lights up: remember the vortex so it can be transported into Orbits.
     const TArray<FFluidVortex>& Vortices = Fluids->GetActiveVortices();
     if (Vortices.Num() > 0)
@@ -139,6 +154,13 @@ void UManifoldSlice::HandleTransport(FGuid /*Source*/, FName TargetRealm, FGuid 
     TMap<FString, FString> Params;
     Params.Add(TEXT("Realm"), TargetRealm.ToString());
     Telemetry->LogEvent(TEXT("Transport"), CurrentStep, CurrentTime, Params);
+
+    // Crossing the seam resolves the tension toward the destination realm's tonic.
+    if (Audio)
+    {
+        LastAudioCue = Audio->CueForTransport(TEXT("Fluids"), TargetRealm);
+        AudioCues.Add(LastAudioCue);
+    }
 }
 
 void UManifoldSlice::EvaluateObjective()

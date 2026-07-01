@@ -301,3 +301,23 @@ bool FReplayRoundTripTest::RunTest(const FString& Parameters)
 
     return true;
 }
+
+// Audio integration: playing the slice emits exactly one audio cue per discovery
+// (a chime voicing its ratio) and one per transport (a chord-resolve). This is the
+// event routing the audio pipeline binds sounds to.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSliceAudioIntegrationTest, "MANIFOLD.Play.AudioIntegration", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FSliceAudioIntegrationTest::RunTest(const FString& Parameters)
+{
+    UManifoldSlice* Slice = NewObject<UManifoldSlice>();
+    Slice->Setup(1111ULL, 2222ULL);
+    Slice->RunPlaythrough(30);
+
+    UTEST_GREATER("Audio cues were emitted during play", Slice->GetAudioCueCount(), 0);
+    UTEST_EQUAL("One cue per ignition + transport",
+        Slice->GetAudioCueCount(),
+        Slice->GetCorrespondencesIgnited() + Slice->GetTransportsCompleted());
+    UTEST_TRUE("Last cue carries a realm identity", Slice->GetLastAudioCue().Realm != NAME_None);
+
+    return true;
+}

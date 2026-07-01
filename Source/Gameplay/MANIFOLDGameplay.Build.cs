@@ -13,6 +13,8 @@ public class MANIFOLDGameplay : ModuleRules
             "Core",
             "CoreUObject",
             "Engine",
+            "InputCore",
+            "EnhancedInput",
             "MANIFOLDCore",
             "MANIFOLDKernelsOrbits",
             "MANIFOLDKernelsFluids",

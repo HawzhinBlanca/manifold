@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "ManifoldTypes.h"
+#include "ManifoldAudioDirector.h"
 #include "ManifoldSlice.generated.h"
 
 class UOrbitsKernel;
@@ -13,6 +14,7 @@ class UHarmonicsKernel;
 class UWavesKernel;
 class UCorrespondenceSystem;
 class UTelemetrySystem;
+class UManifoldAudioDirector;
 
 /**
  * Result of a headless vertical-slice playthrough — the numbers the
@@ -109,6 +111,16 @@ public:
     /** Steps at which a transport fired this session (the reproduced schedule). */
     const TArray<int32>& GetTransportSchedule() const { return TransportStepLog; }
 
+    // --- Audio (the correspondence you can hear) ---
+
+    /** The most recent audio cue the session emitted (for HUD / audio playback). */
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD")
+    FManifoldAudioCue GetLastAudioCue() const { return LastAudioCue; }
+
+    /** How many audio cues have been emitted this session. */
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD")
+    int32 GetAudioCueCount() const { return AudioCues.Num(); }
+
     /** Persist / restore a recording to a .manifoldreplay file. */
     static bool SaveReplay(const FManifoldReplay& Replay, const FString& Path);
     static bool LoadReplay(FManifoldReplay& OutReplay, const FString& Path);
@@ -144,6 +156,9 @@ public:
     UPROPERTY()
     UTelemetrySystem* Telemetry = nullptr;
 
+    UPROPERTY()
+    UManifoldAudioDirector* Audio = nullptr;
+
 private:
     int32 IgnitedCount = 0;
     int32 TransportCount = 0;
@@ -161,6 +176,10 @@ private:
 
     // Steps at which a transport fired — the schedule a replay reproduces.
     TArray<int32> TransportStepLog;
+
+    // Audio cues emitted this session (discovery chimes, transport resolves).
+    TArray<FManifoldAudioCue> AudioCues;
+    FManifoldAudioCue LastAudioCue;
 
     void HandleIgnited(FGuid SourceStructure, FGuid TargetStructure, float Scale);
     void HandleTransport(FGuid Source, FName TargetRealm, FGuid TargetId, float Strength);

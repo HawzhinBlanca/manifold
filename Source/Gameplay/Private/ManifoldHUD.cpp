@@ -45,8 +45,31 @@ void AManifoldHUD::DrawHUD()
         S->GetInsightRate(), S->GetCorrespondencesIgnited(), S->GetTransportsCompleted()),
         FLinearColor::Green);
 
+    // Objective + session outcome — the goal that makes this a game.
+    const FManifoldSessionSummary Sum = S->GetSessionSummary();
+    FString StateText;
+    FLinearColor StateColor = Cyan;
+    switch (Sum.State)
+    {
+        case EManifoldSessionState::Won:  StateText = TEXT("WON");  StateColor = Gold; break;
+        case EManifoldSessionState::Lost: StateText = TEXT("LOST"); StateColor = FLinearColor(1.0f, 0.3f, 0.3f); break;
+        default:                          StateText = TEXT("in progress"); break;
+    }
+    Line(FString::Printf(TEXT("Objective  |  discoveries %d   [%s]"), Sum.Discoveries, *StateText), StateColor);
+
+    // The correspondence you can hear: show the last audio cue in musical terms.
+    if (S->GetAudioCueCount() > 0)
+    {
+        const FManifoldAudioCue Cue = S->GetLastAudioCue();
+        const TCHAR* IntentText =
+            Cue.Intent == EManifoldCueIntent::DiscoveryChime ? TEXT("chime") :
+            Cue.Intent == EManifoldCueIntent::ChordResolve   ? TEXT("resolve") : TEXT("ambient");
+        Line(FString::Printf(TEXT("Audio      |  %s  root %d  +%d st"), IntentText, Cue.RootMidi, Cue.IntervalSemitones), Dim);
+    }
+
     if (S->IsCorrespondenceAvailable())
     {
-        Line(TEXT(">> CORRESPONDENCE LIT  -  console: ManifoldTransport"), Gold);
+        Line(TEXT(">> CORRESPONDENCE LIT  -  press [E] to transport across the seam"), Gold);
     }
+    Line(TEXT("[E] transport   [R] restart session"), Dim);
 }
