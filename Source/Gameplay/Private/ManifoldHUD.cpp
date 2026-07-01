@@ -38,7 +38,9 @@ void AManifoldHUD::DrawHUD()
         S->HasVortex() ? Cyan : Dim);
     Line(FString::Printf(TEXT("Harmonics  |  ratio %s"), *S->GetHarmonicsRatio()),
         FLinearColor(0.8f, 0.5f, 1.0f));
-    Line(FString::Printf(TEXT("Cross-domain analogies found: %d   (orbital 3:2 == harmonic 3:2)"),
+    Line(FString::Printf(TEXT("Rhythm     |  polyrhythm %s"), *S->GetRhythmRatio()),
+        FLinearColor(1.0f, 0.6f, 0.4f));
+    Line(FString::Printf(TEXT("Cross-domain analogies found: %d   (one 3:2 across five domains)"),
         S->GetSharedDiscoveries()),
         S->GetSharedDiscoveries() > 0 ? Gold : Dim);
     Line(FString::Printf(TEXT("Insight Rate %.3f   (lit %d, transported %d)"),

@@ -12,6 +12,7 @@ class UOrbitsKernel;
 class UFluidsKernel;
 class UHarmonicsKernel;
 class UWavesKernel;
+class URhythmKernel;
 class UCorrespondenceSystem;
 class UTelemetrySystem;
 class UManifoldAudioDirector;
@@ -134,6 +135,7 @@ public:
     UFUNCTION(BlueprintPure, Category = "MANIFOLD") bool HasVortex() const;
     UFUNCTION(BlueprintPure, Category = "MANIFOLD") FString GetOrbitsRatio() const;
     UFUNCTION(BlueprintPure, Category = "MANIFOLD") FString GetHarmonicsRatio() const;
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD") FString GetRhythmRatio() const;
     /** Cross-domain analogies found via the generic N-realm engine (e.g. orbital 3:2 == harmonic 3:2). */
     UFUNCTION(BlueprintPure, Category = "MANIFOLD") int32 GetSharedDiscoveries() const { return SharedDiscoveries; }
     UFUNCTION(BlueprintPure, Category = "MANIFOLD") int64 GetStepCount() const { return CurrentStep; }
@@ -149,6 +151,9 @@ public:
 
     UPROPERTY()
     UWavesKernel* Waves = nullptr;
+
+    UPROPERTY()
+    URhythmKernel* Rhythm = nullptr;
 
     UPROPERTY()
     UCorrespondenceSystem* Correspond = nullptr;
