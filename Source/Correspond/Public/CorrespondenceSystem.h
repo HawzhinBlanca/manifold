@@ -19,6 +19,14 @@ DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnCorrespondenceIgnited, FGuid, FGuid, f
 DECLARE_MULTICAST_DELEGATE_FourParams(FOnTransportCompleted, FGuid, FName, FGuid, float);
 
 /**
+ * Event fired when the generic N-realm engine discovers that two realms share the
+ * same structure ratio (a cross-domain analogy). Carries the two realm ids, the
+ * shared ratio ("p:q"), and a STABLE id for the shared structure (deterministic
+ * from the realm pair + ratio) so it can be deduped/referenced.
+ */
+DECLARE_MULTICAST_DELEGATE_FourParams(FOnSharedStructureDiscovered, FName /*RealmA*/, FName /*RealmB*/, FString /*Ratio*/, FGuid /*StableId*/);
+
+/**
  * Data-driven correspondence specification (WP S5)
  */
 USTRUCT(BlueprintType)
@@ -126,6 +134,7 @@ public:
     // =====================================================================
     FOnCorrespondenceIgnited OnCorrespondenceIgnited;
     FOnTransportCompleted OnTransportCompleted;
+    FOnSharedStructureDiscovered OnSharedStructureDiscovered;
 
 protected:
     UPROPERTY()
@@ -146,4 +155,9 @@ protected:
 
     /** Dedup key set ("RealmA|RealmB|Ratio") so a shared structure ignites once. */
     TSet<FString> IgnitedSharedStructures;
+
+    /** Guarantee a data-driven mapping exists: if none was supplied, synthesize the
+     *  canonical default spec (OrbitalResonance 3:2 <-> VortexCenter) so detection is
+     *  always driven by an explicit spec rather than a hardcoded inline rule. */
+    void EnsureDefaultMapping();
 };

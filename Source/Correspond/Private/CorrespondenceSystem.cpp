@@ -117,7 +117,15 @@ int32 UCorrespondenceSystem::DetectSharedStructureCorrespondences()
             if (!IgnitedSharedStructures.Contains(Key))
             {
                 IgnitedSharedStructures.Add(Key);
-                OnCorrespondenceIgnited.Broadcast(FGuid::NewGuid(), FGuid::NewGuid(), 1.0f);
+                // Stable identity for the shared structure: deterministic from the
+                // (order-independent) realm pair + ratio, so the same analogy always
+                // has the same id (no throwaway GUIDs).
+                const uint32 HashA = GetTypeHash(RealmRatios[i].Key);
+                const uint32 HashB = GetTypeHash(RealmRatios[j].Key);
+                const uint32 RatioHash = GetTypeHash(RealmRatios[i].Value);
+                const FGuid StableId(HashA ^ HashB, HashA + HashB, RatioHash, 0x5AA5u);
+                OnSharedStructureDiscovered.Broadcast(
+                    RealmRatios[i].Key, RealmRatios[j].Key, RealmRatios[i].Value, StableId);
                 ++NewCount;
             }
         }
@@ -128,6 +136,25 @@ int32 UCorrespondenceSystem::DetectSharedStructureCorrespondences()
 void UCorrespondenceSystem::InitializeMapping(UCorrespondenceMapping* MappingAsset)
 {
     Mapping = MappingAsset;
+}
+
+void UCorrespondenceSystem::EnsureDefaultMapping()
+{
+    if (Mapping && Mapping->Specs.Num() > 0)
+    {
+        return; // an explicit (e.g. JSON-authored) mapping is already in place
+    }
+
+    // No content supplied: build the canonical default as real spec DATA so the
+    // matching path is always data-driven (no magic inline string comparison).
+    Mapping = NewObject<UCorrespondenceMapping>(this);
+    FCorrespondenceSpec Spec;
+    Spec.SourceStructureType = TEXT("OrbitalResonance");
+    Spec.TargetStructureType = TEXT("VortexCenter");
+    Spec.MatchingRatio = TEXT("3:2");
+    Spec.Tolerance = 0.05f;
+    Spec.ScaleFactor = 1.0f;
+    Mapping->Specs.Add(Spec);
 }
 
 bool UCorrespondenceSystem::DetectCorrespondence()
@@ -147,40 +174,34 @@ bool UCorrespondenceSystem::DetectCorrespondence()
     FRealmQueryResult FluidsResult;
     bool bFluidsFound = Fluids->Query(FluidsQuery, FluidsResult);
 
-    if (bOrbitsFound && bFluidsFound)
+    if (!bOrbitsFound || !bFluidsFound)
     {
-        // Check specs
-        if (Mapping && Mapping->Specs.Num() > 0)
+        return false;
+    }
+
+    // Detection is ALWAYS spec-driven (a default spec is synthesized if no content
+    // asset was provided), and honors each spec's numeric Tolerance.
+    EnsureDefaultMapping();
+
+    const FString RatioVal = OrbitsResult.Parameters.FindRef(TEXT("Ratio"));
+    const FString DevStr = OrbitsResult.Parameters.FindRef(TEXT("Deviation"));
+    const float Deviation = DevStr.IsEmpty() ? 0.0f : FCString::Atof(*DevStr);
+
+    for (const FCorrespondenceSpec& Spec : Mapping->Specs)
+    {
+        const bool bTypesMatch =
+            OrbitsResult.StructureType == Spec.SourceStructureType &&
+            FluidsResult.StructureType == Spec.TargetStructureType;
+        const bool bRatioMatch = RatioVal == Spec.MatchingRatio;
+        const bool bWithinTolerance = Deviation <= Spec.Tolerance;
+
+        if (bTypesMatch && bRatioMatch && bWithinTolerance)
         {
-            for (const FCorrespondenceSpec& Spec : Mapping->Specs)
+            if (!IgnitedCorrespondences.Contains(OrbitsResult.StructureId))
             {
-                if (OrbitsResult.StructureType == Spec.SourceStructureType &&
-                    FluidsResult.StructureType == Spec.TargetStructureType)
-                {
-                    FString RatioVal = OrbitsResult.Parameters.FindRef(TEXT("Ratio"));
-                    if (RatioVal == Spec.MatchingRatio)
-                    {
-                        if (!IgnitedCorrespondences.Contains(OrbitsResult.StructureId))
-                        {
-                            IgnitedCorrespondences.Add(OrbitsResult.StructureId);
-                            OnCorrespondenceIgnited.Broadcast(OrbitsResult.StructureId, FluidsResult.StructureId, Spec.ScaleFactor);
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-        else
-        {
-            // Fallback default mapping when spec asset is not provided
-            if (OrbitsResult.Parameters.FindRef(TEXT("Ratio")) == TEXT("3:2"))
-            {
-                if (!IgnitedCorrespondences.Contains(OrbitsResult.StructureId))
-                {
-                    IgnitedCorrespondences.Add(OrbitsResult.StructureId);
-                    OnCorrespondenceIgnited.Broadcast(OrbitsResult.StructureId, FluidsResult.StructureId, 1.0f);
-                    return true;
-                }
+                IgnitedCorrespondences.Add(OrbitsResult.StructureId);
+                OnCorrespondenceIgnited.Broadcast(OrbitsResult.StructureId, FluidsResult.StructureId, Spec.ScaleFactor);
+                return true;
             }
         }
     }
@@ -221,7 +242,14 @@ bool UCorrespondenceSystem::Transport(FGuid SourceStructureId, FName TargetRealm
                     Fluids->AddDensity(NormX, NormY, 1.0f);
                     Fluids->AddVelocity(NormX, NormY, static_cast<float>(Body->Velocity.X * 1e-4), static_cast<float>(Body->Velocity.Y * 1e-4));
 
-                    FGuid TargetId = FGuid::NewGuid();
+                    // Deterministic, traceable id for the injected perturbation (was a
+                    // throwaway GUID): derived from the source structure + target realm +
+                    // where in the field it landed, so the same transport reproduces it.
+                    const FGuid TargetId(
+                        SourceStructureId.A,
+                        GetTypeHash(TargetRealm),
+                        static_cast<uint32>(FMath::RoundToInt(NormX * 100000.0f)),
+                        static_cast<uint32>(FMath::RoundToInt(NormY * 100000.0f)));
                     OnTransportCompleted.Broadcast(SourceStructureId, TargetRealm, TargetId, Strength);
                     return true;
                 }

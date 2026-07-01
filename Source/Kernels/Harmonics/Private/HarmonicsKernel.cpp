@@ -135,7 +135,11 @@ bool UHarmonicsKernel::Query(const FRealmQuery& QueryObj, FRealmQueryResult& Res
 
         if (Best)
         {
-            Result.StructureId = FGuid::NewGuid();
+            // Stable identity: same realm + same detected ratio => same id across
+            // frames, so the correspondence layer can dedup and transport by it.
+            Result.StructureId = FGuid(GetTypeHash(GetRealmId()),
+                static_cast<uint32>(Best->Ratio.X), static_cast<uint32>(Best->Ratio.Y),
+                GetSimulationVersion());
             Result.StructureType = QueryObj.QueryType;
             Result.Strength = static_cast<float>(Best->Strength);
             Result.Parameters.Add(TEXT("Ratio"), FString::Printf(TEXT("%d:%d"), Best->Ratio.X, Best->Ratio.Y));

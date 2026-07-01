@@ -6,6 +6,9 @@
 #include "OrbitsKernel.h"
 #include "FluidsKernel.h"
 #include "HarmonicsKernel.h"
+#include "WavesKernel.h"
+#include "RhythmKernel.h"
+#include "RealmKernel.h"
 #include "CorrespondenceSystem.h"
 #include "TelemetrySystem.h"
 #include "Misc/Paths.h"
@@ -104,12 +107,21 @@ bool FMultiRealmCorrespondenceTest::RunTest(const FString& Parameters)
     Correspond->RegisterRealm(TEXT("Orbits"), TEXT("OrbitalResonance"), Orbits);
     Correspond->RegisterRealm(TEXT("Harmonics"), TEXT("HarmonicRatio"), Harmonics);
 
-    bool bIgnited = false;
-    Correspond->OnCorrespondenceIgnited.AddLambda([&bIgnited](FGuid, FGuid, float) { bIgnited = true; });
+    bool bDiscovered = false;
+    FString DiscoveredRatio;
+    Correspond->OnSharedStructureDiscovered.AddLambda(
+        [&bDiscovered, &DiscoveredRatio](FName, FName, FString Ratio, FGuid Id)
+        {
+            bDiscovered = true;
+            DiscoveredRatio = Ratio;
+            // The shared-structure id must be real (stable), not a throwaway zero/GUID.
+            check(Id.IsValid());
+        });
 
     const int32 Found = Correspond->DetectSharedStructureCorrespondences();
     UTEST_GREATER("Shared 3:2 structure found across Orbits and Harmonics", Found, 0);
-    UTEST_TRUE("Cross-domain correspondence ignited", bIgnited);
+    UTEST_TRUE("Cross-domain correspondence discovered", bDiscovered);
+    UTEST_EQUAL("Discovery carries the real shared ratio", DiscoveredRatio, FString(TEXT("3:2")));
 
     // Idempotent: the same shared structure does not re-ignite.
     UTEST_EQUAL("No duplicate ignition on re-detect", Correspond->DetectSharedStructureCorrespondences(), 0);
@@ -302,6 +314,50 @@ bool FReplayRoundTripTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// Stable structure identity: a realm's Query must return the SAME id for the same
+// detected structure across calls (not a fresh GUID each time), so the correspondence
+// layer can dedup and transport by it. Regression guard for the Harmonics/Waves/Rhythm
+// kernels, which previously returned FGuid::NewGuid() on every query.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStableStructureIdTest, "MANIFOLD.Play.StableStructureIds", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FStableStructureIdTest::RunTest(const FString& Parameters)
+{
+    UHarmonicsKernel* H = NewObject<UHarmonicsKernel>();
+    H->Initialize(1ULL); H->AddMode(2.0, 1.0); H->AddMode(3.0, 1.0); H->Step(0.01f);
+
+    UWavesKernel* W = NewObject<UWavesKernel>();
+    W->Initialize(2ULL); W->ExciteHarmonic(2, 1.0); W->ExciteHarmonic(3, 1.0); W->Step(0.001f);
+
+    URhythmKernel* R = NewObject<URhythmKernel>();
+    R->Initialize(3ULL); R->AddVoice(3.0); R->AddVoice(2.0); R->Step(0.016f);
+
+    struct FCase { IRealmKernel* Kernel; FName Query; const TCHAR* Name; };
+    const FCase Cases[] = {
+        { Cast<IRealmKernel>(H), TEXT("HarmonicRatio"), TEXT("Harmonics") },
+        { Cast<IRealmKernel>(W), TEXT("WaveHarmonic"),  TEXT("Waves") },
+        { Cast<IRealmKernel>(R), TEXT("RhythmRatio"),   TEXT("Rhythm") },
+    };
+
+    for (const FCase& C : Cases)
+    {
+        FRealmQuery Q(C.Query);
+        FRealmQueryResult R1, R2;
+        const bool bOk1 = C.Kernel->Query(Q, R1);
+        const bool bOk2 = C.Kernel->Query(Q, R2);
+        UTEST_TRUE(FString::Printf(TEXT("%s query succeeds"), C.Name), bOk1 && bOk2);
+        UTEST_TRUE(FString::Printf(TEXT("%s id is valid (not zero)"), C.Name), R1.StructureId.IsValid());
+        UTEST_EQUAL(FString::Printf(TEXT("%s id is stable across calls"), C.Name), R1.StructureId, R2.StructureId);
+    }
+
+    // Different realms with the same ratio must still have DISTINCT ids.
+    FRealmQueryResult HR, WR;
+    Cast<IRealmKernel>(H)->Query(FRealmQuery(TEXT("HarmonicRatio")), HR);
+    Cast<IRealmKernel>(W)->Query(FRealmQuery(TEXT("WaveHarmonic")), WR);
+    UTEST_NOT_EQUAL("Distinct realms have distinct ids", HR.StructureId, WR.StructureId);
+
+    return true;
+}
+
 // Audio integration: playing the slice emits exactly one audio cue per discovery
 // (a chime voicing its ratio) and one per transport (a chord-resolve). This is the
 // event routing the audio pipeline binds sounds to.
@@ -314,9 +370,10 @@ bool FSliceAudioIntegrationTest::RunTest(const FString& Parameters)
     Slice->RunPlaythrough(30);
 
     UTEST_GREATER("Audio cues were emitted during play", Slice->GetAudioCueCount(), 0);
-    UTEST_EQUAL("One cue per ignition + transport",
+    // One cue per seam ignition, per cross-domain discovery, and per transport.
+    UTEST_EQUAL("One cue per ignition + discovery + transport",
         Slice->GetAudioCueCount(),
-        Slice->GetCorrespondencesIgnited() + Slice->GetTransportsCompleted());
+        Slice->GetCorrespondencesIgnited() + Slice->GetSharedDiscoveries() + Slice->GetTransportsCompleted());
     UTEST_TRUE("Last cue carries a realm identity", Slice->GetLastAudioCue().Realm != NAME_None);
 
     return true;

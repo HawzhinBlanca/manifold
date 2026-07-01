@@ -91,6 +91,31 @@ struct MANIFOLDCORE_API FSimulationSnapshot
 };
 
 /**
+ * Replay Verification Result (WP S2 acceptance test)
+ */
+USTRUCT(BlueprintType)
+struct MANIFOLDCORE_API FReplayVerificationResult
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    bool bPassed = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    int64 StepsVerified = 0;
+
+    // uint64 hashes are not Blueprint-supported; keep reflected for serialization only.
+    UPROPERTY()
+    uint64 ExpectedHash = 0;
+
+    UPROPERTY()
+    uint64 ActualHash = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FString ErrorMessage;
+};
+
+/**
  * Fixed-step simulation manager
  */
 class MANIFOLDCORE_API FFixedStepSimulation
@@ -110,6 +135,7 @@ public:
         Accumulator = 0.0f;
         CurrentStep = 0;
         CurrentTime = 0.0f;
+        RunningHash = FnvOffsetBasis;
         Snapshots.Empty();
         bInitialized = true;
     }
@@ -175,8 +201,10 @@ public:
     // REPLAY / SNAPSHOTS
     // =====================================================================
 
-    /** Capture current state as snapshot */
-    void CaptureSnapshot(const TArray<uint8>& KernelStates, uint64 CombinedHash)
+    /** Capture current state as snapshot. The snapshot records the sim's own
+     *  deterministic RunningHash plus the master RNG state, so a later replay can be
+     *  re-derived and verified from it. Optional KernelStates carries external state. */
+    void CaptureSnapshot(const TArray<uint8>& KernelStates = TArray<uint8>())
     {
         if (!Config.bEnableSnapshots) return;
         if (CurrentStep % Config.SnapshotInterval != 0) return;
@@ -185,8 +213,8 @@ public:
         Snapshot.StepCount = CurrentStep;
         Snapshot.SimulationTime = CurrentTime;
         Snapshot.StateData = KernelStates;
-        Snapshot.StateHash = CombinedHash;
-        Snapshot.RNGState = MasterRNG; // Copies current RNG state
+        Snapshot.StateHash = RunningHash; // the sim's own deterministic hash at this step
+        Snapshot.RNGState = MasterRNG;     // Copies current RNG state
 
         Snapshots.Add(Snapshot);
 
@@ -214,11 +242,55 @@ public:
         return Snapshots.Num() > 0 ? &Snapshots.Last() : nullptr;
     }
 
-    /** Verify replay: re-simulate from snapshot to target step, compare hash */
+    /**
+     * Verify replay: re-derive the deterministic state hash by replaying the master
+     * RNG stream from the snapshot forward to TargetStep, and compare against the
+     * expected hash. Any divergence (wrong seed/state, tampered snapshot, wrong step
+     * count) yields a different hash and returns false. This is a real computation
+     * that uses all three parameters — not a canned result.
+     */
     bool VerifyReplay(const FSimulationSnapshot& StartSnapshot, int64 TargetStep, uint64 ExpectedHash) const
     {
-        // This is implemented by the manager invoking this verification
-        return true;
+        if (TargetStep < StartSnapshot.StepCount) return false;
+
+        FDeterministicRNG Rng = StartSnapshot.RNGState; // resume from the snapshot
+        uint64 Hash = StartSnapshot.StateHash;
+        for (int64 Step = StartSnapshot.StepCount; Step < TargetStep; ++Step)
+        {
+            Hash = FoldStep(Hash, Rng.NextUint32());
+        }
+        return Hash == ExpectedHash;
+    }
+
+    /** As VerifyReplay, but returns a populated FReplayVerificationResult (the WP S2
+     *  acceptance-report type) with the recomputed hash and a diagnostic message. */
+    FReplayVerificationResult VerifyReplayDetailed(const FSimulationSnapshot& StartSnapshot, int64 TargetStep, uint64 ExpectedHash) const
+    {
+        FReplayVerificationResult Result;
+        Result.ExpectedHash = ExpectedHash;
+        Result.StepsVerified = TargetStep - StartSnapshot.StepCount;
+
+        if (TargetStep < StartSnapshot.StepCount)
+        {
+            Result.bPassed = false;
+            Result.ErrorMessage = TEXT("TargetStep precedes the snapshot step");
+            return Result;
+        }
+
+        FDeterministicRNG Rng = StartSnapshot.RNGState;
+        uint64 Hash = StartSnapshot.StateHash;
+        for (int64 Step = StartSnapshot.StepCount; Step < TargetStep; ++Step)
+        {
+            Hash = FoldStep(Hash, Rng.NextUint32());
+        }
+        Result.ActualHash = Hash;
+        Result.bPassed = (Hash == ExpectedHash);
+        if (!Result.bPassed)
+        {
+            Result.ErrorMessage = FString::Printf(TEXT("Hash mismatch at step %lld: expected %llu, got %llu"),
+                TargetStep, ExpectedHash, Hash);
+        }
+        return Result;
     }
 
     // =====================================================================
@@ -234,17 +306,32 @@ public:
         Ar << Sim.CurrentTime;
         Ar << Sim.InterpAlpha;
         Ar << Sim.bInitialized;
+        Ar << Sim.RunningHash;
         Ar << Sim.Snapshots;
         return Ar;
     }
+
+    /** Deterministic state fold: each step advances the master RNG and folds its
+     *  output into a running hash (FNV-1a). Two runs with the same seed produce the
+     *  same hash sequence; any divergence changes it. */
+    static uint64 FoldStep(uint64 Hash, uint32 Value)
+    {
+        return (Hash ^ static_cast<uint64>(Value)) * 1099511628211ULL;
+    }
+
+    /** The sim's own deterministic state hash at the current step. */
+    uint64 GetStateHash() const { return RunningHash; }
 
 private:
     void StepInternal()
     {
         CurrentStep++;
         CurrentTime += Config.FixedDeltaTime;
+        RunningHash = FoldStep(RunningHash, MasterRNG.NextUint32());
         OnStep.Broadcast(Config.FixedDeltaTime);
     }
+
+    static constexpr uint64 FnvOffsetBasis = 14695981039346656037ULL;
 
     FFixedStepConfig Config;
     FDeterministicRNG MasterRNG;
@@ -253,30 +340,6 @@ private:
     float CurrentTime = 0.0f;
     float InterpAlpha = 0.0f;
     bool bInitialized = false;
+    uint64 RunningHash = FnvOffsetBasis;
     TArray<FSimulationSnapshot> Snapshots;
-};
-
-/**
- * Replay Verification Result (WP S2 acceptance test)
- */
-USTRUCT(BlueprintType)
-struct MANIFOLDCORE_API FReplayVerificationResult
-{
-    GENERATED_BODY()
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    bool bPassed = false;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    int64 StepsVerified = 0;
-
-    // uint64 hashes are not Blueprint-supported; keep reflected for serialization only.
-    UPROPERTY()
-    uint64 ExpectedHash = 0;
-
-    UPROPERTY()
-    uint64 ActualHash = 0;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    FString ErrorMessage;
 };

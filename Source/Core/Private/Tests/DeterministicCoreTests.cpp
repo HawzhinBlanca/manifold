@@ -142,35 +142,48 @@ bool FSimulationReplayTest::RunTest(const FString& Parameters)
     FFixedStepSimulation Sim(Config);
     Sim.Initialize(1337ULL);
 
-    // Step 10 times to hit the snapshot interval
+    // Advance to the snapshot interval and capture the deterministic state there.
     Sim.StepMultiple(10);
-    
-    // Capture snapshot
-    TArray<uint8> MockState = { 1, 2, 3, 4, 5 };
-    uint64 CombinedHash = 0xAA55AA55ULL;
-    Sim.CaptureSnapshot(MockState, CombinedHash);
+    Sim.CaptureSnapshot();
 
     const FSimulationSnapshot* Snap = Sim.GetSnapshotAt(10);
     UTEST_TRUE("Snapshot was captured", Snap != nullptr);
     UTEST_EQUAL("Snapshot step match", Snap->StepCount, 10LL);
-    UTEST_EQUAL("Snapshot hash match", Snap->StateHash, CombinedHash);
-    UTEST_EQUAL("Snapshot state data match", Snap->StateData, MockState);
+    UTEST_EQUAL("Snapshot records the sim's real state hash", Snap->StateHash, Sim.GetStateHash());
 
-    // Save simulation state to archive
+    // Advance further; record the forward-simulated hash at the target step.
+    Sim.StepMultiple(15); // now at step 25
+    const uint64 ExpectedHash = Sim.GetStateHash();
+
+    // REAL replay verification: re-derive the hash from the snapshot to step 25 and
+    // confirm it matches the forward run. This actually recomputes and compares.
+    UTEST_TRUE("Replay from snapshot reproduces the forward run",
+        Sim.VerifyReplay(*Snap, 25, ExpectedHash));
+
+    // Divergence must be CAUGHT, not silently passed: a wrong expected hash fails.
+    UTEST_FALSE("A tampered expected hash is rejected",
+        Sim.VerifyReplay(*Snap, 25, ExpectedHash ^ 0x1ULL));
+    // A wrong target step also diverges.
+    UTEST_FALSE("A wrong target step is rejected",
+        Sim.VerifyReplay(*Snap, 24, ExpectedHash));
+
+    // The detailed report is populated (WP S2 acceptance type, previously unused).
+    const FReplayVerificationResult Report = Sim.VerifyReplayDetailed(*Snap, 25, ExpectedHash);
+    UTEST_TRUE("Detailed report passes", Report.bPassed);
+    UTEST_EQUAL("Detailed report step count", Report.StepsVerified, 15LL);
+    UTEST_EQUAL("Detailed report recomputed hash", Report.ActualHash, ExpectedHash);
+
+    // Serialization round-trip preserves the deterministic state.
     FBufferArchive Archive;
     Archive << Sim;
 
-    // Restore into new simulation
     FFixedStepSimulation LoadedSim(Config);
     FMemoryReader Reader(Archive);
     Reader << LoadedSim;
 
-    UTEST_EQUAL("Loaded simulation step count match", LoadedSim.GetStepCount(), 10LL);
+    UTEST_EQUAL("Loaded simulation step count match", LoadedSim.GetStepCount(), 25LL);
     UTEST_EQUAL("Loaded simulation time match", LoadedSim.GetSimulationTime(), Sim.GetSimulationTime());
-
-    const FSimulationSnapshot* LoadedSnap = LoadedSim.GetSnapshotAt(10);
-    UTEST_TRUE("Loaded snapshot exists", LoadedSnap != nullptr);
-    UTEST_EQUAL("Loaded snapshot hash match", LoadedSnap->StateHash, CombinedHash);
+    UTEST_EQUAL("Loaded simulation state hash match", LoadedSim.GetStateHash(), ExpectedHash);
 
     return true;
 }

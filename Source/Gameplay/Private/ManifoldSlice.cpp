@@ -52,6 +52,7 @@ void UManifoldSlice::Setup(uint64 OrbitsSeed, uint64 FluidsSeed)
     // Gameplay reactions: on a detected correspondence, transport power across the
     // seam; record every discovery/transport for the Insight Rate.
     Correspond->OnCorrespondenceIgnited.AddUObject(this, &UManifoldSlice::HandleIgnited);
+    Correspond->OnSharedStructureDiscovered.AddUObject(this, &UManifoldSlice::HandleSharedDiscovery);
     Correspond->OnTransportCompleted.AddUObject(this, &UManifoldSlice::HandleTransport);
 
     // --- Orbits scenario: a clean 3:2 mean-motion resonance ---
@@ -107,18 +108,16 @@ void UManifoldSlice::HandleIgnited(FGuid /*SourceStructure*/, FGuid /*TargetStru
     Params.Add(TEXT("Scale"), FString::SanitizeFloat(Scale));
     Telemetry->LogEvent(TEXT("CorrespondenceIgnited"), CurrentStep, CurrentTime, Params);
 
-    // The discovery is sounded as its ratio: the 3:2 the physics found rings out as
-    // a perfect fifth over the Orbits realm's tonic.
-    if (Audio)
+    // The discovery is sounded as its ACTUAL ratio (ignition implies Orbits detected
+    // a resonance) — the ratio the physics found rings out over the Orbits tonic.
+    if (Audio && Orbits)
     {
-        int32 Num = 3, Den = 2; // the canonical shared structure, if no live ratio yet
-        if (Orbits)
+        const TArray<FResonanceMatch>& Res = Orbits->GetActiveResonances();
+        if (Res.Num() > 0)
         {
-            const TArray<FResonanceMatch>& Res = Orbits->GetActiveResonances();
-            if (Res.Num() > 0) { Num = Res[0].Ratio.X; Den = Res[0].Ratio.Y; }
+            LastAudioCue = Audio->CueForDiscovery(TEXT("Orbits"), Res[0].Ratio.X, Res[0].Ratio.Y);
+            AudioCues.Add(LastAudioCue);
         }
-        LastAudioCue = Audio->CueForDiscovery(TEXT("Orbits"), Num, Den);
-        AudioCues.Add(LastAudioCue);
     }
 
     // The seam lights up: remember the vortex so it can be transported into Orbits.
@@ -133,6 +132,32 @@ void UManifoldSlice::HandleIgnited(FGuid /*SourceStructure*/, FGuid /*TargetStru
         {
             DoTransportPendingVortex();
         }
+    }
+}
+
+void UManifoldSlice::HandleSharedDiscovery(FName RealmA, FName /*RealmB*/, FString Ratio, FGuid /*StableId*/)
+{
+    // A cross-domain analogy (e.g. orbital 3:2 == harmonic 3:2). Count it, record it
+    // for the Insight Rate, and sound it as its ACTUAL ratio over the realm's tonic.
+    ++SharedDiscoveries;
+
+    int32 Num = 0, Den = 0;
+    FString L, R;
+    if (Ratio.Split(TEXT(":"), &L, &R))
+    {
+        Num = FCString::Atoi(*L);
+        Den = FCString::Atoi(*R);
+    }
+
+    TMap<FString, FString> Params;
+    Params.Add(TEXT("Realm"), RealmA.ToString());
+    Params.Add(TEXT("Ratio"), Ratio);
+    Telemetry->LogEvent(TEXT("Discovery"), CurrentStep, CurrentTime, Params);
+
+    if (Audio && Num > 0 && Den > 0)
+    {
+        LastAudioCue = Audio->CueForDiscovery(RealmA, Num, Den);
+        AudioCues.Add(LastAudioCue);
     }
 }
 
@@ -217,8 +242,9 @@ void UManifoldSlice::Tick()
     Correspond->DetectCorrespondence();
 
     // Generic N-realm engine: cross-domain analogies by shared structure ratio
-    // (Orbits 3:2 <-> Harmonics 3:2). Each new one is a discovery.
-    SharedDiscoveries += Correspond->DetectSharedStructureCorrespondences();
+    // (Orbits 3:2 <-> Harmonics 3:2). Each newly-found analogy fires
+    // OnSharedStructureDiscovered -> HandleSharedDiscovery, which counts it.
+    Correspond->DetectSharedStructureCorrespondences();
 
     // Resolve the session against its objective (win/lose).
     EvaluateObjective();
@@ -320,13 +346,44 @@ FManifoldReplay UManifoldSlice::RecordReplay(int64 OrbitsSeed, int64 FluidsSeed,
 
 FManifoldSliceResult UManifoldSlice::RunReplay(const FManifoldReplay& Replay)
 {
-    // Deterministic reproduction: the same seeds and step count re-run the exact
-    // session bit-for-bit — the "share a seed, get the identical run" guarantee.
-    // (The player-driven transport verb is exercised separately by the interactive
-    // session test; here the point is faithful, reproducible playback.)
+    // Faithful reproduction that HONORS the recorded transport schedule: the player's
+    // verb is re-issued on exactly the recorded steps (not auto-fired), so the run is
+    // reproduced the way it was actually played. Determinism guarantees the same seeds
+    // + same schedule => the same result, bit-for-bit.
     Setup(Replay.OrbitsSeed, Replay.FluidsSeed);
-    bAutoTransportOnIgnite = true;
-    return RunPlaythrough(Replay.Steps);
+    bAutoTransportOnIgnite = false;
+
+    // How many transports the player issued on each recorded step (usually 1).
+    TMap<int32, int32> TransportsPerStep;
+    for (int32 Step : Replay.TransportSteps)
+    {
+        TransportsPerStep.FindOrAdd(Step)++;
+    }
+
+    for (int32 i = 0; i < Replay.Steps; ++i)
+    {
+        Tick();
+        if (const int32* Count = TransportsPerStep.Find(static_cast<int32>(CurrentStep)))
+        {
+            for (int32 n = 0; n < *Count; ++n)
+            {
+                if (!PlayerRequestTransport())
+                {
+                    break; // no correspondence available to consume
+                }
+            }
+        }
+    }
+
+    FManifoldSliceResult Result;
+    Result.bResonanceDetected = HasResonance();
+    Result.bVortexDetected = HasVortex();
+    Result.CorrespondencesIgnited = IgnitedCount;
+    Result.TransportsCompleted = TransportCount;
+    Result.InsightRate = GetInsightRate();
+
+    Telemetry->ShutdownTelemetry();
+    return Result;
 }
 
 bool UManifoldSlice::SaveReplay(const FManifoldReplay& Replay, const FString& Path)
