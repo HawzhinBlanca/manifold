@@ -139,6 +139,14 @@ public:
     UFUNCTION(BlueprintPure, Category = "MANIFOLD") FString GetOrbitsRatio() const;
     UFUNCTION(BlueprintPure, Category = "MANIFOLD") FString GetHarmonicsRatio() const;
     UFUNCTION(BlueprintPure, Category = "MANIFOLD") FString GetRhythmRatio() const;
+
+    /** The hidden ratio this session's realms all secretly share (picked from the
+     *  seed). Different seeds hide different ratios — the puzzle is which one. */
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD")
+    FString GetSharedRatio() const { return FString::Printf(TEXT("%d:%d"), SharedP, SharedQ); }
+
+    /** Deterministically choose the session's hidden ratio (coprime, p > q) from a seed. */
+    static void PickSharedRatio(uint64 Seed, int32& OutP, int32& OutQ);
     /** Cross-domain analogies found via the generic N-realm engine (e.g. orbital 3:2 == harmonic 3:2). */
     UFUNCTION(BlueprintPure, Category = "MANIFOLD") int32 GetSharedDiscoveries() const { return SharedDiscoveries; }
     UFUNCTION(BlueprintPure, Category = "MANIFOLD") int64 GetStepCount() const { return CurrentStep; }
@@ -171,6 +179,10 @@ private:
     int32 IgnitedCount = 0;
     int32 TransportCount = 0;
     int32 SharedDiscoveries = 0;
+
+    // The hidden ratio this session's realms share (chosen from the seed in Setup).
+    int32 SharedP = 3;
+    int32 SharedQ = 2;
     int64 CurrentStep = 0;
     float CurrentTime = 0.0f;
 

@@ -41,13 +41,24 @@ void UManifoldSlice::Setup(uint64 OrbitsSeed, uint64 FluidsSeed)
 
     Telemetry->InitializeTelemetry(TEXT("SlicePlaythrough.log"));
 
-    // Load the data-driven correspondence content (Build Plan D1). If the content
-    // file is missing, the CorrespondenceSystem falls back to its built-in "3:2" rule.
-    const FString MappingPath = FPaths::Combine(FPaths::ProjectDir(), TEXT("Data/Correspondences/OrbitsFluids.json"));
-    if (UCorrespondenceMapping* Mapping = UCorrespondenceMapping::CreateFromJsonFile(MappingPath, this))
-    {
-        Correspond->InitializeMapping(Mapping);
-    }
+    // The PUZZLE: this session's realms all secretly share ONE hidden ratio, chosen
+    // deterministically from the seed. Different seeds hide different ratios (3:2, 4:3,
+    // 5:3, 2:1, ...), so no two sessions are the same and the game can't be pre-solved
+    // — the design's "un-pre-computable" pillar, made real.
+    PickSharedRatio(OrbitsSeed, SharedP, SharedQ);
+    const double RatioD = static_cast<double>(SharedP) / static_cast<double>(SharedQ);
+
+    // Correspondence content, generated as data from the chosen ratio (data-driven:
+    // the CorrespondenceSystem matches Orbits<->Fluids against this spec + tolerance).
+    UCorrespondenceMapping* Mapping = NewObject<UCorrespondenceMapping>(this);
+    FCorrespondenceSpec Spec;
+    Spec.SourceStructureType = TEXT("OrbitalResonance");
+    Spec.TargetStructureType = TEXT("VortexCenter");
+    Spec.MatchingRatio = FString::Printf(TEXT("%d:%d"), SharedP, SharedQ);
+    Spec.Tolerance = 0.05f;
+    Spec.ScaleFactor = 1.0f;
+    Mapping->Specs.Add(Spec);
+    Correspond->InitializeMapping(Mapping);
 
     // Gameplay reactions: on a detected correspondence, transport power across the
     // seam; record every discovery/transport for the Insight Rate.
@@ -55,7 +66,7 @@ void UManifoldSlice::Setup(uint64 OrbitsSeed, uint64 FluidsSeed)
     Correspond->OnSharedStructureDiscovered.AddUObject(this, &UManifoldSlice::HandleSharedDiscovery);
     Correspond->OnTransportCompleted.AddUObject(this, &UManifoldSlice::HandleTransport);
 
-    // --- Orbits scenario: a clean 3:2 mean-motion resonance ---
+    // --- Orbits scenario: two planets in a P:Q mean-motion resonance ---
     FOrbitsBodyDef Star;
     Star.Name = TEXT("Star");
     Star.Mass = 1.989e30;      // 1 solar mass
@@ -70,7 +81,8 @@ void UManifoldSlice::Setup(uint64 OrbitsSeed, uint64 FluidsSeed)
     PlanetA.Velocity = FVector(0.0, V_A, 0.0);
     Orbits->AddBody(PlanetA);
 
-    const double R_B = PlanetA.Position.X * FMath::Pow(1.5, 2.0 / 3.0); // period ratio 3:2
+    // Semi-major axis for a period ratio of P:Q (Kepler's third law).
+    const double R_B = PlanetA.Position.X * FMath::Pow(RatioD, 2.0 / 3.0);
     FOrbitsBodyDef PlanetB;
     PlanetB.Name = TEXT("PlanetB");
     PlanetB.Mass = 1e24;
@@ -85,19 +97,32 @@ void UManifoldSlice::Setup(uint64 OrbitsSeed, uint64 FluidsSeed)
     Fluids->AddVelocity(0.5f, 0.55f, -20.0f, 0.0f);
     Fluids->AddVelocity(0.45f, 0.5f, 0.0f, -20.0f);
 
-    // --- Harmonics scenario: modes at 2 Hz and 3 Hz form a 3:2 (same structure
-    //     as the orbital resonance — the cross-domain analogy). ---
-    Harmonics->AddMode(2.0, 1.0);
-    Harmonics->AddMode(3.0, 1.0);
+    // --- Harmonics: modes at Q Hz and P Hz form the same P:Q ratio ---
+    Harmonics->AddMode(static_cast<double>(SharedQ), 1.0);
+    Harmonics->AddMode(static_cast<double>(SharedP), 1.0);
 
-    // --- Waves scenario: the 2nd and 3rd string harmonics form a 3:2 as well. ---
-    Waves->ExciteHarmonic(2, 1.0);
-    Waves->ExciteHarmonic(3, 1.0);
+    // --- Waves: the Q-th and P-th string harmonics form the same P:Q ratio ---
+    Waves->ExciteHarmonic(SharedQ, 1.0);
+    Waves->ExciteHarmonic(SharedP, 1.0);
 
-    // --- Rhythm scenario: three-against-two is a 3:2 polyrhythm — the same
-    //     structure once more, now in the domain of TIME. ---
-    Rhythm->AddVoice(3.0);
-    Rhythm->AddVoice(2.0);
+    // --- Rhythm: a P-against-Q polyrhythm — the same structure in the domain of TIME ---
+    Rhythm->AddVoice(static_cast<double>(SharedP));
+    Rhythm->AddVoice(static_cast<double>(SharedQ));
+}
+
+void UManifoldSlice::PickSharedRatio(uint64 Seed, int32& OutP, int32& OutQ)
+{
+    // Curated coprime small-integer ratios (p > q, both <= 9 so every realm can
+    // realize and detect them). Each is a distinct, recognizable interval/resonance.
+    static const FIntPoint Ratios[] = {
+        FIntPoint(3, 2), FIntPoint(4, 3), FIntPoint(5, 4), FIntPoint(5, 3),
+        FIntPoint(2, 1), FIntPoint(5, 2), FIntPoint(7, 4), FIntPoint(7, 5),
+        FIntPoint(8, 5), FIntPoint(9, 8),
+    };
+    const int32 Count = UE_ARRAY_COUNT(Ratios);
+    const int32 Index = static_cast<int32>(Seed % static_cast<uint64>(Count));
+    OutP = Ratios[Index].X;
+    OutQ = Ratios[Index].Y;
 }
 
 void UManifoldSlice::HandleIgnited(FGuid /*SourceStructure*/, FGuid /*TargetStructure*/, float Scale)

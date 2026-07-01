@@ -147,8 +147,9 @@ bool FInteractiveSessionTest::RunTest(const FString& Parameters)
 
     UTEST_TRUE("Resonance detected", Slice->HasResonance());
     UTEST_TRUE("Vortex detected", Slice->HasVortex());
-    UTEST_EQUAL("Orbits shows 3:2", Slice->GetOrbitsRatio(), FString(TEXT("3:2")));
-    UTEST_EQUAL("Harmonics shows 3:2", Slice->GetHarmonicsRatio(), FString(TEXT("3:2")));
+    // All ratio realms realize this session's hidden ratio (whatever the seed chose).
+    UTEST_EQUAL("Orbits realizes the hidden ratio", Slice->GetOrbitsRatio(), Slice->GetSharedRatio());
+    UTEST_EQUAL("Harmonics realizes the hidden ratio", Slice->GetHarmonicsRatio(), Slice->GetSharedRatio());
     UTEST_GREATER("Cross-domain analogy (Orbits<->Harmonics) discovered", Slice->GetSharedDiscoveries(), 0);
     UTEST_GREATER("Correspondence lit at least once", Slice->GetCorrespondencesIgnited(), 0);
     UTEST_GREATER("Insight Rate positive", Slice->GetInsightRate(), 0.0f);
@@ -310,6 +311,34 @@ bool FReplayRoundTripTest::RunTest(const FString& Parameters)
 
     // Clean up the scratch file.
     FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*Path);
+
+    return true;
+}
+
+// Procedural variation: each seed hides a DIFFERENT ratio across all realms (so the
+// game can't be pre-solved), and the same seed always hides the same ratio (so runs
+// are reproducible). After play, every ratio realm actually realizes that hidden ratio.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProceduralVariationTest, "MANIFOLD.Play.ProceduralVariation", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FProceduralVariationTest::RunTest(const FString& Parameters)
+{
+    UManifoldSlice* A = NewObject<UManifoldSlice>();
+    A->Setup(1ULL, 100ULL);
+    UManifoldSlice* B = NewObject<UManifoldSlice>();
+    B->Setup(2ULL, 100ULL);
+    UManifoldSlice* A2 = NewObject<UManifoldSlice>();
+    A2->Setup(1ULL, 999ULL); // different fluids seed, same orbits seed
+
+    UTEST_NOT_EQUAL("Different seeds hide different ratios", A->GetSharedRatio(), B->GetSharedRatio());
+    UTEST_EQUAL("Same orbits seed hides the same ratio", A->GetSharedRatio(), A2->GetSharedRatio());
+
+    // After play, the realms actually realize the hidden ratio.
+    A->RunPlaythrough(30);
+    UTEST_EQUAL("Orbits realizes the hidden ratio", A->GetOrbitsRatio(), A->GetSharedRatio());
+    UTEST_EQUAL("Harmonics realizes the hidden ratio", A->GetHarmonicsRatio(), A->GetSharedRatio());
+    UTEST_EQUAL("Rhythm realizes the hidden ratio", A->GetRhythmRatio(), A->GetSharedRatio());
+    UTEST_GREATER("The hidden ratio is discovered across domains", A->GetSharedDiscoveries(), 0);
+    UTEST_GREATER("The seam ignites on the hidden ratio", A->GetCorrespondencesIgnited(), 0);
 
     return true;
 }
