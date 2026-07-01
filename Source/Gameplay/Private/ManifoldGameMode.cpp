@@ -3,7 +3,9 @@
 #include "ManifoldGameMode.h"
 #include "ManifoldSlice.h"
 #include "ManifoldHUD.h"
+#include "ManifoldRealmVisualizer.h"
 #include "GameFramework/DefaultPawn.h"
+#include "Engine/World.h"
 
 AManifoldGameMode::AManifoldGameMode()
 {
@@ -22,6 +24,12 @@ void AManifoldGameMode::BeginPlay()
     // Interactive: the correspondence lights up, but the PLAYER triggers transport.
     Slice->bAutoTransportOnIgnite = false;
     Slice->Setup(1111ULL, 2222ULL);
+
+    // Spawn the debug-draw view of both realms + the resonance/seam ribbons.
+    if (UWorld* World = GetWorld())
+    {
+        World->SpawnActor<AManifoldRealmVisualizer>();
+    }
 }
 
 void AManifoldGameMode::Tick(float DeltaSeconds)
