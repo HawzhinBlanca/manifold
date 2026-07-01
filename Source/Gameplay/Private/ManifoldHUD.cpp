@@ -40,6 +40,30 @@ void AManifoldHUD::DrawHUD()
     const FLinearColor Amber(1.0f, 0.6f, 0.4f);
     const FLinearColor PanelBg(0.02f, 0.03f, 0.07f, 0.72f);
 
+    // --- Intro title card (over the live realms + starfield), until first action ---
+    if (GM->bTitleShown)
+    {
+        const float CX = Canvas ? Canvas->ClipX * 0.5f : 640.0f;
+        const float CY = Canvas ? Canvas->ClipY * 0.5f : 360.0f;
+
+        DrawPanel(CX - 320.0f, CY - 180.0f, 640.0f, 340.0f, FLinearColor(0.02f, 0.03f, 0.07f, 0.8f));
+        if (Emblem)
+        {
+            DrawTexture(Emblem, CX - 70.0f, CY - 160.0f, 140.0f, 140.0f, 0, 0, 1, 1);
+        }
+        if (Big)
+        {
+            DrawText(TEXT("MANIFOLD"), Gold, CX - 132.0f, CY + 0.0f, Big, 2.2f);
+        }
+        DrawText(TEXT("the correspondence engine"), Dim, CX - 96.0f, CY + 44.0f, Font);
+        DrawText(TEXT("Five realms secretly share one hidden ratio. One is a decoy."),
+            Cyan, CX - 210.0f, CY + 78.0f, Font);
+        DrawText(TEXT("Find the correspondence and carry it across the seam."),
+            Cyan, CX - 195.0f, CY + 100.0f, Font);
+        DrawText(TEXT("[E] transport     [R] restart"), Gold, CX - 110.0f, CY + 134.0f, Font);
+        return; // show only the title over the scene until the player begins
+    }
+
     // --- Title bar: emblem + wordmark + framed readout panel ---
     const float PanelX = 32.0f;
     const float PanelY = 28.0f;

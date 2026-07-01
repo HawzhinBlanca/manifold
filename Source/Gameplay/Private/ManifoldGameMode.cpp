@@ -62,6 +62,8 @@ void AManifoldGameMode::StartSession()
     Accumulator = 0.0f;
     LastPlayedCue = 0;
     bSessionRecorded = false;
+    bTitleShown = true;
+    TitleTimer = 0.0f;
 
     // Spawn the debug-draw view of both realms + the resonance/seam ribbons (once).
     if (UWorld* World = GetWorld())
@@ -85,6 +87,13 @@ void AManifoldGameMode::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
     if (!Slice) return;
+
+    // Auto-dismiss the intro title card after a few seconds.
+    if (bTitleShown)
+    {
+        TitleTimer += DeltaSeconds;
+        if (TitleTimer >= 6.0f) { bTitleShown = false; }
+    }
 
     Accumulator += DeltaSeconds;
     while (Accumulator >= StepInterval)
@@ -144,6 +153,7 @@ void AManifoldGameMode::PlayNewAudioCues()
 void AManifoldGameMode::ManifoldTransport()
 {
     if (!Slice) return;
+    bTitleShown = false; // first action dismisses the intro
     const bool bOk = Slice->PlayerRequestTransport();
     UE_LOG(LogTemp, Display, TEXT("[MANIFOLD] Transport %s"),
         bOk ? TEXT("SUCCEEDED — power carried across the seam") : TEXT("failed — no correspondence lit"));

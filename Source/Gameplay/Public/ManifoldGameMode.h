@@ -53,6 +53,10 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
     FManifoldProfile Profile;
 
+    /** True while the intro title card is showing (dismisses on first action or timeout). */
+    UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
+    bool bTitleShown = true;
+
 protected:
     float Accumulator = 0.0f;
 
@@ -72,6 +76,9 @@ protected:
     /** Timer + realm cursor for the gentle ambient pad (a soft recurring drone). */
     float AmbientTimer = 0.0f;
     int32 AmbientRealmIndex = 0;
+
+    /** Seconds the intro title card has been showing. */
+    float TitleTimer = 0.0f;
 
     /** Build a fresh interactive session (slice + objective) and the realm view. */
     void StartSession();
