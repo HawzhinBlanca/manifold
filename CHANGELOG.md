@@ -24,6 +24,17 @@ all are now fixed with tests (**37/37 green**):
 - **Real geometry:** the realm visualizer now spawns static-mesh objects (five realms)
   instead of debug-draw lines.
 
+### Added (presentation polish — code-authored)
+- **Cosmic backdrop**: a deterministic procedural starfield shell + key/fill scene
+  lighting so the realms sit in space and are clearly lit.
+- **Cinematic post**: a PostProcessVolume with bloom (gold correspondences / seam /
+  stars glow), a soft vignette, and fixed exposure.
+- **Ambient soundscape**: a gentle recurring tonic pad under the discovery/transport
+  chimes, so the world always hums.
+- **Intro title card**: the emblem, wordmark, one-line goal, and controls over the live
+  scene, dismissing on the first action.
+- **Rank tiers (S/A/B/C/D)** on the retuned score, shown big in the win banner.
+
 ### Added (game depth & replayability)
 - **Sixth realm — Gears** (mechanical): two meshed gears with P and Q teeth expose the
   EXACT integer ratio P:Q (reduced by GCD). A single ratio now spans six domains —
