@@ -30,6 +30,23 @@ work-package milestones rather than semantic versions until first playable.
 - Simulation correctness: Orbits energy baseline + resonance ratio convention;
   Fluids determinism check + strongest-vortex query.
 
+### Added (playable slice)
+- **Playable shell**: `AManifoldGameMode` (fixed-cadence session) + `AManifoldHUD`
+  (live readout) + `AManifoldRealmVisualizer` (debug-draw of realms + gold
+  resonance/seam ribbons) + console verb `ManifoldTransport`. Set as the project's
+  default GameMode.
+- **Interactive session** with a player-driven transport verb; **stable resonance
+  ids** (deterministic, fix the ephemeral-GUID dedup bug).
+- **Vertical-slice gate (P2)**: treatment vs. control Insight-Rate go/no-go, in code.
+- **Fourth realm — Waves** (string standing-wave harmonics); a 3:2 now spans four
+  domains, surfaced live in the slice via the generic N-realm engine.
+
+### Added (repo / CI)
+- Branch protection on `main` (linear history, no force-push/deletion, conversation
+  resolution). `Tools/CI/setup-runner.ps1` for one-command self-hosted runner
+  registration. AndroidFileServer plugin disabled (stops dev-token regeneration).
+
 ### Status
-- **20 / 20** automation tests green, headless. Presentation layer (World/VFX/Audio/
-  interactive UI) is the next, human-owned phase — see `Docs/IMPLEMENTATION_STATUS.md`.
+- **25 / 25** automation tests green, headless. Repo is public and professional.
+  Remaining phase (World/VFX/Audio polish + real UI) is human-owned — see
+  `Docs/IMPLEMENTATION_STATUS.md`.
