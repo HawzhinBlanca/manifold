@@ -126,6 +126,38 @@ void UManifoldSlice::Setup(uint64 OrbitsSeed, uint64 FluidsSeed)
     Decoy->AddMode(static_cast<double>(DecoyP), 1.0);
 }
 
+FManifoldExpeditionResult UManifoldSlice::RunExpedition(int64 BaseSeed, int32 NumLevels, int32 StepsPerLevel, UObject* Outer)
+{
+    FManifoldExpeditionResult Result;
+    UObject* Package = Outer ? Outer : (UObject*)GetTransientPackage();
+
+    for (int32 Level = 0; Level < NumLevels; ++Level)
+    {
+        UManifoldSlice* Slice = NewObject<UManifoldSlice>(Package);
+
+        // Escalating difficulty: each level demands more discoveries. Eventually the
+        // target exceeds what a single session can surface, and the expedition ends.
+        FManifoldObjective Obj;
+        Obj.TargetDiscoveries = 2 + Level * 2;
+        Obj.StepBudget = 0;
+        Slice->SetObjective(Obj);
+
+        Slice->Setup(static_cast<uint64>(BaseSeed + Level), static_cast<uint64>(BaseSeed * 7 + Level));
+        Slice->RunPlaythrough(StepsPerLevel);
+
+        const FManifoldSessionSummary Summary = Slice->GetSessionSummary();
+        if (Summary.State != EManifoldSessionState::Won)
+        {
+            break; // the expedition ends at the first level you can't clear
+        }
+        ++Result.LevelsCleared;
+        Result.TotalScore += Summary.Score;
+    }
+
+    Result.bCompleted = (Result.LevelsCleared == NumLevels);
+    return Result;
+}
+
 void UManifoldSlice::PickSharedRatio(uint64 Seed, int32& OutP, int32& OutQ)
 {
     // Curated coprime small-integer ratios (p > q, both <= 9 so every realm can

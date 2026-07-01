@@ -73,6 +73,26 @@ struct MANIFOLDGAMEPLAY_API FManifoldSessionSummary
 };
 
 /**
+ * Result of an expedition — a campaign of escalating-difficulty levels played back to
+ * back until one is failed. LevelsCleared is how far the player got; bCompleted is true
+ * only if every level was cleared.
+ */
+USTRUCT(BlueprintType)
+struct MANIFOLDGAMEPLAY_API FManifoldExpeditionResult
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
+    int32 LevelsCleared = 0;
+
+    UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
+    int32 TotalScore = 0;
+
+    UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
+    bool bCompleted = false;
+};
+
+/**
  * Persistent player profile — sessions played/won and the best score achieved. Saved
  * to a versioned .manifoldprofile file so "beat your best" survives across runs.
  */

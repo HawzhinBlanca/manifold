@@ -343,6 +343,32 @@ bool FProceduralVariationTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// Expedition (campaign): escalating-difficulty levels played back to back, ending at
+// the first level the player can't clear. A session can surface up to 7 discoveries
+// (1 seam + 6 cross-domain), so a target of 8 is the natural difficulty wall.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FExpeditionTest, "MANIFOLD.Play.Expedition", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FExpeditionTest::RunTest(const FString& Parameters)
+{
+    // Levels 0..2 demand 2, 4, 6 discoveries — all clearable.
+    const FManifoldExpeditionResult Three = UManifoldSlice::RunExpedition(500LL, 3, 30);
+    UTEST_EQUAL("Cleared all three levels", Three.LevelsCleared, 3);
+    UTEST_TRUE("Three-level expedition completed", Three.bCompleted);
+    UTEST_GREATER("Accumulated a positive total score", Three.TotalScore, 0);
+
+    // Levels 0..4 demand 2, 4, 6, 8, 10 — level 3 (target 8) is unclearable, so the
+    // expedition ends after 3 cleared levels.
+    const FManifoldExpeditionResult Five = UManifoldSlice::RunExpedition(500LL, 5, 30);
+    UTEST_EQUAL("Difficulty wall stops the run at 3 cleared", Five.LevelsCleared, 3);
+    UTEST_FALSE("Five-level expedition is not completed", Five.bCompleted);
+
+    // Deterministic in the base seed.
+    const FManifoldExpeditionResult Again = UManifoldSlice::RunExpedition(500LL, 3, 30);
+    UTEST_EQUAL("Same base seed -> same total score", Again.TotalScore, Three.TotalScore);
+
+    return true;
+}
+
 // Scoring: a played session yields a positive score that reflects what the player
 // surfaced, and the summary carries it.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FScoringTest, "MANIFOLD.Play.Scoring", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)

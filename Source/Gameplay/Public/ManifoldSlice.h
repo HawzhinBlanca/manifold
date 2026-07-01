@@ -162,6 +162,13 @@ public:
 
     /** Deterministically choose the session's hidden ratio (coprime, p > q) from a seed. */
     static void PickSharedRatio(uint64 Seed, int32& OutP, int32& OutQ);
+
+    /**
+     * Play an EXPEDITION: NumLevels sessions back to back with an escalating discovery
+     * target, stopping at the first level the player cannot clear. Returns how far they
+     * got and the cumulative score. Deterministic in BaseSeed.
+     */
+    static FManifoldExpeditionResult RunExpedition(int64 BaseSeed, int32 NumLevels, int32 StepsPerLevel = 30, UObject* Outer = nullptr);
     /** Cross-domain analogies found via the generic N-realm engine (e.g. orbital 3:2 == harmonic 3:2). */
     UFUNCTION(BlueprintPure, Category = "MANIFOLD") int32 GetSharedDiscoveries() const { return SharedDiscoveries; }
     UFUNCTION(BlueprintPure, Category = "MANIFOLD") int64 GetStepCount() const { return CurrentStep; }
