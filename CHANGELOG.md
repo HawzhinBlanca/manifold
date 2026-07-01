@@ -25,6 +25,12 @@ all are now fixed with tests (**37/37 green**):
   instead of debug-draw lines.
 
 ### Added (game layer)
+- **Procedural puzzle variation:** each session picks a coprime ratio (3:2, 4:3, 5:4,
+  5:3, 2:1, 5:2, 7:4, 7:5, 8:5, 9:8) deterministically from its seed and configures all
+  five realms — the orbital resonance (Kepler), harmonic modes, string harmonics, the
+  polyrhythm, and the generated Orbits↔Fluids spec — to that hidden ratio. Different
+  seeds hide different ratios (the game can't be pre-solved); the same seed reproduces
+  exactly. Test: `MANIFOLD.Play.ProceduralVariation`.
 - **Objective / win-state:** a session now Wins on reaching a target number of
   discoveries (optionally gated on Insight Rate) or Loses when a step budget runs
   out — the goal that turns the endless simulation into a game. `FManifoldObjective`,
@@ -94,7 +100,7 @@ all are now fixed with tests (**37/37 green**):
   registration. AndroidFileServer plugin disabled (stops dev-token regeneration).
 
 ### Status
-- **37 / 37** automation tests green, headless. Repo is public and professional.
+- **39 / 39** automation tests green, headless. Repo is public and professional.
   Remaining phase (real art/VFX scenes, bound sound assets, bespoke UMG UI, human
   playtest) is human-owned and needs the editor + a display — see
   `Docs/IMPLEMENTATION_STATUS.md`.

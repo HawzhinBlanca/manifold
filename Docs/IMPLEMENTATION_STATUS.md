@@ -8,7 +8,7 @@ MANIFOLD is a **playable, deterministic, data-driven, N-realm correspondence gam
 with an objective, deterministic replay, a code-level audio layer, key input, and a
 professional public repository + a headless packaging path.
 
-**37 automation tests pass, 0 failures, headless.** The correspondence engine — the
+**39 automation tests pass, 0 failures, headless.** The correspondence engine — the
 product's core per the design bible — is complete and generalized to N realms; a
 playable shell drives it with an on-screen readout (objective + session state), a
 debug-draw view of the realms, key-bound verbs, and audio cues. **Five** realms now
@@ -36,13 +36,17 @@ temporal). A session can be Won or Lost, recorded, and replayed bit-for-bit.
 - ✅ **Waves** (spatial: string standing-wave harmonics) — `MANIFOLD.Kernels.Waves.*`
 - ✅ **Rhythm** (temporal: three-against-two polyrhythm) — `MANIFOLD.Kernels.Rhythm.*`
 
-### Game layer (objective, replay, audio, input)
+### Game layer (procedural, objective, replay, audio, input)
+- ✅ **Procedural puzzle variation**: each seed hides a different coprime ratio across
+  all five realms; same seed reproduces. `MANIFOLD.Play.ProceduralVariation`.
 - ✅ **Objective / win-state**: Won on target discoveries, Lost on step-budget
   exhaustion. `MANIFOLD.Play.ObjectiveWin`, `MANIFOLD.Play.ObjectiveLose`.
 - ✅ **Deterministic replay**: whole-slice determinism + record/reproduce + on-disk
   round-trip. `MANIFOLD.Play.SliceDeterminism`, `MANIFOLD.Play.ReplayRoundTrip`.
-- ✅ **Audio direction**: ratio→interval mapping, per-realm voices, cue routing.
-  `MANIFOLD.Audio.*`, `MANIFOLD.Play.AudioIntegration`.
+- ✅ **Audio synthesis**: ratio→interval mapping and a real procedural synth that PLAYS
+  the cues. `MANIFOLD.Audio.*`, `MANIFOLD.Play.AudioIntegration`.
+- ✅ **Branded UI**: procedural MANIFOLD emblem + framed HUD + win/lose banner.
+  `MANIFOLD.UI.Emblem`.
 - **Enhanced Input**: `[E]` transport, `[R]` restart (AManifoldPlayerController;
   compile-verified, needs a display to play).
 
@@ -57,9 +61,10 @@ temporal). A session can be Won or Lost, recorded, and replayed bit-for-bit.
 - ✅ **Vertical-slice gate (P2)**: treatment Insight Rate > 0, control == 0,
   treatment strictly beats control. `MANIFOLD.Play.VerticalSliceGate`.
 - **AManifoldGameMode / AManifoldHUD / AManifoldRealmVisualizer** — the runnable
-  front end: fixed-cadence session, on-screen readout, debug-draw of realms +
-  gold resonance/seam ribbons, console verb `ManifoldTransport`. (Visual output is
-  seen at the editor/display; the logic behind it is test-verified.)
+  front end: fixed-cadence session, a branded HUD (emblem + readout + win/lose banner),
+  real static-mesh geometry for all five realms + a lit seam bridge, a live synth, and
+  the `[E]`/`[R]` verbs. (Visual/audio output is seen/heard at the editor/display; the
+  logic behind it is test-verified.)
 
 ## 3. How to play / verify
 
@@ -69,7 +74,7 @@ the debug-draw visualizer. The `ManifoldTransport` console command fires the ver
 
 **Verify (headless):**
 ```powershell
-Tools\CI\run_tests.ps1      # build editor target + all MANIFOLD tests (expect 35 Success, 0 Fail)
+Tools\CI\run_tests.ps1      # build editor target + all MANIFOLD tests (expect 39 Success, 0 Fail)
 Tools\CI\package.ps1        # produce a standalone Windows build under dist\Windows
 ```
 Close the Unreal Editor first (Live Coding holds a build lock).
