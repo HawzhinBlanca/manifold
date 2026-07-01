@@ -32,12 +32,13 @@ namespace ManifoldEmblem
                 const float Dist = FMath::Sqrt(dx * dx + dy * dy);
                 const float Ang = FMath::Atan2(dy, dx); // -PI..PI
 
-                // Background: indigo -> black vignette.
+                // Background: indigo -> black vignette. FColor ctor is (R, G, B, A),
+                // so blue is the LARGEST ramp to read as deep indigo (not reddish).
                 const float V = FMath::Clamp(1.0f - Dist / Radius, 0.0f, 1.0f);
                 FColor Col(
-                    static_cast<uint8>(24 * V + 4),   // B
-                    static_cast<uint8>(12 * V + 3),   // G
                     static_cast<uint8>(8 * V + 2),    // R
+                    static_cast<uint8>(12 * V + 3),   // G
+                    static_cast<uint8>(24 * V + 4),   // B
                     255);
 
                 // Two resonance rings at radii in a 3:2 ratio.
@@ -77,6 +78,11 @@ namespace ManifoldEmblem
 
     UTexture2D* CreateTexture(int32 Size)
     {
+        // Keep in lockstep with Render()'s internal clamp so the texture dimensions
+        // match the pixel buffer exactly (otherwise the memcpy below would overflow
+        // the mip for Size < 16).
+        Size = FMath::Max(Size, 16);
+
         TArray<FColor> Px;
         Render(Px, Size);
 

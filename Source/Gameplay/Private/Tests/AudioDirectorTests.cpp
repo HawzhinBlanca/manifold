@@ -105,5 +105,20 @@ bool FToneSynthesisTest::RunTest(const FString& Parameters)
     }
     UTEST_FALSE("Voice decays to silence", Voice.IsActive());
 
+    // A frequency above the sample rate must still yield finite, bounded samples
+    // (the phase wrap must not let Phase grow without bound).
+    FManifoldToneVoice Hi;
+    Hi.NoteOn(60000.0f, 1.0f); // > 48 kHz sample rate
+    bool bFinite = true;
+    float MaxAbs2 = 0.0f;
+    for (int32 i = 0; i < 20000; ++i)
+    {
+        const float S = Hi.NextSample(SampleRate);
+        if (!FMath::IsFinite(S)) { bFinite = false; }
+        MaxAbs2 = FMath::Max(MaxAbs2, FMath::Abs(S));
+    }
+    UTEST_TRUE("High-frequency voice stays finite", bFinite);
+    UTEST_TRUE("High-frequency voice stays bounded", MaxAbs2 <= 1.01f);
+
     return true;
 }

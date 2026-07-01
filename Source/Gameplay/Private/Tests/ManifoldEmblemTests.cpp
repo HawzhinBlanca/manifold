@@ -20,13 +20,16 @@ bool FManifoldEmblemTest::RunTest(const FString& Parameters)
 
     int32 GoldCount = 0;
     int32 DarkCount = 0;
+    int32 IndigoCount = 0; // background should read blue-dominant (indigo), not reddish
     for (const FColor& C : Px)
     {
         if (IsGold(C)) { ++GoldCount; }
         else if (C.R < 60 && C.G < 60) { ++DarkCount; }
+        if (!IsGold(C) && C.B > C.R) { ++IndigoCount; }
     }
     UTEST_GREATER("Emblem has gold linework", GoldCount, 100);
     UTEST_GREATER("Emblem has a dark field", DarkCount, 100);
+    UTEST_GREATER("Emblem field is indigo (blue-dominant, not reddish)", IndigoCount, 100);
 
     // A point on the outer resonance ring (angle 0) is gold, and its mirror is too.
     auto At = [&](int32 x, int32 y) -> const FColor& { return Px[y * Size + x]; };

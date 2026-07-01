@@ -41,10 +41,9 @@ struct MANIFOLDGAMEPLAY_API FManifoldToneVoice
         }
         const float Sample = Amplitude * FMath::Sin(static_cast<float>(Phase));
         Phase += 2.0 * PI * static_cast<double>(Frequency) / static_cast<double>(SampleRate);
-        if (Phase >= 2.0 * PI)
-        {
-            Phase -= 2.0 * PI;
-        }
+        // Unconditional wrap keeps Phase bounded for ANY frequency (a single
+        // subtraction would fail once the per-sample increment exceeds 2*PI).
+        Phase = FMath::Fmod(Phase, 2.0 * PI);
         Amplitude -= Amplitude * (DecayPerSecond / static_cast<float>(SampleRate));
         return Sample;
     }

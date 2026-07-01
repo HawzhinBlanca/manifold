@@ -18,7 +18,9 @@ bool UManifoldSynthComponent::Init(int32& SampleRate)
 void UManifoldSynthComponent::PlayCue(const FManifoldAudioCue& Cue)
 {
     const int32 Midi = Cue.RootMidi + Cue.IntervalSemitones;
-    const float Frequency = ManifoldMidiToFrequency(Midi);
+    // Clamp below Nyquist: anything above is inaudible aliasing regardless, and it
+    // keeps the per-sample phase increment sane for any (even crafted) cue.
+    const float Frequency = FMath::Clamp(ManifoldMidiToFrequency(Midi), 0.0f, 0.45f * CachedSampleRate);
     // Keep the mix well below clipping even with several overlapping voices.
     const float Amplitude = FMath::Clamp(Cue.Intensity, 0.0f, 1.0f) * 0.2f;
 
