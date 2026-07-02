@@ -58,6 +58,7 @@ void AManifoldGameMode::StartSession()
     Accumulator = 0.0f;
     LastPlayedCue = 0;
     bSessionRecorded = false;
+    bNewBestThisSession = false;
     bTitleShown = true;
     TitleTimer = 0.0f;
     PendingSelection.Reset();
@@ -153,7 +154,7 @@ void AManifoldGameMode::Tick(float DeltaSeconds)
     // When the session resolves, fold it into the persistent profile exactly once.
     if (!bSessionRecorded && Slice->GetSessionState() != EManifoldSessionState::InProgress)
     {
-        UManifoldSlice::RecordSessionInProfile(Profile, Slice->GetSessionSummary());
+        bNewBestThisSession = UManifoldSlice::RecordSessionInProfile(Profile, Slice->GetSessionSummary());
         UManifoldSlice::SaveProfile(Profile, ProfilePath());
 
         // Save a shareable, re-watchable replay of a winning CLASSIC run (the replay

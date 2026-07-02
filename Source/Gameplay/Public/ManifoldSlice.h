@@ -121,8 +121,9 @@ public:
     static bool SaveProfile(const FManifoldProfile& Profile, const FString& Path);
     static bool LoadProfile(FManifoldProfile& OutProfile, const FString& Path);
 
-    /** Fold a finished session into a profile (updates counts + best score). */
-    static void RecordSessionInProfile(FManifoldProfile& Profile, const FManifoldSessionSummary& Summary);
+    /** Fold a finished session into a profile (updates counts + the mode's best score).
+     *  Returns true if this session set a NEW best for its mode (for a "new best!" cue). */
+    static bool RecordSessionInProfile(FManifoldProfile& Profile, const FManifoldSessionSummary& Summary);
 
     // --- Replay (deterministic record / reproduce / persist) ---
 

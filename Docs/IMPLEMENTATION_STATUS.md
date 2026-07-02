@@ -9,7 +9,7 @@ with **two play modes**, an objective + scoring + rank, deterministic shareable
 replays, a code-level audio layer, key input, a branded HUD, and a professional public
 repository + a headless packaging path.
 
-**64 automation tests pass, 0 failures, headless.** The correspondence engine — the
+**67 automation tests pass, 0 failures, headless.** The correspondence engine — the
 product's core per the design bible — is complete, generalized to N realms, and
 **relation-aware** (Exact / Octave / Reciprocal). **Six** realms share a hidden ratio
 across different physical domains (celestial, fluid, acoustic, spatial, temporal,
@@ -103,7 +103,7 @@ Press `[C]` to switch to **Constellation Lock**: `1`–`6` pick realms, `[Space]
 
 **Verify (headless):**
 ```powershell
-Tools\CI\run_tests.ps1      # build editor target + all MANIFOLD tests (expect 64 Success, 0 Fail)
+Tools\CI\run_tests.ps1      # build editor target + all MANIFOLD tests (expect 67 Success, 0 Fail)
 Tools\CI\package.ps1        # produce a standalone Windows build under dist\Windows
 ```
 Close the Unreal Editor first (Live Coding holds a build lock).

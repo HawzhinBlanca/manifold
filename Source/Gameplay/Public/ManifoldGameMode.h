@@ -97,6 +97,10 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
     bool bTitleShown = true;
 
+    /** True if the just-resolved session set a new best score for its mode. */
+    UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
+    bool bNewBestThisSession = false;
+
 protected:
     float Accumulator = 0.0f;
 

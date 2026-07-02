@@ -172,7 +172,7 @@ void AManifoldHUD::DrawHUD()
         const float CY = Canvas ? Canvas->ClipY * 0.42f : 360.0f;
         const bool bWon = Sum.State == EManifoldSessionState::Won;
 
-        DrawPanel(CX - 300.0f, CY - 70.0f, 600.0f, 168.0f, FLinearColor(0.02f, 0.03f, 0.07f, 0.85f));
+        DrawPanel(CX - 300.0f, CY - 70.0f, 600.0f, 192.0f, FLinearColor(0.02f, 0.03f, 0.07f, 0.85f));
         if (Emblem)
         {
             DrawTexture(Emblem, CX - 48.0f, CY - 58.0f, 96.0f, 96.0f, 0, 0, 1, 1);
@@ -195,6 +195,10 @@ void AManifoldHUD::DrawHUD()
         }
         DrawText(FString::Printf(TEXT("Score %d  (best %d)    %d discoveries    [R] play again"),
             Sum.Score, GM->Profile.BestScore, Sum.Discoveries), Dim, CX - 230.0f, CY + 72.0f, Font);
+        if (GM->bNewBestThisSession)
+        {
+            DrawText(TEXT(">>> NEW BEST! <<<"), Gold, CX - 66.0f, CY + 94.0f, Font);
+        }
     }
 }
 
@@ -283,7 +287,7 @@ void AManifoldHUD::DrawConstellationReadout(UManifoldSlice* S, AManifoldGameMode
         const float CX = Canvas ? Canvas->ClipX * 0.5f : 640.0f;
         const float CY = Canvas ? Canvas->ClipY * 0.42f : 360.0f;
 
-        DrawPanel(CX - 300.0f, CY - 70.0f, 600.0f, 168.0f, FLinearColor(0.02f, 0.03f, 0.07f, 0.85f));
+        DrawPanel(CX - 300.0f, CY - 70.0f, 600.0f, 192.0f, FLinearColor(0.02f, 0.03f, 0.07f, 0.85f));
         if (Emblem)
         {
             DrawTexture(Emblem, CX - 48.0f, CY - 58.0f, 96.0f, 96.0f, 0, 0, 1, 1);
@@ -303,5 +307,9 @@ void AManifoldHUD::DrawConstellationReadout(UManifoldSlice* S, AManifoldGameMode
         }
         DrawText(FString::Printf(TEXT("Score %d  (best %d)    %d probes wasted    [R] new puzzle"),
             Sum.Score, GM->Profile.BestConstellationScore, S->GetFailedProbes()), Dim, CX - 230.0f, CY + 72.0f, Font);
+        if (GM->bNewBestThisSession)
+        {
+            DrawText(TEXT(">>> NEW BEST! <<<"), Gold, CX - 66.0f, CY + 94.0f, Font);
+        }
     }
 }

@@ -544,6 +544,32 @@ bool FSliceReuseFlagResetTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// RecordSessionInProfile reports whether a session set a NEW best for its mode (drives the
+// "NEW BEST!" cue), tracking each mode's leaderboard independently.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNewBestDetectionTest, "MANIFOLD.Play.NewBestDetection", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FNewBestDetectionTest::RunTest(const FString& Parameters)
+{
+    FManifoldProfile P;
+
+    FManifoldSessionSummary S1; S1.State = EManifoldSessionState::Won; S1.Score = 5000; S1.bConstellation = false;
+    UTEST_TRUE("first classic score is a new best", UManifoldSlice::RecordSessionInProfile(P, S1));
+
+    FManifoldSessionSummary S2; S2.State = EManifoldSessionState::Won; S2.Score = 3000; S2.bConstellation = false;
+    UTEST_FALSE("a lower classic score is not a new best", UManifoldSlice::RecordSessionInProfile(P, S2));
+
+    FManifoldSessionSummary S3; S3.State = EManifoldSessionState::Won; S3.Score = 6000; S3.bConstellation = false;
+    UTEST_TRUE("a higher classic score is a new best", UManifoldSlice::RecordSessionInProfile(P, S3));
+    UTEST_EQUAL("classic best updated to the new high", P.BestScore, 6000);
+
+    // Constellation is a separate leaderboard — a small constellation score is still its first best.
+    FManifoldSessionSummary C1; C1.State = EManifoldSessionState::Won; C1.Score = 100; C1.bConstellation = true;
+    UTEST_TRUE("first constellation score is a new best (separate track)", UManifoldSlice::RecordSessionInProfile(P, C1));
+    UTEST_EQUAL("classic best untouched by a constellation run", P.BestScore, 6000);
+    UTEST_EQUAL("all four sessions counted", P.SessionsPlayed, 4);
+    return true;
+}
+
 // Control build (Build Plan D3): with NO correspondence content the loop must NOT
 // manufacture insight — the moat is that unsolved seams stay unsolved. Here we run
 // only the Fluids realm (no resonance to correspond with), so nothing ignites.

@@ -745,22 +745,33 @@ EManifoldRank UManifoldSlice::RankForScore(int32 Score)
     return EManifoldRank::D;
 }
 
-void UManifoldSlice::RecordSessionInProfile(FManifoldProfile& Profile, const FManifoldSessionSummary& Summary)
+bool UManifoldSlice::RecordSessionInProfile(FManifoldProfile& Profile, const FManifoldSessionSummary& Summary)
 {
     ++Profile.SessionsPlayed;
     if (Summary.State == EManifoldSessionState::Won)
     {
         ++Profile.SessionsWon;
     }
-    // The two modes have separate leaderboards (their scores aren't comparable).
+    // The two modes have separate leaderboards (their scores aren't comparable). Report
+    // whether this beat the mode's previous best so the UI can celebrate it.
+    bool bNewBest = false;
     if (Summary.bConstellation)
     {
-        Profile.BestConstellationScore = FMath::Max(Profile.BestConstellationScore, Summary.Score);
+        if (Summary.Score > Profile.BestConstellationScore)
+        {
+            Profile.BestConstellationScore = Summary.Score;
+            bNewBest = true;
+        }
     }
     else
     {
-        Profile.BestScore = FMath::Max(Profile.BestScore, Summary.Score);
+        if (Summary.Score > Profile.BestScore)
+        {
+            Profile.BestScore = Summary.Score;
+            bNewBest = true;
+        }
     }
+    return bNewBest;
 }
 
 FManifoldReplay UManifoldSlice::CaptureReplay() const
