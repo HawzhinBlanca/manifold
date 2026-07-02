@@ -143,8 +143,8 @@ void AManifoldHUD::DrawHUD()
         FLinearColor(0.5f, 0.5f, 0.55f));
     Line(FString::Printf(TEXT("Analogies found: %d   (the hidden ratio, across domains)"),
         S->GetSharedDiscoveries()), S->GetSharedDiscoveries() > 0 ? Gold : Dim);
-    Line(FString::Printf(TEXT("Insight Rate %.3f   (lit %d, transported %d)"),
-        S->GetInsightRate(), S->GetCorrespondencesIgnited(), S->GetTransportsCompleted()),
+    Line(FString::Printf(TEXT("Correspondences lit %d   transported %d"),
+        S->GetCorrespondencesIgnited(), S->GetTransportsCompleted()),
         FLinearColor::Green);
 
     // --- Objective + last audio cue ---

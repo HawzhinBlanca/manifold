@@ -7,6 +7,9 @@
 #include "ManifoldRealmVisualizer.h"
 #include "ManifoldToneSynth.h"
 #include "GameFramework/DefaultPawn.h"
+#include "GameFramework/PlayerController.h"
+#include "GameFramework/Pawn.h"
+#include "GameFramework/HUD.h"
 #include "Engine/World.h"
 #include "Engine/Engine.h"
 #include "EngineUtils.h"
@@ -115,6 +118,23 @@ void AManifoldGameMode::Tick(float DeltaSeconds)
     Super::Tick(DeltaSeconds);
     if (!Slice) return;
 
+    // One-time: place the free-fly camera to frame the realm grid (X: -900..900, Z: 250..560, in
+    // the Y=0 plane) so the visualization is on screen from the start rather than the player having
+    // to fly to find it. Pulls back on -Y and looks toward the cluster centre.
+    if (!bCameraFramed)
+    {
+        if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
+        {
+            if (APawn* P = PC->GetPawn())
+            {
+                bCameraFramed = true;
+                P->SetActorLocation(FVector(0.0, -1150.0, 405.0));
+                P->SetActorRotation(FRotator(0.0, 90.0, 0.0));
+                PC->SetControlRotation(FRotator(0.0, 90.0, 0.0)); // look +Y toward the realm grid
+            }
+        }
+    }
+
     // Auto-dismiss the intro title card after a few seconds.
     if (bTitleShown)
     {
@@ -122,14 +142,28 @@ void AManifoldGameMode::Tick(float DeltaSeconds)
         if (TitleTimer >= 6.0f) { bTitleShown = false; }
     }
 
-    // Dev/CI affordance: `-ManifoldAutoShot` captures one HUD-inclusive screenshot ~9s in — after
-    // the title auto-dismisses and the live realm scene is on screen — for headless visual
-    // verification and marketing stills. Completely inert unless the flag is on the command line.
-    if (!bAutoShotTaken && GetWorld() && GetWorld()->GetTimeSeconds() > 9.0f &&
-        FParse::Param(FCommandLine::Get(), TEXT("ManifoldAutoShot")))
+    // Dev/CI affordance: `-ManifoldAutoShot` reveals the realm scene immediately and captures one
+    // HUD-inclusive HighResShot a set number of FRAMES later (frame-counted, not world-time — robust
+    // to the PSO/shader hitches that make world-time crawl on a cold offscreen run) for headless
+    // visual verification and marketing stills. Completely inert without the flag.
+    if (!bAutoShotTaken && FParse::Param(FCommandLine::Get(), TEXT("ManifoldAutoShot")))
     {
-        bAutoShotTaken = true;
-        if (GEngine) { GEngine->Exec(GetWorld(), TEXT("HighResShot 1280x720")); }
+        bTitleShown = false; // skip the intro card so the realms are on screen for the shot
+        if (++AutoShotFrames == 1) { UE_LOG(LogTemp, Display, TEXT("[MANIFOLD] AutoShot armed")); }
+        if (AutoShotFrames >= 60)
+        {
+            // Route through the player controller's console so the command reaches the game
+            // viewport's HighResShot handler (GEngine->Exec does not, so it silently no-ops).
+            if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
+            {
+                bAutoShotTaken = true;
+                // Hide the HUD so this capture shows the pure 3D realm scene (the palette on the
+                // realms) — HUD-inclusive stills are captured separately.
+                if (AHUD* HUD = PC->GetHUD()) { HUD->bShowHUD = false; }
+                UE_LOG(LogTemp, Display, TEXT("[MANIFOLD] AutoShot firing HighResShot via PC at frame %d"), AutoShotFrames);
+                PC->ConsoleCommand(TEXT("HighResShot 1280x720"), /*bWriteToLog*/ true);
+            }
+        }
     }
 
     // Classic mode advances the live simulation; Constellation is a static reasoning

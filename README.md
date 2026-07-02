@@ -37,6 +37,16 @@ realms + decoy, scoring, and expedition mode.
 **Playable, deterministic, and fully code-complete** — no mocks or placeholders in
 code (verified by a codebase-wide adversarial audit). What remains is art direction.
 
+### Screenshots
+
+_Captured headless via offscreen GPU render (`-ManifoldAutoShot`) from the current build. The
+visuals are intentional procedural placeholders — the realm palette is the colorblind-safe
+Okabe-Ito set; see [Docs/ART_DIRECTION.md](Docs/ART_DIRECTION.md)._
+
+| Title card | In-game readout | The realms |
+|:---:|:---:|:---:|
+| ![Title](Docs/media/title.png) | ![Gameplay HUD](Docs/media/gameplay-hud.png) | ![Realms](Docs/media/realms.png) |
+
 - ✅ **83 / 83** automation tests pass, headless, 0 failures
 - ✅ Deterministic fixed-step simulation (bitwise-reproducible; real replay verification)
 - ✅ **Seven** realms (Orbits, Fluids, Harmonics, Waves, Rhythm, Gears, Circuits) sharing

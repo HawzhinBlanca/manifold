@@ -109,8 +109,12 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
     bool bNewBestThisSession = false;
 
-    /** One-shot guard for the -ManifoldAutoShot dev/CI screenshot affordance (see Tick). */
+    /** One-shot guard + frame counter for the -ManifoldAutoShot dev/CI screenshot affordance (see Tick). */
     bool bAutoShotTaken = false;
+    int32 AutoShotFrames = 0;
+
+    /** One-shot guard: place the camera to frame the realm grid on the first tick it's available. */
+    bool bCameraFramed = false;
 
 protected:
     float Accumulator = 0.0f;
