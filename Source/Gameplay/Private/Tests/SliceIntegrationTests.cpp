@@ -1522,6 +1522,81 @@ bool FSaveForwardMigrationTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// SECURITY: a shareable replay is UNTRUSTED input (authored by another player). A crafted file
+// whose TArray count prefix claims billions of elements must be REJECTED (LoadReplay returns
+// false), NOT honored as a multi-gigabyte pre-allocation that fatally OOM-crashes the process.
+// UE's default TArray serializer pre-allocates count*sizeof(T) before reading any element, and
+// its 16MB cap applies only to net archives — so a non-net FMemoryReader would allocate ~8GB for
+// a 32-byte file. This exercises the bounded-read guard (SerializeBoundedInt32Array); WITHOUT it
+// this very test would OOM-crash the runner. Covers both TArray fields (TransportSteps and the
+// v2-only LockSelection, reached past a benign empty TransportSteps), plus a legit small replay
+// to prove the guard doesn't over-reject.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMaliciousReplayRejectedTest, "MANIFOLD.Integration.MaliciousReplayRejected", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMaliciousReplayRejectedTest::RunTest(const FString& Parameters)
+{
+    const FString Dir = FPaths::ProjectSavedDir();
+    const int32 HostileCount = 0x7FFFFFFF; // ~2.1e9 elements => ~8GB if honored
+
+    // --- hostile TransportSteps count (v1 body), no element data follows ---
+    {
+        TArray<uint8> Bytes;
+        FMemoryWriter W(Bytes, /*bIsPersistent*/ true);
+        uint32 M = FManifoldReplay::Magic; uint32 V = 1;
+        uint64 O = 0, F = 0; int32 Steps = 0; int32 Count = HostileCount;
+        W << M; W << V; W << O; W << F; W << Steps; W << Count; // file ends — no elements
+        const FString Path = FPaths::Combine(Dir, TEXT("EvilTransport.manifoldreplay"));
+        UTEST_TRUE("write hostile transport replay", FFileHelper::SaveArrayToFile(Bytes, *Path));
+
+        FManifoldReplay R;
+        UTEST_FALSE("hostile TransportSteps count is rejected (no OOM)", UManifoldSlice::LoadReplay(R, Path));
+        FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*Path);
+    }
+
+    // --- hostile LockSelection count (v2), reached past a benign empty TransportSteps ---
+    {
+        TArray<uint8> Bytes;
+        FMemoryWriter W(Bytes, /*bIsPersistent*/ true);
+        uint32 M = FManifoldReplay::Magic; uint32 V = 2;
+        uint64 O = 0, F = 0; int32 Steps = 0;
+        int32 TransportCount = 0;                 // benign, empty
+        int32 Disc = 0, Trans = 0; float Rate = 0.0f;
+        uint8 Mode = 1; int32 ConSize = 0;
+        int32 LockCount = HostileCount;           // hostile
+        W << M; W << V; W << O; W << F; W << Steps; W << TransportCount;
+        W << Disc; W << Trans; W << Rate; W << Mode; W << ConSize; W << LockCount; // ends — no elements
+        const FString Path = FPaths::Combine(Dir, TEXT("EvilLock.manifoldreplay"));
+        UTEST_TRUE("write hostile lock replay", FFileHelper::SaveArrayToFile(Bytes, *Path));
+
+        FManifoldReplay R;
+        UTEST_FALSE("hostile LockSelection count is rejected (no OOM)", UManifoldSlice::LoadReplay(R, Path));
+        FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*Path);
+    }
+
+    // --- a legitimate small replay still loads (the guard must not over-reject) ---
+    {
+        TArray<uint8> Bytes;
+        FMemoryWriter W(Bytes, /*bIsPersistent*/ true);
+        uint32 M = FManifoldReplay::Magic; uint32 V = 1;
+        uint64 O = 11ULL, F = 22ULL; int32 Steps = 5;
+        int32 Count = 3; int32 A = 1, B = 2, C = 3;
+        int32 Disc = 1, Trans = 1; float Rate = 0.5f;
+        W << M; W << V; W << O; W << F; W << Steps; W << Count; W << A; W << B; W << C;
+        W << Disc; W << Trans; W << Rate;
+        const FString Path = FPaths::Combine(Dir, TEXT("GoodSmall.manifoldreplay"));
+        UTEST_TRUE("write good replay", FFileHelper::SaveArrayToFile(Bytes, *Path));
+
+        FManifoldReplay R;
+        UTEST_TRUE("legit replay still loads", UManifoldSlice::LoadReplay(R, Path));
+        UTEST_EQUAL("legit replay transports preserved", R.TransportSteps.Num(), 3);
+        UTEST_EQUAL("legit replay last element preserved",
+            R.TransportSteps.IsValidIndex(2) ? R.TransportSteps[2] : -1, 3);
+        FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*Path);
+    }
+
+    return true;
+}
+
 // Decoy realm (the moat): a red-herring realm exhibits a DIFFERENT ratio, and the
 // correspondence engine must refuse to pair it with the true realms. This proves the
 // game can't be trivially solved by "everything matches" — the player must actually

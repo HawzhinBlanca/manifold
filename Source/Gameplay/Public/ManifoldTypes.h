@@ -239,12 +239,48 @@ struct MANIFOLDGAMEPLAY_API FManifoldReplay
      * as a Classic session (Mode defaults to 0) instead of being rejected — a shared v1
      * replay still plays back after a format bump.
      */
+    /**
+     * Bounded read of a TArray<int32> from a possibly-UNTRUSTED archive (replays are shareable).
+     * UE's default TArray serializer reads an int32 count prefix and pre-allocates count*sizeof(T)
+     * BEFORE reading any element, and its 16MB safety cap applies ONLY to net archives — so a
+     * crafted count in a replay file forces a multi-GB allocation (fatal OOM/DoS) on a non-net
+     * FMemoryReader, before any IsError() check can run. We instead reject up front any count that
+     * cannot be backed by the bytes actually remaining in the file (a tight, exact bound: N int32
+     * elements need N*4 bytes). The write path is byte-for-byte identical to the default
+     * operator<<, so the on-disk format is unchanged.
+     */
+    static void SerializeBoundedInt32Array(FArchive& Ar, TArray<int32>& Arr)
+    {
+        if (Ar.IsLoading())
+        {
+            int32 Count = 0;
+            Ar << Count;
+            const int64 Remaining = Ar.TotalSize() - Ar.Tell();
+            if (Ar.IsError() || Count < 0 ||
+                static_cast<int64>(Count) * static_cast<int64>(sizeof(int32)) > Remaining)
+            {
+                Ar.SetError(); // corrupt/hostile length — reject BEFORE allocating
+                Arr.Reset();
+                return;
+            }
+            Arr.SetNumUninitialized(Count);
+            for (int32 i = 0; i < Count; ++i)
+            {
+                Ar << Arr[i];
+            }
+        }
+        else
+        {
+            Ar << Arr; // saving: default layout (count + bulk elements) — unchanged on disk
+        }
+    }
+
     void SerializeVersioned(FArchive& Ar, uint32 InVersion)
     {
         Ar << OrbitsSeed;
         Ar << FluidsSeed;
         Ar << Steps;
-        Ar << TransportSteps;
+        SerializeBoundedInt32Array(Ar, TransportSteps); // untrusted count — bound before alloc
         Ar << FinalDiscoveries;
         Ar << FinalTransports;
         Ar << FinalInsightRate;
@@ -252,7 +288,7 @@ struct MANIFOLDGAMEPLAY_API FManifoldReplay
         {
             Ar << Mode;
             Ar << ConstellationSize;
-            Ar << LockSelection;
+            SerializeBoundedInt32Array(Ar, LockSelection); // untrusted count — bound before alloc
         }
     }
 

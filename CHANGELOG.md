@@ -6,6 +6,22 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Security (untrusted-input hardening — replay deserialization DoS)
+- **Shareable replays are untrusted input; a crafted file can no longer OOM-crash the game.**
+  A focused multi-agent adversarial audit of the save/load parsing surface confirmed one
+  high-severity defect (and correctly refuted two over-claims). `LoadReplay` deserializes the
+  `TArray<int32>` fields `TransportSteps`/`LockSelection` via UE's default `TArray::operator<<`,
+  which reads an attacker-controlled `int32` count prefix and **pre-allocates `count*sizeof(T)`
+  before reading any element** — and UE's 16 MB safety cap applies *only to net archives*, so a
+  non-net `FMemoryReader` bypasses it. A 32-byte replay claiming a count of `0x7FFFFFFF` forced an
+  ~8 GB allocation → fatal OOM *before* the existing `IsError()` guard could run. Fixed with
+  `FManifoldReplay::SerializeBoundedInt32Array`, which rejects any count that can't be backed by
+  the bytes actually remaining in the file (a tight, exact bound) *before* allocating. Write path
+  is byte-for-byte identical, so the on-disk format is unchanged. `LoadProfile` is unaffected
+  (scalar fields only). Test: `MANIFOLD.Integration.MaliciousReplayRejected` feeds hostile-count
+  payloads (both `TArray` fields) and asserts graceful rejection, plus a legit replay to prove the
+  guard doesn't over-reject. **80/80 green.**
+
 ### Fixed (save robustness — forward migration across format bumps)
 - **Older saves migrate forward instead of being wiped.** The profile/replay loaders used an
   all-or-nothing `Version != current` check, so shipping any update that bumped the save format
@@ -241,7 +257,7 @@ confirmed finding, with none deferred. E.g.:
   registration. AndroidFileServer plugin disabled (stops dev-token regeneration).
 
 ### Status
-- **79 / 79** automation tests green, headless. Repo is public and professional.
+- **80 / 80** automation tests green, headless. Repo is public and professional.
   Remaining phase (real art/VFX scenes, bound sound assets, bespoke UMG UI, human
   playtest) is human-owned and needs the editor + a display — see
   `Docs/IMPLEMENTATION_STATUS.md`.
