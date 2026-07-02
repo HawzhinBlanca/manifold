@@ -8,7 +8,10 @@
 #include "HarmonicsKernel.h"
 #include "WavesKernel.h"
 #include "RhythmKernel.h"
+#include "GearsKernel.h"
+#include "CircuitsKernel.h"
 #include "RealmKernel.h"
+#include "Serialization/MemoryReader.h"
 #include "CorrespondenceSystem.h"
 #include "TelemetrySystem.h"
 #include "ManifoldGearMesh.h"
@@ -729,6 +732,69 @@ bool FWaveMeshTest::RunTest(const FString& Parameters)
     ManifoldWaveMesh::Build(0, 200.0f, 40.0f, 4.0f, V0, T0);
     UTEST_GREATER("zero harmonic clamps to a valid ribbon", V0.Num(), 0);
 
+    return true;
+}
+
+// Every kernel's state must SERIALIZE -> DESERIALIZE faithfully (the IRealmKernel contract
+// used by snapshots/replay): serialize a stepped kernel, load it into a FRESH kernel, and
+// the recomputed state hash must match. A field-order or missing-field bug in any kernel's
+// operator<< / SetState would surface here (this path had no test).
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKernelSerializationRoundTripTest, "MANIFOLD.Systems.KernelSerializationRoundTrip", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FKernelSerializationRoundTripTest::RunTest(const FString& Parameters)
+{
+    auto Check = [this](const TCHAR* Name, IRealmKernel* A, IRealmKernel* B) -> bool
+    {
+        TArray<uint8> Bytes;
+        FMemoryWriter W(Bytes, /*bIsPersistent*/ true); A->SerializeState(W);
+        FMemoryReader R(Bytes, /*bIsPersistent*/ true); B->DeserializeState(R);
+        const uint64 HA = A->ComputeStateHash();
+        const uint64 HB = B->ComputeStateHash();
+        return TestTrue(FString::Printf(TEXT("%s produced non-trivial state"), Name), HA != 0)
+            && TestEqual(FString::Printf(TEXT("%s round-trips (recomputed hash matches)"), Name),
+                static_cast<int64>(HB), static_cast<int64>(HA));
+    };
+
+    {
+        UHarmonicsKernel* A = NewObject<UHarmonicsKernel>(); A->Initialize(7ULL); A->AddMode(2.0, 1.0); A->AddMode(3.0, 1.0); A->Step(0.01f);
+        UHarmonicsKernel* B = NewObject<UHarmonicsKernel>(); B->Initialize(111ULL);
+        if (!Check(TEXT("Harmonics"), A, B)) { return false; }
+    }
+    {
+        UWavesKernel* A = NewObject<UWavesKernel>(); A->Initialize(7ULL); A->ExciteHarmonic(2, 1.0); A->ExciteHarmonic(3, 1.0); A->Step(0.001f);
+        UWavesKernel* B = NewObject<UWavesKernel>(); B->Initialize(111ULL);
+        if (!Check(TEXT("Waves"), A, B)) { return false; }
+    }
+    {
+        URhythmKernel* A = NewObject<URhythmKernel>(); A->Initialize(7ULL); A->AddVoice(3.0); A->AddVoice(2.0); A->Step(0.016f);
+        URhythmKernel* B = NewObject<URhythmKernel>(); B->Initialize(111ULL);
+        if (!Check(TEXT("Rhythm"), A, B)) { return false; }
+    }
+    {
+        UGearsKernel* A = NewObject<UGearsKernel>(); A->Initialize(7ULL); A->AddGear(3); A->AddGear(2); A->Step(0.016f);
+        UGearsKernel* B = NewObject<UGearsKernel>(); B->Initialize(111ULL);
+        if (!Check(TEXT("Gears"), A, B)) { return false; }
+    }
+    {
+        UCircuitsKernel* A = NewObject<UCircuitsKernel>(); A->Initialize(7ULL); A->AddTank(2.0, 1.0); A->AddTank(3.0, 1.0); A->Step(0.016f);
+        UCircuitsKernel* B = NewObject<UCircuitsKernel>(); B->Initialize(111ULL);
+        if (!Check(TEXT("Circuits"), A, B)) { return false; }
+    }
+    {
+        UOrbitsKernel* A = NewObject<UOrbitsKernel>(); A->Initialize(7ULL);
+        FOrbitsBodyDef Star; Star.Mass = 1.989e30; Star.bIsCentral = true; A->AddBody(Star);
+        FOrbitsBodyDef P; P.Mass = 1e24; P.Position = FVector(1.496e11, 0.0, 0.0);
+        P.Velocity = FVector(0.0, FMath::Sqrt((A->G * Star.Mass) / P.Position.X), 0.0); A->AddBody(P);
+        A->Step(0.1f);
+        UOrbitsKernel* B = NewObject<UOrbitsKernel>(); B->Initialize(111ULL);
+        if (!Check(TEXT("Orbits"), A, B)) { return false; }
+    }
+    {
+        UFluidsKernel* A = NewObject<UFluidsKernel>(); A->Initialize(7ULL);
+        A->AddVelocity(0.5f, 0.45f, 20.0f, 0.0f); A->AddVelocity(0.55f, 0.5f, 0.0f, 20.0f); A->Step(0.016f);
+        UFluidsKernel* B = NewObject<UFluidsKernel>(); B->Initialize(111ULL);
+        if (!Check(TEXT("Fluids"), A, B)) { return false; }
+    }
     return true;
 }
 
