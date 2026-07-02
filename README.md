@@ -7,7 +7,7 @@ Discover that two simulation realms secretly share one hidden structure — then
 
 [![Engine](https://img.shields.io/badge/Unreal%20Engine-5.8-black)](https://www.unrealengine.com/)
 [![Language](https://img.shields.io/badge/C%2B%2B-20-blue)]()
-[![Tests](https://img.shields.io/badge/automation%20tests-80%2F80%20green-brightgreen)]()
+[![Tests](https://img.shields.io/badge/automation%20tests-81%2F81%20green-brightgreen)]()
 [![Determinism](https://img.shields.io/badge/simulation-deterministic-informational)]()
 [![License](https://img.shields.io/badge/license-Proprietary-red)](LICENSE)
 
@@ -37,7 +37,7 @@ realms + decoy, scoring, and expedition mode.
 **Playable, deterministic, and fully code-complete** — no mocks or placeholders in
 code (verified by a codebase-wide adversarial audit). What remains is art direction.
 
-- ✅ **80 / 80** automation tests pass, headless, 0 failures
+- ✅ **81 / 81** automation tests pass, headless, 0 failures
 - ✅ Deterministic fixed-step simulation (bitwise-reproducible; real replay verification)
 - ✅ **Seven** realms (Orbits, Fluids, Harmonics, Waves, Rhythm, Gears, Circuits) sharing
   one hidden ratio across celestial / fluid / acoustic / spatial / temporal / mechanical /
@@ -101,7 +101,7 @@ exposes its structure for mappings. Correspondences are authored as data
     -unattended -nullrhi -nosplash -nopause -stdout
 ```
 
-Expected: `80 Success, 0 Fail`. Close the Unreal Editor first (Live Coding holds a
+Expected: `81 Success, 0 Fail`. Close the Unreal Editor first (Live Coding holds a
 build lock). The CI harness `Tools/CI/run_tests.ps1` wraps both steps.
 
 ## Repository layout

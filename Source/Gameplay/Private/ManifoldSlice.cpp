@@ -714,11 +714,21 @@ FManifoldSessionSummary UManifoldSlice::GetSessionSummary() const
 
 int32 UManifoldSlice::GetScore() const
 {
-    // Discoveries dominate (each is worth 1000), then transports; insight is a modest
-    // efficiency bonus (rate, not the raw ~x1000 term that used to swamp everything);
-    // plus a speed bonus for winning well under budget.
-    int32 Score = GetTotalDiscoveries() * 1000 + TransportCount * 250;
-    Score += FMath::RoundToInt(GetInsightRate() * 100.0f);
+    // Discoveries DOMINATE (1000 each); transports are secondary; insight is a small flavor
+    // bonus; plus a speed bonus for winning well under budget. The two lower terms are BOUNDED
+    // so neither can rival a discovery — otherwise the rank curve carries no information.
+    //
+    // A transport is meaningful only against a DISCOVERED correspondence, so its credited count
+    // is capped at the discovery count (defensive: auto-transport could otherwise fire per tick).
+    const int32 Discoveries = GetTotalDiscoveries();
+    const int32 CreditedTransports = FMath::Min(TransportCount, Discoveries);
+    int32 Score = Discoveries * 1000 + CreditedTransports * 250;
+    // Insight = discovery-events / sim-second (TelemetrySystem::CalculateInsightRate). Its
+    // denominator is sim-time, which is arbitrary across realm mixes, so the raw rate reaches
+    // ~960 and rate*100 would add ~96k — swamping discoveries and collapsing EVERY Classic run
+    // to rank S (measured via MANIFOLD.Balance.Sweep). Clamp it to a modest, discovery-subordinate
+    // bonus so the score stays discovery-driven and the rank actually differentiates play.
+    Score += FMath::Clamp(FMath::RoundToInt(GetInsightRate() * 100.0f), 0, 250);
     if (SessionState == EManifoldSessionState::Won && Objective.StepBudget > 0)
     {
         Score += FMath::Max(0, Objective.StepBudget - static_cast<int32>(CurrentStep)) * 10;

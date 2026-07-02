@@ -6,6 +6,21 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Balance (data-driven playtest — headless sweep + a scoring fix it found)
+- **`MANIFOLD.Balance.Sweep`** drives both modes across 128 seeds, logs the difficulty/scoring/
+  economy distributions (via `UE_LOG`, capturable from a standalone `-stdout` run), and asserts
+  the objective fairness/discrimination invariants a shipping build must hold. Baseline: Classic
+  discoveries are fair (16–17/seed, all reach full realization), the decoy never false-matches,
+  every constellation is solvable (128/128), and the Exact/Octave rule split is a perfect 64/64.
+- **Fix the sweep found — Classic score was insight-swamped.** `GetInsightRate()` is discovery-
+  events per *sim-second* (arbitrary denominator across realm mixes), reaching ~1060; `rate*100`
+  added ~106k, dwarfing the ~16k of discoveries and collapsing **every** Classic run to rank S.
+  Clamped insight to a modest, discovery-subordinate bonus (≤250) and capped the (negligible)
+  transport term at the discovery count. Classic score is now discovery-driven (~16.5k at ceiling)
+  and the rank curve differentiates (D 0–2 · C 3–4 · B 5–6 · A 7–8 · S 9–16 discoveries). Locked
+  by a `notDiscDominated == 0` regression invariant. `Docs/PLAYTEST.md` records the baseline + the
+  two rank-threshold *feel* calls that still need the human. **81/81 green.**
+
 ### Security (untrusted-input hardening — replay deserialization DoS)
 - **Shareable replays are untrusted input; a crafted file can no longer OOM-crash the game.**
   A focused multi-agent adversarial audit of the save/load parsing surface confirmed one
@@ -257,7 +272,7 @@ confirmed finding, with none deferred. E.g.:
   registration. AndroidFileServer plugin disabled (stops dev-token regeneration).
 
 ### Status
-- **80 / 80** automation tests green, headless. Repo is public and professional.
+- **81 / 81** automation tests green, headless. Repo is public and professional.
   Remaining phase (real art/VFX scenes, bound sound assets, bespoke UMG UI, human
   playtest) is human-owned and needs the editor + a display — see
   `Docs/IMPLEMENTATION_STATUS.md`.

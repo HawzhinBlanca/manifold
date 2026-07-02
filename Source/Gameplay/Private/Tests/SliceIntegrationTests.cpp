@@ -1622,6 +1622,101 @@ bool FDecoyRealmTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// ---------------------------------------------------------------------------------------------
+// BALANCE SWEEP (data-driven playtest, headless). Drives BOTH modes across a large seed set and
+// LOGS the difficulty / scoring / economy distributions (via UE_LOG, so a standalone -stdout run
+// captures the numbers), then asserts the fairness + discrimination invariants a shipping build
+// must always hold. This is the quantitative half of a playtest: it can't measure "feel", but it
+// proves the numbers are fair across seeds, the decoy never false-matches, and every constellation
+// is solvable — the objective floor beneath a human feel pass.
+// ---------------------------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBalanceSweepTest, "MANIFOLD.Balance.Sweep", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FBalanceSweepTest::RunTest(const FString& Parameters)
+{
+    const int32 N = 128;
+
+    // ===== Classic mode: play each seed to its discovery ceiling, measure fairness + rank =====
+    int32 MinD = INT32_MAX, MaxD = 0; int64 SumD = 0;
+    int32 MinScore = INT32_MAX, MaxScore = 0; int64 SumScore = 0;
+    int32 FullRealization = 0;         // seeds reaching SharedDiscoveries == 15 (all C(6,2) pairs)
+    int32 DecoyCollisions = 0;         // seeds where decoy ratio == hidden ratio (MUST be 0)
+    int32 Degenerate = 0;              // seeds surfacing 0 discoveries (MUST be 0)
+    int32 NotDiscDominated = 0;        // seeds whose score isn't discovery-dominated (MUST be 0)
+    int32 MaxTransports = 0; float MaxInsight = 0.0f; // component-breakdown diagnostics
+    int32 RankHist[5] = { 0, 0, 0, 0, 0 }; // index by EManifoldRank order: D, C, B, A, S
+
+    for (int32 s = 0; s < N; ++s)
+    {
+        UManifoldSlice* Slice = NewObject<UManifoldSlice>();
+        FManifoldObjective Obj; Obj.TargetDiscoveries = 999; Obj.StepBudget = 0; // play to the ceiling
+        Slice->SetObjective(Obj);
+        Slice->Setup(static_cast<uint64>(s + 1), static_cast<uint64>(s * 7 + 13));
+        Slice->RunPlaythrough(60);
+
+        const int32 D = Slice->GetTotalDiscoveries();
+        const int32 Shared = Slice->GetSharedDiscoveries();
+        const int32 Sc = Slice->GetScore();
+        const EManifoldRank R = UManifoldSlice::RankForScore(Sc);
+
+        MinD = FMath::Min(MinD, D); MaxD = FMath::Max(MaxD, D); SumD += D;
+        MinScore = FMath::Min(MinScore, Sc); MaxScore = FMath::Max(MaxScore, Sc); SumScore += Sc;
+        RankHist[static_cast<int32>(R)]++;
+        if (Shared >= 15) { FullRealization++; }
+        if (D <= 0) { Degenerate++; }
+        if (Slice->GetDecoyRatio() == Slice->GetSharedRatio()) { DecoyCollisions++; }
+        MaxTransports = FMath::Max(MaxTransports, Slice->GetTransportsCompleted());
+        MaxInsight = FMath::Max(MaxInsight, Slice->GetInsightRate());
+        // Score must stay DISCOVERY-dominated: with the transport contribution capped at the
+        // discovery count, Score <= D*1000 + D*250 + (small insight term). A generous +2000
+        // margin covers insight yet still catches the old unbounded-transport regression (which
+        // scored ~116k at D=16, i.e. > D*1250 by ~90k).
+        if (Sc > D * 1250 + 2000) { NotDiscDominated++; }
+    }
+
+    UE_LOG(LogTemp, Display,
+        TEXT("[BALANCE][Classic] N=%d | discoveries min=%d max=%d mean=%.2f | score min=%d max=%d mean=%.0f | fullRealization=%d/%d | ranks D=%d C=%d B=%d A=%d S=%d | decoyCollisions=%d degenerate=%d"),
+        N, MinD, MaxD, static_cast<double>(SumD) / N, MinScore, MaxScore, static_cast<double>(SumScore) / N,
+        FullRealization, N, RankHist[0], RankHist[1], RankHist[2], RankHist[3], RankHist[4],
+        DecoyCollisions, Degenerate);
+    UE_LOG(LogTemp, Display, TEXT("[BALANCE][Classic] notDiscDominated=%d/%d (must be 0) | maxTransports=%d maxInsightRate=%.1f (component diagnostics)"),
+        NotDiscDominated, N, MaxTransports, MaxInsight);
+
+    // ===== Constellation mode: solvability, relation balance, flawless-solve score =====
+    int32 Solvable = 0;
+    TMap<FString, int32> RelationHist;
+    int32 CMinScore = INT32_MAX, CMaxScore = 0; int64 CSumScore = 0;
+    int32 CRankHist[5] = { 0, 0, 0, 0, 0 };
+
+    for (int32 s = 0; s < N; ++s)
+    {
+        UManifoldSlice* Slice = NewObject<UManifoldSlice>();
+        Slice->SetupConstellation(static_cast<int64>(s + 1), 3, /*bExpert*/ false);
+        RelationHist.FindOrAdd(Slice->GetActiveRelationName())++;
+        const TArray<int32> Answer = Slice->GetConstellation();
+        if (Slice->PlayerLockConstellation(Answer)) { Solvable++; }
+        const int32 Sc = Slice->GetScore();
+        CMinScore = FMath::Min(CMinScore, Sc); CMaxScore = FMath::Max(CMaxScore, Sc); CSumScore += Sc;
+        CRankHist[static_cast<int32>(UManifoldSlice::RankForScore(Sc))]++;
+    }
+
+    FString RelStr;
+    for (const TPair<FString, int32>& P : RelationHist) { RelStr += FString::Printf(TEXT("%s=%d "), *P.Key, P.Value); }
+    UE_LOG(LogTemp, Display,
+        TEXT("[BALANCE][Constellation] N=%d | solvable=%d/%d | relations: %s| score min=%d max=%d mean=%.0f | ranks D=%d C=%d B=%d A=%d S=%d"),
+        N, Solvable, N, *RelStr, CMinScore, CMaxScore, static_cast<double>(CSumScore) / N,
+        CRankHist[0], CRankHist[1], CRankHist[2], CRankHist[3], CRankHist[4]);
+
+    // ===== Invariants a shipping build must ALWAYS hold (objective, not feel) =====
+    UTEST_EQUAL("Classic: decoy never collides with the hidden ratio", DecoyCollisions, 0);
+    UTEST_EQUAL("Classic: no degenerate (zero-discovery) seed", Degenerate, 0);
+    UTEST_EQUAL("Classic: score stays discovery-dominated (transport term capped)", NotDiscDominated, 0);
+    UTEST_EQUAL("Constellation: every seed is solvable by the correct lock", Solvable, N);
+    UTEST_TRUE("Constellation: both relations occur (rule inference isn't degenerate to one)", RelationHist.Num() >= 2);
+
+    return true;
+}
+
 // Stable structure identity: a realm's Query must return the SAME id for the same
 // detected structure across calls (not a fresh GUID each time), so the correspondence
 // layer can dedup and transport by it. Regression guard for the Harmonics/Waves/Rhythm

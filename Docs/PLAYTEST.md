@@ -1,8 +1,36 @@
 # MANIFOLD — Playtest Checklist
 
-The logic is fully headless-tested (70/70). What a machine *can't* judge is **feel**. This
+The logic is fully headless-tested (81/81). What a machine *can't* judge is **feel**. This
 is the one thing that needs you at the controls. Play a few sessions, then jot answers to
 the questions below — each maps to a concrete knob I can turn from your feedback.
+
+## Quantitative baseline (headless, `MANIFOLD.Balance.Sweep`)
+
+Before your feel pass, a 128-seed sweep measures the *objective* half of balance (the numbers,
+not the feel). It runs in CI and asserts fairness/discrimination invariants; run it standalone
+to see the live distribution (`Automation RunTests MANIFOLD.Balance.Sweep`). Current baseline:
+
+| Metric | Result | Read |
+|---|---|---|
+| Classic discoveries / seed | min 16, max 17, **all 128 reach full realization** | fair across seeds |
+| Classic decoy collisions | **0 / 128** | the red herring never false-matches |
+| Constellation solvable | **128 / 128** | every generated puzzle is winnable |
+| Constellation relation split | **Exact 64 / Octave 64** | rule inference is a true coin, not skewed |
+
+**One imbalance found + fixed by this sweep:** the Classic score was being **swamped by the
+insight term**. `GetInsightRate()` is discovery-events per *sim-second*, whose denominator is
+arbitrary across realm mixes, so it reached ~1060 and `rate*100` added ~106k — dwarfing the
+16k of discoveries and collapsing **every** Classic run to rank S. Fixed by clamping insight to
+a modest, discovery-subordinate bonus (≤250). Classic score is now discovery-driven (~16.5k at
+the ceiling) and the rank curve differentiates: D (0–2 discoveries) · C (3–4) · B (5–6) · A (7–8)
+· S (9–16). Locked by a regression invariant so it can't silently regress.
+
+**Two threshold calls the data can't make — they need your feel (see Q6, Q11):**
+- A ceiling Classic run (16 discoveries) is S, and S already starts at ~9 of 16. Should S demand
+  closer to full realization, or is "strong = S" right? → knob: `RankForScore` (9000/7000/5000/3000).
+- A *flawless* Exact K=3 constellation solve lands at rank **C** (4500); Octave at **B** (6500).
+  Perfect play of the easy relation earning only a C may feel punishing → knob: the flawless/Octave
+  bonuses in `GetScore`, or the rank thresholds.
 
 ## Launch
 
@@ -44,6 +72,11 @@ Controls: `[E]` transport · `[R]` restart / new puzzle · `[C]` cycle mode
 9. Audio — does the octave-inference "click" land with the discovery chime / victory fanfare /
    failure buzz? Is the ambient pad pleasant?
 10. Readability — is the HUD legible; do you always know what to press next?
+11. **Rank payoff** — after a run you're proud of, does the grade you earn feel *deserved*? In
+    particular: a flawless Exact (easy-relation) constellation solve currently earns a C — too
+    harsh? And does a near-perfect Classic run reliably reach S, or does S come too easily?
+    → knobs: `GetScore` flawless/Octave bonuses and `RankForScore` thresholds (the baseline
+      above shows exactly where these currently land).
 
 ## Report template
 
