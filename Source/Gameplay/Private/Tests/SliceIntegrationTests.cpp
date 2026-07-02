@@ -798,6 +798,68 @@ bool FKernelSerializationRoundTripTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// The IRealmKernel contract says StepMultiple(dt, N) must equal N calls to Step(dt). A bad
+// per-kernel override would silently diverge; this locks the equivalence for all 7 realms.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKernelStepMultipleEquivalenceTest, "MANIFOLD.Systems.KernelStepMultipleEquivalence", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FKernelStepMultipleEquivalenceTest::RunTest(const FString& Parameters)
+{
+    auto Check = [this](const TCHAR* Name, IRealmKernel* Multi, IRealmKernel* Looped, int32 N, float Dt) -> bool
+    {
+        Multi->StepMultiple(Dt, N);
+        for (int32 i = 0; i < N; ++i) { Looped->Step(Dt); }
+        return TestEqual(FString::Printf(TEXT("%s: StepMultiple(dt,N) == N x Step(dt)"), Name),
+            static_cast<int64>(Multi->ComputeStateHash()), static_cast<int64>(Looped->ComputeStateHash()));
+    };
+
+    {
+        UHarmonicsKernel* M = NewObject<UHarmonicsKernel>(); M->Initialize(7ULL); M->AddMode(2.0, 1.0); M->AddMode(3.0, 1.0);
+        UHarmonicsKernel* L = NewObject<UHarmonicsKernel>(); L->Initialize(7ULL); L->AddMode(2.0, 1.0); L->AddMode(3.0, 1.0);
+        if (!Check(TEXT("Harmonics"), M, L, 10, 0.01f)) { return false; }
+    }
+    {
+        UWavesKernel* M = NewObject<UWavesKernel>(); M->Initialize(7ULL); M->ExciteHarmonic(2, 1.0); M->ExciteHarmonic(3, 1.0);
+        UWavesKernel* L = NewObject<UWavesKernel>(); L->Initialize(7ULL); L->ExciteHarmonic(2, 1.0); L->ExciteHarmonic(3, 1.0);
+        if (!Check(TEXT("Waves"), M, L, 10, 0.001f)) { return false; }
+    }
+    {
+        URhythmKernel* M = NewObject<URhythmKernel>(); M->Initialize(7ULL); M->AddVoice(3.0); M->AddVoice(2.0);
+        URhythmKernel* L = NewObject<URhythmKernel>(); L->Initialize(7ULL); L->AddVoice(3.0); L->AddVoice(2.0);
+        if (!Check(TEXT("Rhythm"), M, L, 10, 0.016f)) { return false; }
+    }
+    {
+        UGearsKernel* M = NewObject<UGearsKernel>(); M->Initialize(7ULL); M->AddGear(3); M->AddGear(2);
+        UGearsKernel* L = NewObject<UGearsKernel>(); L->Initialize(7ULL); L->AddGear(3); L->AddGear(2);
+        if (!Check(TEXT("Gears"), M, L, 10, 0.016f)) { return false; }
+    }
+    {
+        UCircuitsKernel* M = NewObject<UCircuitsKernel>(); M->Initialize(7ULL); M->AddTank(2.0, 1.0); M->AddTank(3.0, 1.0);
+        UCircuitsKernel* L = NewObject<UCircuitsKernel>(); L->Initialize(7ULL); L->AddTank(2.0, 1.0); L->AddTank(3.0, 1.0);
+        if (!Check(TEXT("Circuits"), M, L, 10, 0.016f)) { return false; }
+    }
+    {
+        auto Setup = [](UOrbitsKernel* K)
+        {
+            FOrbitsBodyDef Star; Star.Mass = 1.989e30; Star.bIsCentral = true; K->AddBody(Star);
+            FOrbitsBodyDef P; P.Mass = 1e24; P.Position = FVector(1.496e11, 0.0, 0.0);
+            P.Velocity = FVector(0.0, FMath::Sqrt((K->G * Star.Mass) / P.Position.X), 0.0); K->AddBody(P);
+        };
+        UOrbitsKernel* M = NewObject<UOrbitsKernel>(); M->Initialize(7ULL); Setup(M);
+        UOrbitsKernel* L = NewObject<UOrbitsKernel>(); L->Initialize(7ULL); Setup(L);
+        if (!Check(TEXT("Orbits"), M, L, 10, 0.1f)) { return false; }
+    }
+    {
+        auto Setup = [](UFluidsKernel* K)
+        {
+            K->AddVelocity(0.5f, 0.45f, 20.0f, 0.0f); K->AddVelocity(0.55f, 0.5f, 0.0f, 20.0f);
+        };
+        UFluidsKernel* M = NewObject<UFluidsKernel>(); M->Initialize(7ULL); Setup(M);
+        UFluidsKernel* L = NewObject<UFluidsKernel>(); L->Initialize(7ULL); Setup(L);
+        if (!Check(TEXT("Fluids"), M, L, 10, 0.016f)) { return false; }
+    }
+    return true;
+}
+
 // Control build (Build Plan D3): with NO correspondence content the loop must NOT
 // manufacture insight — the moat is that unsolved seams stay unsolved. Here we run
 // only the Fluids realm (no resonance to correspond with), so nothing ignites.
