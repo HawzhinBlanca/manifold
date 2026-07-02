@@ -55,6 +55,10 @@ public:
     UFUNCTION(Exec, BlueprintCallable, Category = "MANIFOLD")
     void ConstellationLock();
 
+    /** Probe economy: pay to reveal the next unrevealed realm's membership ([V]). */
+    UFUNCTION(Exec, BlueprintCallable, Category = "MANIFOLD")
+    void ConstellationRevealNext();
+
     /** Which mode the next/current session uses. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MANIFOLD")
     EManifoldPlayMode PlayMode = EManifoldPlayMode::Classic;

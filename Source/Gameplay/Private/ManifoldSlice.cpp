@@ -43,6 +43,7 @@ void UManifoldSlice::Setup(uint64 OrbitsSeed, uint64 FluidsSeed)
     RealmSurfaceRatios.Reset();
     FailedProbes = 0;
     bHideRelationHint = false;
+    RevealedRealms.Reset();
 
     Orbits = NewObject<UOrbitsKernel>(this);
     Fluids = NewObject<UFluidsKernel>(this);
@@ -329,6 +330,7 @@ void UManifoldSlice::SetupConstellation(int64 InSeed, int32 InConstellationSize,
     AudioCues.Reset();
     LastAudioCue = FManifoldAudioCue();
     FailedProbes = 0;
+    RevealedRealms.Reset();
 
     const int32 N = 6; // Orbits, Harmonics, Waves, Rhythm, Gears, Decoy
     ConstellationSize = FMath::Clamp(InConstellationSize, 2, 3);
@@ -523,6 +525,32 @@ bool UManifoldSlice::PlayerLockConstellation(const TArray<int32>& SelectedRealmI
     return true;
 }
 
+bool UManifoldSlice::PlayerRevealRealm(int32 Index)
+{
+    if (!bConstellationMode || SessionState != EManifoldSessionState::InProgress)
+    {
+        return false;
+    }
+    if (Index < 0 || Index >= ConstellationRealmIds.Num())
+    {
+        return false;
+    }
+    if (!RevealedRealms.Contains(Index))
+    {
+        RevealedRealms.Add(Index); // charged once (GetScore subtracts per reveal)
+    }
+    return Constellation.Contains(Index);
+}
+
+int32 UManifoldSlice::GetRevealedMembership(int32 Index) const
+{
+    if (!RevealedRealms.Contains(Index))
+    {
+        return -1; // not revealed — the player hasn't paid to know
+    }
+    return Constellation.Contains(Index) ? 1 : 0;
+}
+
 FString UManifoldSlice::GetActiveRelationName() const
 {
     switch (ActiveRelation)
@@ -701,6 +729,7 @@ int32 UManifoldSlice::GetScore() const
             Score += 2500; // expert: inferred the hidden rule with no hint
         }
         Score -= FailedProbes * 250;
+        Score -= RevealedRealms.Num() * 500; // probe economy: paid reveals cost points
     }
     return FMath::Max(0, Score);
 }

@@ -443,6 +443,45 @@ bool FProfilePerModeTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// Probe economy: paying to reveal a realm tells the truth about its membership (IN/out),
+// is idempotent per realm, and costs score — so a revealed win scores below a clean one.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FConstellationRevealTest, "MANIFOLD.Play.ConstellationReveal", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FConstellationRevealTest::RunTest(const FString& Parameters)
+{
+    UManifoldSlice* S = NewObject<UManifoldSlice>();
+    S->SetupConstellation(77, 3);
+    const TArray<int32> Ans = S->GetConstellation();
+
+    const int32 Member = Ans[0];
+    int32 NonMember = -1;
+    for (int32 i = 0; i < 6; ++i) { if (!Ans.Contains(i)) { NonMember = i; break; } }
+    UTEST_TRUE("found a non-member realm", NonMember >= 0);
+
+    UTEST_EQUAL("an unrevealed realm reads -1 (unknown)", S->GetRevealedMembership(Member), -1);
+    UTEST_TRUE("revealing a member returns true", S->PlayerRevealRealm(Member));
+    UTEST_TRUE("member now marked revealed", S->IsRealmRevealed(Member));
+    UTEST_EQUAL("revealed member reads IN (1)", S->GetRevealedMembership(Member), 1);
+
+    UTEST_FALSE("revealing a non-member returns false", S->PlayerRevealRealm(NonMember));
+    UTEST_EQUAL("revealed non-member reads out (0)", S->GetRevealedMembership(NonMember), 0);
+    UTEST_EQUAL("two reveals were bought", S->GetRevealCount(), 2);
+
+    // Idempotent: re-revealing the same realm adds no charge.
+    S->PlayerRevealRealm(Member);
+    UTEST_EQUAL("re-revealing is free", S->GetRevealCount(), 2);
+
+    // Paid reveals cost score vs a clean solve of the same puzzle.
+    UManifoldSlice* Clean = NewObject<UManifoldSlice>();
+    Clean->SetupConstellation(77, 3);
+    UTEST_TRUE("clean win", Clean->PlayerLockConstellation(Clean->GetConstellation()));
+    const int32 CleanScore = Clean->GetScore();
+
+    UTEST_TRUE("revealed win", S->PlayerLockConstellation(S->GetConstellation()));
+    UTEST_GREATER("paid reveals reduce the final score", CleanScore, S->GetScore());
+    return true;
+}
+
 // Control build (Build Plan D3): with NO correspondence content the loop must NOT
 // manufacture insight — the moat is that unsolved seams stay unsolved. Here we run
 // only the Fluids realm (no resonance to correspond with), so nothing ignites.

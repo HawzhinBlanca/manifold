@@ -239,19 +239,22 @@ void AManifoldHUD::DrawConstellationReadout(UManifoldSlice* S, AManifoldGameMode
     for (int32 i = 0; i < S->GetConstellationRealmCount(); ++i)
     {
         const bool bSel = Pick.Contains(i);
-        Line(FString::Printf(TEXT("[%d] %s   ratio %s   %s"),
+        const int32 Rev = S->GetRevealedMembership(i); // 1 in, 0 out, -1 unknown
+        const TCHAR* RevTag = Rev == 1 ? TEXT("  [IN]") : Rev == 0 ? TEXT("  [out]") : TEXT("");
+        Line(FString::Printf(TEXT("[%d] %s   ratio %s   %s%s"),
             i + 1, *S->GetRealmName(i), *S->GetRealmSurfaceRatio(i),
-            bSel ? TEXT("<< picked") : TEXT("")), bSel ? Gold : Dim);
+            bSel ? TEXT("<< picked") : TEXT(""), RevTag),
+            Rev == 1 ? Cyan : (bSel ? Gold : Dim));
     }
 
     const FManifoldSessionSummary Sum = S->GetSessionSummary();
-    Line(FString::Printf(TEXT("Locked pairs %d/%d    wasted probes %d"),
-        Sum.Discoveries, S->GetObjectiveTarget(), S->GetFailedProbes()), Violet);
+    Line(FString::Printf(TEXT("Locked pairs %d/%d    wasted probes %d    reveals %d"),
+        Sum.Discoveries, S->GetObjectiveTarget(), S->GetFailedProbes(), S->GetRevealCount()), Violet);
     Line(FString::Printf(TEXT("Score %d    Best %d"), Sum.Score, GM->Profile.BestConstellationScore), Gold);
 
     if (S->GetSessionState() == EManifoldSessionState::InProgress)
     {
-        DrawText(TEXT("[1-6] pick   [Space] lock   [C] classic   [R] new puzzle"),
+        DrawText(TEXT("[1-6] pick   [Space] lock   [V] reveal (-pts)   [C] mode   [R] new"),
             Dim, PanelX + 20.0f, PanelY + PanelH - 30.0f, Font);
     }
     else

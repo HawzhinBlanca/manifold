@@ -247,6 +247,27 @@ public:
     UFUNCTION(BlueprintCallable, Category = "MANIFOLD|Constellation")
     bool PlayerLockConstellation(const TArray<int32>& SelectedRealmIndices);
 
+    /**
+     * Probe economy: pay to REVEAL whether a realm is in the hidden constellation. The
+     * first reveal of a valid realm costs score (a paid probe); returns true if that realm
+     * is a member. Trading points for certainty — spend when you're stuck. Idempotent per
+     * realm (re-revealing the same one is free).
+     */
+    UFUNCTION(BlueprintCallable, Category = "MANIFOLD|Constellation")
+    bool PlayerRevealRealm(int32 Index);
+
+    /** Whether realm Index has been paid-revealed. */
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD|Constellation")
+    bool IsRealmRevealed(int32 Index) const { return RevealedRealms.Contains(Index); }
+
+    /** Revealed membership of realm Index: 1 = in the constellation, 0 = not, -1 = not revealed. */
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD|Constellation")
+    int32 GetRevealedMembership(int32 Index) const;
+
+    /** How many paid reveals the player has bought this session. */
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD|Constellation")
+    int32 GetRevealCount() const { return RevealedRealms.Num(); }
+
     /** The hidden corresponding subset (sorted realm indices). Empty outside constellation mode. */
     const TArray<int32>& GetConstellation() const { return Constellation; }
 
@@ -351,6 +372,7 @@ private:
     TArray<FString> RealmSurfaceRatios;  // surface ratio "p:q" per index (as shown)
     int32 FailedProbes = 0;
     bool bHideRelationHint = false;      // expert mode: don't reveal the active relation
+    TArray<int32> RevealedRealms;        // realms the player paid to reveal (probe economy)
 
     void HandleIgnited(FGuid SourceStructure, FGuid TargetStructure, float Scale);
     void HandleSharedDiscovery(FName RealmA, FName RealmB, FString Ratio, FGuid StableId);

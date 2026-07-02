@@ -43,6 +43,10 @@ AManifoldPlayerController::AManifoldPlayerController()
     ModeAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_ToggleMode"));
     ModeAction->ValueType = EInputActionValueType::Boolean;
     MappingContext->MapKey(ModeAction, EKeys::C);
+
+    RevealAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_Reveal"));
+    RevealAction->ValueType = EInputActionValueType::Boolean;
+    MappingContext->MapKey(RevealAction, EKeys::V);
 }
 
 void AManifoldPlayerController::BeginPlay()
@@ -77,6 +81,7 @@ void AManifoldPlayerController::BeginPlay()
         }
         EIC->BindAction(LockAction, ETriggerEvent::Started, this, &AManifoldPlayerController::OnLock);
         EIC->BindAction(ModeAction, ETriggerEvent::Started, this, &AManifoldPlayerController::OnToggleMode);
+        EIC->BindAction(RevealAction, ETriggerEvent::Started, this, &AManifoldPlayerController::OnReveal);
     }
 }
 
@@ -138,6 +143,17 @@ void AManifoldPlayerController::OnToggleMode()
         if (AManifoldGameMode* GM = World->GetAuthGameMode<AManifoldGameMode>())
         {
             GM->ManifoldToggleMode();
+        }
+    }
+}
+
+void AManifoldPlayerController::OnReveal()
+{
+    if (UWorld* World = GetWorld())
+    {
+        if (AManifoldGameMode* GM = World->GetAuthGameMode<AManifoldGameMode>())
+        {
+            GM->ConstellationRevealNext();
         }
     }
 }

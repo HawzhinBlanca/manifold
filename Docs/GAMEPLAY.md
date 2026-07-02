@@ -26,6 +26,7 @@ the seam** where two realms correspond.
 | `C` | Toggle between **Classic** and **Constellation Lock** modes |
 | `1`–`6` | (Constellation) Pick / unpick a realm for your subset |
 | `Space` | (Constellation) Lock your selected subset |
+| `V` | (Constellation) Pay points to reveal the next realm's membership |
 | free-fly | Move the camera to observe the realms |
 
 The console commands mirror the keys: `ManifoldTransport` (`E`), `ManifoldRestart`
@@ -55,7 +56,16 @@ cross-domain reasoning, not spotting the odd number out.
 time for **Expert**: the rule itself is hidden (`Rule: ???`), so you must infer whether
 it's Exact or Octave from the ratios alone — the full challenge — worth a bonus on a win.
 Press `C` once more to return to Classic. Each session is deterministic in its seed and
-records as a shareable, reproducible replay.
+records as a shareable, reproducible replay. Constellation and Classic keep **separate
+best scores** (the two aren't comparable).
+
+**Probe economy (stuck? buy a hint).** Press `V` to pay points and reveal whether the next
+realm is `[IN]` the constellation or `[out]` of it. Certainty has a price — spend it
+wisely, because reveals (like wrong locks) come straight off your score.
+
+**Constellation Expedition.** Play a campaign of subset-hunt puzzles back to back —
+difficulty escalates (the rule goes hidden from the third level on) and your score
+accumulates across the levels you clear.
 
 ## The realms
 

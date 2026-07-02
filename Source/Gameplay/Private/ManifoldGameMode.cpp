@@ -227,3 +227,22 @@ void AManifoldGameMode::ConstellationLock()
     // A wrong lock clears the pick so the next attempt starts fresh.
     if (!bWon) { PendingSelection.Reset(); }
 }
+
+void AManifoldGameMode::ConstellationRevealNext()
+{
+    if (!Slice || !Slice->IsConstellationMode()) return;
+    if (Slice->GetSessionState() != EManifoldSessionState::InProgress) return;
+
+    bTitleShown = false;
+    for (int32 i = 0; i < Slice->GetConstellationRealmCount(); ++i)
+    {
+        if (!Slice->IsRealmRevealed(i))
+        {
+            const bool bMember = Slice->PlayerRevealRealm(i);
+            UE_LOG(LogTemp, Display, TEXT("[MANIFOLD] Revealed realm %d: %s (score paid)"),
+                i + 1, bMember ? TEXT("IN the constellation") : TEXT("NOT in it"));
+            return;
+        }
+    }
+    UE_LOG(LogTemp, Display, TEXT("[MANIFOLD] All realms already revealed"));
+}
