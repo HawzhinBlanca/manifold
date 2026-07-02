@@ -125,6 +125,7 @@ interface, not a reach-in.
 ## Documentation
 
 - [`Docs/IMPLEMENTATION_STATUS.md`](Docs/IMPLEMENTATION_STATUS.md) — authoritative status & handoff
+- [`Docs/PLAYTEST.md`](Docs/PLAYTEST.md) — how to playtest for feel + what to report (feedback → tuning knobs)
 - [`MANIFOLD_Build_Plan.md`](MANIFOLD_Build_Plan.md) — the end-to-end, work-package build plan
 - [`MANIFOLD_Tooling_Bible.md`](MANIFOLD_Tooling_Bible.md) — tool stack
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — workflow, conventions, verification gate
