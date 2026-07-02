@@ -9,7 +9,7 @@ with **two play modes**, an objective + scoring + rank, deterministic shareable
 replays, a code-level audio layer, key input, a branded HUD, and a professional public
 repository + a headless packaging path.
 
-**59 automation tests pass, 0 failures, headless.** The correspondence engine — the
+**64 automation tests pass, 0 failures, headless.** The correspondence engine — the
 product's core per the design bible — is complete, generalized to N realms, and
 **relation-aware** (Exact / Octave / Reciprocal). **Six** realms share a hidden ratio
 across different physical domains (celestial, fluid, acoustic, spatial, temporal,
@@ -75,6 +75,15 @@ per-session relation (Exact or Octave) the player must **infer and lock exactly*
 - ✅ **Reproducible replay**: record/reproduce/save/load (format v2). `MANIFOLD.Play.ConstellationReplay`.
 - ✅ **Difficulty/precision scoring**: Octave and flawless solves outscore Exact/probed.
   `MANIFOLD.Play.ConstellationScoring`.
+- ✅ **Expert tier**: the rule is hidden — the player infers Exact vs Octave from the
+  ratios. `MANIFOLD.Play.ConstellationExpert`.
+- ✅ **Probe economy**: pay score (`[V]`) to reveal a realm's membership (IN/out), idempotent
+  per realm. `MANIFOLD.Play.ConstellationReveal`.
+- ✅ **Expedition campaign**: N escalating puzzles, one cumulative score, deterministic.
+  `MANIFOLD.Play.ConstellationExpedition`.
+- ✅ **Audible feedback**: a wrong lock buzzes; a solve resolves in a victory fanfare.
+  `MANIFOLD.Play.ConstellationAudio`.
+- ✅ **Separate best scores** per mode (v2 profile). `MANIFOLD.Play.ProfilePerMode`.
 
 ### Playable shell + gameplay
 - ✅ **Interactive session** + **vertical-slice gate (P2)** (treatment beats control).
@@ -94,7 +103,7 @@ Press `[C]` to switch to **Constellation Lock**: `1`–`6` pick realms, `[Space]
 
 **Verify (headless):**
 ```powershell
-Tools\CI\run_tests.ps1      # build editor target + all MANIFOLD tests (expect 59 Success, 0 Fail)
+Tools\CI\run_tests.ps1      # build editor target + all MANIFOLD tests (expect 64 Success, 0 Fail)
 Tools\CI\package.ps1        # produce a standalone Windows build under dist\Windows
 ```
 Close the Unreal Editor first (Live Coding holds a build lock).
