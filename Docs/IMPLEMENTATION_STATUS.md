@@ -9,11 +9,11 @@ with **two play modes**, an objective + scoring + rank, deterministic shareable
 replays, a code-level audio layer, key input, a branded HUD, and a professional public
 repository + a headless packaging path.
 
-**67 automation tests pass, 0 failures, headless.** The correspondence engine — the
+**70 automation tests pass, 0 failures, headless.** The correspondence engine — the
 product's core per the design bible — is complete, generalized to N realms, and
-**relation-aware** (Exact / Octave / Reciprocal). **Six** realms share a hidden ratio
+**relation-aware** (Exact / Octave / Reciprocal). **Seven** realms share a hidden ratio
 across different physical domains (celestial, fluid, acoustic, spatial, temporal,
-mechanical) plus a **decoy**. A session can be Won or Lost, scored/ranked, recorded, and
+mechanical, electromagnetic) plus a **decoy**. A session can be Won or Lost, scored/ranked, recorded, and
 replayed bit-for-bit. The full standalone Windows build cooks/stages/paks successfully.
 
 ## 2. What is implemented (✅ = test-verified)
@@ -37,6 +37,7 @@ replayed bit-for-bit. The full standalone Windows build cooks/stages/paks succes
 - ✅ **Waves** (spatial: string standing-wave harmonics) — `MANIFOLD.Kernels.Waves.*`
 - ✅ **Rhythm** (temporal: three-against-two polyrhythm) — `MANIFOLD.Kernels.Rhythm.*`
 - ✅ **Gears** (mechanical: exact tooth-count ratio) — `MANIFOLD.Kernels.Gears.*`
+- ✅ **Circuits** (electromagnetic: LC resonant-frequency ratio) — `MANIFOLD.Kernels.Circuits.*`
 
 ### Correspondence engine
 - ✅ **Data-driven** content (D1): `Data/Correspondences/OrbitsFluids.json`.
@@ -103,7 +104,7 @@ Press `[C]` to switch to **Constellation Lock**: `1`–`6` pick realms, `[Space]
 
 **Verify (headless):**
 ```powershell
-Tools\CI\run_tests.ps1      # build editor target + all MANIFOLD tests (expect 67 Success, 0 Fail)
+Tools\CI\run_tests.ps1      # build editor target + all MANIFOLD tests (expect 70 Success, 0 Fail)
 Tools\CI\package.ps1        # produce a standalone Windows build under dist\Windows
 ```
 Close the Unreal Editor first (Live Coding holds a build lock).

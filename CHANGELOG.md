@@ -6,6 +6,14 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Added (seventh realm — Circuits)
+- **Circuits** (electromagnetism): two resonant LC tanks whose frequencies form the exact
+  integer ratio P:Q — the same abstract structure as an orbital P:Q, in charge oscillation.
+  One hidden ratio now spans **seven** domains. New `MANIFOLDKernelsCircuits` module wired
+  into Classic as a sixth sharing realm (the discovery ceiling rises to 1 seam + C(6,2)=15
+  = 16; the expedition wall and decoy-inflation checks were retuned). Tests:
+  `MANIFOLD.Kernels.Circuits.{ResonanceRatio,ExactRatio,Deterministic}`. **70/70 green.**
+
 ### Fixed (whole-codebase adversarial audit — determinism)
 A fresh multi-agent audit of the (much larger) codebase confirmed **2** latent defects,
 both now fixed with regression tests (**66/66 green**):
@@ -207,7 +215,7 @@ confirmed finding, with none deferred. E.g.:
   registration. AndroidFileServer plugin disabled (stops dev-token regeneration).
 
 ### Status
-- **67 / 67** automation tests green, headless. Repo is public and professional.
+- **70 / 70** automation tests green, headless. Repo is public and professional.
   Remaining phase (real art/VFX scenes, bound sound assets, bespoke UMG UI, human
   playtest) is human-owned and needs the editor + a display — see
   `Docs/IMPLEMENTATION_STATUS.md`.

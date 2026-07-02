@@ -79,10 +79,11 @@ campaign total persists in your profile.
 | **Waves** | spatial | two string harmonics forming the ratio |
 | **Rhythm** | time | a polyrhythm (three-against-two = 3:2) |
 | **Gears** | mechanism | two meshed gears whose tooth counts form the ratio (exact) |
+| **Circuits** | electromagnetism | two resonant LC tanks whose frequencies form the ratio |
 | **Decoy** | — | a **red herring**: a ratio that deliberately does *not* match |
 
-Five of these (Orbits, Harmonics, Waves, Rhythm, Gears) always share the session's
-hidden ratio; the Decoy never does. The correspondence engine refuses to pair the decoy with
+Six of these (Orbits, Harmonics, Waves, Rhythm, Gears, Circuits) always share the
+session's hidden ratio; the Decoy never does. The correspondence engine refuses to pair the decoy with
 the true realms — so you can't win by assuming everything matches. You have to
 *discriminate*.
 
