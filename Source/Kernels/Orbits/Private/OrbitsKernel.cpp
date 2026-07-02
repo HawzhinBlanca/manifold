@@ -338,7 +338,17 @@ FGuid UOrbitsKernel::AddBody(const FOrbitsBodyDef& Def)
     FOrbitsBodyDef NewDef = Def;
     if (!NewDef.Id.IsValid())
     {
-        NewDef.Id = FGuid::NewGuid();
+        // Deterministic id (was FGuid::NewGuid()): realm + seed + insertion index, so the
+        // same seeded system reproduces the same body — and thus the same resonance
+        // StructureId (which XORs the body ids) — across runs, builds, and platforms. The
+        // index is mixed into ALL four words so two bodies differ everywhere, keeping the
+        // XOR-derived resonance id at full entropy (no per-pair collisions).
+        const uint32 Ix = static_cast<uint32>(OrbitState->Bodies.Num()) ^ GetSimulationVersion();
+        NewDef.Id = FGuid(
+            GetTypeHash(GetRealmId().ToString())            ^ (Ix * 0x9E3779B9u),
+            static_cast<uint32>(OrbitState->Seed & 0xFFFFFFFFu)        ^ (Ix * 0x85EBCA6Bu),
+            static_cast<uint32>((OrbitState->Seed >> 32) & 0xFFFFFFFFu) ^ (Ix * 0xC2B2AE35u),
+            Ix + 1u); // +1 so index 0 (Version-xored) never yields an all-zero word set
     }
 
     OrbitState->Bodies.Add(NewDef);

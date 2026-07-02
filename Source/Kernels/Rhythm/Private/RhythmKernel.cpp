@@ -221,7 +221,12 @@ bool URhythmKernel::VerifyDeterminism(int32 NumSteps) const
 FGuid URhythmKernel::AddVoice(double Tempo)
 {
     FRhythmVoice Voice;
-    Voice.Id = FGuid::NewGuid();
+    // Deterministic id (was FGuid::NewGuid()): realm + seed + insertion index, so a
+    // serialized voice reproduces across identical seeded runs.
+    Voice.Id = FGuid(GetTypeHash(GetRealmId().ToString()),
+        static_cast<uint32>(RState->Seed & 0xFFFFFFFFu),
+        static_cast<uint32>((RState->Seed >> 32) & 0xFFFFFFFFu),
+        static_cast<uint32>(RState->Voices.Num()) ^ GetSimulationVersion());
     Voice.Tempo = Tempo;
     Voice.Phase = 0.0;
     RState->Voices.Add(Voice);

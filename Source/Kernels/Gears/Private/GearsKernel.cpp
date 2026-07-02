@@ -220,7 +220,12 @@ bool UGearsKernel::VerifyDeterminism(int32 NumSteps) const
 FGuid UGearsKernel::AddGear(int32 Teeth)
 {
     FGear Gear;
-    Gear.Id = FGuid::NewGuid();
+    // Deterministic id (was FGuid::NewGuid()): realm + seed + insertion index, so a
+    // serialized gear reproduces across identical seeded runs.
+    Gear.Id = FGuid(GetTypeHash(GetRealmId().ToString()),
+        static_cast<uint32>(GState->Seed & 0xFFFFFFFFu),
+        static_cast<uint32>((GState->Seed >> 32) & 0xFFFFFFFFu),
+        static_cast<uint32>(GState->Gears.Num()) ^ GetSimulationVersion());
     Gear.Teeth = FMath::Max(1, Teeth);
     Gear.Angle = 0.0;
     GState->Gears.Add(Gear);

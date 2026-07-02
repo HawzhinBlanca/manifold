@@ -222,7 +222,12 @@ bool UHarmonicsKernel::VerifyDeterminism(int32 NumSteps) const
 FGuid UHarmonicsKernel::AddMode(double Frequency, double Amplitude)
 {
     FHarmonicMode Mode;
-    Mode.Id = FGuid::NewGuid();
+    // Deterministic id (was FGuid::NewGuid()): realm + seed + insertion index, so a
+    // serialized mode reproduces across identical seeded runs.
+    Mode.Id = FGuid(GetTypeHash(GetRealmId().ToString()),
+        static_cast<uint32>(HState->Seed & 0xFFFFFFFFu),
+        static_cast<uint32>((HState->Seed >> 32) & 0xFFFFFFFFu),
+        static_cast<uint32>(HState->Modes.Num()) ^ GetSimulationVersion());
     Mode.Frequency = Frequency;
     Mode.Amplitude = Amplitude;
     Mode.Phase = 0.0;

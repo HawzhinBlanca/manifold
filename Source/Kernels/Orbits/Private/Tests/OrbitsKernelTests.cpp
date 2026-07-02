@@ -171,3 +171,35 @@ bool FOrbitsStableResonanceIdTest::RunTest(const FString& Parameters)
 
     return true;
 }
+
+// The resonance StructureId must also be CONTENT-STABLE across identical seeded runs: body
+// ids were FGuid::NewGuid() (random per run), so the XOR-derived resonance id diverged run
+// to run — breaking the deterministic-id contract the sibling realms uphold. Two fresh
+// kernels built the same way from the same seed must expose the SAME id.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FOrbitsResonanceIdAcrossRunsTest, "MANIFOLD.Kernels.Orbits.StableResonanceIdAcrossRuns", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FOrbitsResonanceIdAcrossRunsTest::RunTest(const FString& Parameters)
+{
+    auto BuildResonanceId = [](uint64 Seed) -> FGuid
+    {
+        UOrbitsKernel* K = NewObject<UOrbitsKernel>();
+        K->Initialize(Seed);
+        FOrbitsBodyDef Star; Star.Mass = 1.989e30; Star.bIsCentral = true; K->AddBody(Star);
+        FOrbitsBodyDef A; A.Mass = 1e24; A.Position = FVector(1.496e11, 0.0, 0.0);
+        A.Velocity = FVector(0.0, FMath::Sqrt((K->G * Star.Mass) / A.Position.X), 0.0); K->AddBody(A);
+        const double rB = A.Position.X * FMath::Pow(1.5, 2.0 / 3.0);
+        FOrbitsBodyDef B; B.Mass = 1e24; B.Position = FVector(rB, 0.0, 0.0);
+        B.Velocity = FVector(0.0, FMath::Sqrt((K->G * Star.Mass) / rB), 0.0); K->AddBody(B);
+        K->Step(0.1f);
+        FRealmQuery Q(TEXT("OrbitalResonance"));
+        FRealmQueryResult R;
+        return K->Query(Q, R) ? R.StructureId : FGuid();
+    };
+
+    const FGuid Id1 = BuildResonanceId(4242ULL);
+    const FGuid Id2 = BuildResonanceId(4242ULL);
+    UTEST_TRUE("a resonance is found", Id1.IsValid());
+    UTEST_EQUAL("same seed -> same resonance StructureId across separate runs", Id1, Id2);
+
+    return true;
+}
