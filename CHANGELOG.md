@@ -6,6 +6,12 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Added (integration coverage)
+- **Mixed-mode career test:** `MANIFOLD.Integration.MixedCareerProfile` composes a Classic
+  win and a Constellation win onto one profile and asserts the separate per-mode bests,
+  combined session counts, and a full save/load round-trip all hold together — integration
+  coverage the per-feature unit tests didn't have. **71/71 green.**
+
 ### Added (seventh realm — Circuits)
 - **Circuits** (electromagnetism): two resonant LC tanks whose frequencies form the exact
   integer ratio P:Q — the same abstract structure as an orbital P:Q, in charge oscillation.
@@ -215,7 +221,7 @@ confirmed finding, with none deferred. E.g.:
   registration. AndroidFileServer plugin disabled (stops dev-token regeneration).
 
 ### Status
-- **70 / 70** automation tests green, headless. Repo is public and professional.
+- **71 / 71** automation tests green, headless. Repo is public and professional.
   Remaining phase (real art/VFX scenes, bound sound assets, bespoke UMG UI, human
   playtest) is human-owned and needs the editor + a display — see
   `Docs/IMPLEMENTATION_STATUS.md`.

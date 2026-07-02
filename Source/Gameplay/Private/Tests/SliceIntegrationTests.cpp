@@ -570,6 +570,54 @@ bool FNewBestDetectionTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// Cross-feature integration: a player's career spanning BOTH modes accumulates onto one
+// profile correctly — separate per-mode bests, combined session counts — and the whole
+// profile survives a save/load round-trip. This composes classic play, constellation play,
+// per-mode scoring, and persistence in one flow (no single unit test covers the mix).
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMixedCareerProfileTest, "MANIFOLD.Integration.MixedCareerProfile", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMixedCareerProfileTest::RunTest(const FString& Parameters)
+{
+    FManifoldProfile Career;
+
+    // --- A Classic win folds into the Classic leaderboard. ---
+    UManifoldSlice* Classic = NewObject<UManifoldSlice>();
+    Classic->Setup(1111ULL, 2222ULL);
+    Classic->RunPlaythrough(30);
+    const FManifoldSessionSummary ClassicSummary = Classic->GetSessionSummary();
+    UTEST_EQUAL("classic session won",
+        static_cast<int32>(ClassicSummary.State), static_cast<int32>(EManifoldSessionState::Won));
+    UTEST_FALSE("classic summary not flagged constellation", ClassicSummary.bConstellation);
+    UTEST_TRUE("first classic result is a new best",
+        UManifoldSlice::RecordSessionInProfile(Career, ClassicSummary));
+    UTEST_GREATER("classic best recorded", Career.BestScore, 0);
+    UTEST_EQUAL("constellation best untouched by classic", Career.BestConstellationScore, 0);
+
+    // --- A Constellation win folds into the SEPARATE Constellation leaderboard. ---
+    UManifoldSlice* Const = NewObject<UManifoldSlice>();
+    Const->SetupConstellation(4242, 3);
+    UTEST_TRUE("constellation solved", Const->PlayerLockConstellation(Const->GetConstellation()));
+    const FManifoldSessionSummary ConstSummary = Const->GetSessionSummary();
+    UTEST_TRUE("constellation summary flagged", ConstSummary.bConstellation);
+    UManifoldSlice::RecordSessionInProfile(Career, ConstSummary);
+    UTEST_GREATER("constellation best recorded", Career.BestConstellationScore, 0);
+    UTEST_EQUAL("classic best unchanged by a constellation win", Career.BestScore, ClassicSummary.Score);
+    UTEST_EQUAL("both sessions counted", Career.SessionsPlayed, 2);
+    UTEST_EQUAL("both wins counted", Career.SessionsWon, 2);
+
+    // --- The whole career survives persistence. ---
+    const FString Path = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("TestCareer.manifoldprofile"));
+    UTEST_TRUE("save career", UManifoldSlice::SaveProfile(Career, Path));
+    FManifoldProfile Loaded;
+    UTEST_TRUE("load career", UManifoldSlice::LoadProfile(Loaded, Path));
+    UTEST_EQUAL("loaded classic best", Loaded.BestScore, Career.BestScore);
+    UTEST_EQUAL("loaded constellation best", Loaded.BestConstellationScore, Career.BestConstellationScore);
+    UTEST_EQUAL("loaded sessions won", Loaded.SessionsWon, 2);
+    FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*Path);
+
+    return true;
+}
+
 // Control build (Build Plan D3): with NO correspondence content the loop must NOT
 // manufacture insight — the moat is that unsolved seams stay unsolved. Here we run
 // only the Fluids realm (no resonance to correspond with), so nothing ignites.
