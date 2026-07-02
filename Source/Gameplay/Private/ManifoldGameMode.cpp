@@ -64,10 +64,20 @@ void AManifoldGameMode::StartSession()
 
     if (PlayMode == EManifoldPlayMode::Constellation)
     {
-        // A fresh puzzle each start: the seed rotates so the relation/constellation vary.
-        const int64 Seed = 7001 + ConstellationSeedCounter;
-        ++ConstellationSeedCounter;
-        Slice->SetupConstellation(Seed, 3, bConstellationExpert);
+        if (bExpeditionActive)
+        {
+            // Campaign: a fixed sequence of escalating puzzles (rule hidden from level 3).
+            const int64 Seed = ExpeditionBaseSeed + ExpeditionLevel;
+            const bool bExpert = (ExpeditionLevel >= 2);
+            Slice->SetupConstellation(Seed, 3, bExpert);
+        }
+        else
+        {
+            // A fresh puzzle each start: the seed rotates so the relation/constellation vary.
+            const int64 Seed = 7001 + ConstellationSeedCounter;
+            ++ConstellationSeedCounter;
+            Slice->SetupConstellation(Seed, 3, bConstellationExpert);
+        }
     }
     else
     {
@@ -225,7 +235,39 @@ void AManifoldGameMode::ConstellationLock()
         PendingSelection.Num(), Slice->GetFailedProbes());
 
     // A wrong lock clears the pick so the next attempt starts fresh.
-    if (!bWon) { PendingSelection.Reset(); }
+    if (!bWon) { PendingSelection.Reset(); return; }
+
+    // A correct lock during an expedition banks the level score and advances the campaign.
+    if (bExpeditionActive)
+    {
+        ExpeditionScore += Slice->GetScore();
+        ++ExpeditionLevel;
+        if (ExpeditionLevel < ExpeditionLevels)
+        {
+            StartSession();      // load the next level
+            bTitleShown = false; // no intro card between levels
+        }
+        else
+        {
+            // Campaign complete: bank the best, leave the final won level on screen.
+            bExpeditionActive = false;
+            Profile.BestExpeditionScore = FMath::Max(Profile.BestExpeditionScore, ExpeditionScore);
+            UManifoldSlice::SaveProfile(Profile, ProfilePath());
+            UE_LOG(LogTemp, Display, TEXT("[MANIFOLD] Expedition complete — total %d (best %d)"),
+                ExpeditionScore, Profile.BestExpeditionScore);
+        }
+    }
+}
+
+void AManifoldGameMode::ManifoldStartExpedition()
+{
+    bExpeditionActive = true;
+    ExpeditionLevel = 0;
+    ExpeditionScore = 0;
+    PlayMode = EManifoldPlayMode::Constellation;
+    bConstellationExpert = false; // per-level difficulty is set by the campaign schedule
+    StartSession();
+    UE_LOG(LogTemp, Display, TEXT("[MANIFOLD] Constellation Expedition started (%d levels)"), ExpeditionLevels);
 }
 
 void AManifoldGameMode::ConstellationRevealNext()

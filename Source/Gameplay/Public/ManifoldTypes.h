@@ -149,8 +149,12 @@ struct MANIFOLDGAMEPLAY_API FManifoldProfile
     UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
     int32 BestConstellationScore = 0;
 
+    /** Best cumulative score across a Constellation Expedition campaign. */
+    UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
+    int32 BestExpeditionScore = 0;
+
     static constexpr uint32 Magic = 0x4D414E50; // 'MANP'
-    static constexpr uint32 Version = 2;
+    static constexpr uint32 Version = 3;
 
     friend FArchive& operator<<(FArchive& Ar, FManifoldProfile& P)
     {
@@ -158,6 +162,7 @@ struct MANIFOLDGAMEPLAY_API FManifoldProfile
         Ar << P.SessionsPlayed;
         Ar << P.SessionsWon;
         Ar << P.BestConstellationScore;
+        Ar << P.BestExpeditionScore;
         return Ar;
     }
 };

@@ -433,12 +433,15 @@ bool FProfilePerModeTest::RunTest(const FString& Parameters)
     UTEST_EQUAL("both sessions counted", P.SessionsPlayed, 2);
     UTEST_EQUAL("both wins counted", P.SessionsWon, 2);
 
+    P.BestExpeditionScore = 12345; // a campaign best (format v3)
+
     const FString Path = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("TestPerMode.manifoldprofile"));
     UTEST_TRUE("save profile", UManifoldSlice::SaveProfile(P, Path));
     FManifoldProfile L;
     UTEST_TRUE("load profile", UManifoldSlice::LoadProfile(L, Path));
     UTEST_EQUAL("loaded classic best", L.BestScore, 5000);
     UTEST_EQUAL("loaded constellation best", L.BestConstellationScore, 8000);
+    UTEST_EQUAL("loaded expedition best", L.BestExpeditionScore, 12345);
     FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*Path);
     return true;
 }

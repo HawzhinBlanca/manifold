@@ -59,6 +59,17 @@ public:
     UFUNCTION(Exec, BlueprintCallable, Category = "MANIFOLD")
     void ConstellationRevealNext();
 
+    /** Begin an interactive Constellation Expedition: a campaign of escalating puzzles
+     *  the player solves one after another, accumulating score ([X]). */
+    UFUNCTION(Exec, BlueprintCallable, Category = "MANIFOLD")
+    void ManifoldStartExpedition();
+
+    // --- Expedition HUD accessors ---
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD") bool IsExpeditionActive() const { return bExpeditionActive; }
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD") int32 GetExpeditionLevel() const { return ExpeditionLevel; }
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD") int32 GetExpeditionLevels() const { return ExpeditionLevels; }
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD") int32 GetExpeditionScore() const { return ExpeditionScore; }
+
     /** Which mode the next/current session uses. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MANIFOLD")
     EManifoldPlayMode PlayMode = EManifoldPlayMode::Classic;
@@ -109,6 +120,13 @@ protected:
     /** Pending constellation pick + a counter that rotates the puzzle seed each start. */
     TArray<int32> PendingSelection;
     int32 ConstellationSeedCounter = 0;
+
+    // --- Interactive Constellation Expedition (a playable campaign) ---
+    bool bExpeditionActive = false;
+    int32 ExpeditionLevel = 0;   // 0-based current level
+    int32 ExpeditionScore = 0;   // cumulative score across cleared levels
+    static constexpr int32 ExpeditionLevels = 5;
+    static constexpr int64 ExpeditionBaseSeed = 8000;
 
     /** Seconds the intro title card has been showing. */
     float TitleTimer = 0.0f;

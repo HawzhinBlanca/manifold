@@ -27,6 +27,7 @@ the seam** where two realms correspond.
 | `1`–`6` | (Constellation) Pick / unpick a realm for your subset |
 | `Space` | (Constellation) Lock your selected subset |
 | `V` | (Constellation) Pay points to reveal the next realm's membership |
+| `X` | Start a Constellation **Expedition** (a campaign of escalating puzzles) |
 | free-fly | Move the camera to observe the realms |
 
 The console commands mirror the keys: `ManifoldTransport` (`E`), `ManifoldRestart`
@@ -63,9 +64,10 @@ best scores** (the two aren't comparable).
 realm is `[IN]` the constellation or `[out]` of it. Certainty has a price — spend it
 wisely, because reveals (like wrong locks) come straight off your score.
 
-**Constellation Expedition.** Play a campaign of subset-hunt puzzles back to back —
-difficulty escalates (the rule goes hidden from the third level on) and your score
-accumulates across the levels you clear.
+**Constellation Expedition.** Press `X` to play a campaign of subset-hunt puzzles back to
+back — difficulty escalates (the rule goes hidden from the third level on), each solve
+advances you to the next level, and your score accumulates across the run. Your best
+campaign total persists in your profile.
 
 ## The realms
 

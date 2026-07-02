@@ -223,6 +223,13 @@ void AManifoldHUD::DrawConstellationReadout(UManifoldSlice* S, AManifoldGameMode
         Y += 24.0f;
     };
 
+    // Campaign progress, when an expedition is running.
+    if (GM->IsExpeditionActive())
+    {
+        Line(FString::Printf(TEXT("EXPEDITION   level %d/%d   running total %d"),
+            GM->GetExpeditionLevel() + 1, GM->GetExpeditionLevels(), GM->GetExpeditionScore()), Gold);
+    }
+
     // The rule the corresponding realms obey (the player normalizes each ratio by it).
     // Expert mode hides it — the player must infer Exact vs Octave from the ratios.
     if (S->IsRelationHintHidden())
@@ -254,7 +261,7 @@ void AManifoldHUD::DrawConstellationReadout(UManifoldSlice* S, AManifoldGameMode
 
     if (S->GetSessionState() == EManifoldSessionState::InProgress)
     {
-        DrawText(TEXT("[1-6] pick   [Space] lock   [V] reveal (-pts)   [C] mode   [R] new"),
+        DrawText(TEXT("[1-6] pick  [Space] lock  [V] reveal  [C] mode  [X] campaign  [R] new"),
             Dim, PanelX + 20.0f, PanelY + PanelH - 30.0f, Font);
     }
     else

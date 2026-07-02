@@ -36,6 +36,7 @@ protected:
     void OnLock();
     void OnToggleMode();
     void OnReveal();
+    void OnExpedition();
 
 private:
     /** Route a realm pick (0-based) to the game mode. */
@@ -59,6 +60,9 @@ private:
 
     UPROPERTY()
     UInputAction* RevealAction = nullptr;
+
+    UPROPERTY()
+    UInputAction* ExpeditionAction = nullptr;
 
     UPROPERTY()
     UInputMappingContext* MappingContext = nullptr;

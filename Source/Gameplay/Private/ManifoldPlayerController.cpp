@@ -47,6 +47,10 @@ AManifoldPlayerController::AManifoldPlayerController()
     RevealAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_Reveal"));
     RevealAction->ValueType = EInputActionValueType::Boolean;
     MappingContext->MapKey(RevealAction, EKeys::V);
+
+    ExpeditionAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_Expedition"));
+    ExpeditionAction->ValueType = EInputActionValueType::Boolean;
+    MappingContext->MapKey(ExpeditionAction, EKeys::X);
 }
 
 void AManifoldPlayerController::BeginPlay()
@@ -82,6 +86,7 @@ void AManifoldPlayerController::BeginPlay()
         EIC->BindAction(LockAction, ETriggerEvent::Started, this, &AManifoldPlayerController::OnLock);
         EIC->BindAction(ModeAction, ETriggerEvent::Started, this, &AManifoldPlayerController::OnToggleMode);
         EIC->BindAction(RevealAction, ETriggerEvent::Started, this, &AManifoldPlayerController::OnReveal);
+        EIC->BindAction(ExpeditionAction, ETriggerEvent::Started, this, &AManifoldPlayerController::OnExpedition);
     }
 }
 
@@ -154,6 +159,17 @@ void AManifoldPlayerController::OnReveal()
         if (AManifoldGameMode* GM = World->GetAuthGameMode<AManifoldGameMode>())
         {
             GM->ConstellationRevealNext();
+        }
+    }
+}
+
+void AManifoldPlayerController::OnExpedition()
+{
+    if (UWorld* World = GetWorld())
+    {
+        if (AManifoldGameMode* GM = World->GetAuthGameMode<AManifoldGameMode>())
+        {
+            GM->ManifoldStartExpedition();
         }
     }
 }
