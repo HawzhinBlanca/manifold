@@ -694,6 +694,13 @@ bool FConstellationRankCurveTest::RunTest(const FString& Parameters)
         static_cast<int32>(OctaveRank), static_cast<int32>(ExactRank));
     UTEST_GREATER("expert-octave flawless outranks plain octave",
         static_cast<int32>(ExpertRank), static_cast<int32>(OctaveRank));
+    // Tuned mastery ladder (K=3): a flawless solve is always rewarded — Exact reaches B, Octave
+    // reaches A, and Expert+Octave reaches the top rank S. Locks the flawless-bonus tuning so a
+    // perfect solve of the harder mode is never out-ranked by a routine Classic ceiling run.
+    UTEST_EQUAL("a flawless Exact solve earns B",
+        static_cast<int32>(ExactRank), static_cast<int32>(EManifoldRank::B));
+    UTEST_EQUAL("a flawless Octave solve earns A",
+        static_cast<int32>(OctaveRank), static_cast<int32>(EManifoldRank::A));
     UTEST_EQUAL("a flawless expert-octave solve earns the top rank (S)",
         static_cast<int32>(ExpertRank), static_cast<int32>(EManifoldRank::S));
     return true;

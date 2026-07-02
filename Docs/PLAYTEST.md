@@ -25,12 +25,17 @@ a modest, discovery-subordinate bonus (≤250). Classic score is now discovery-d
 the ceiling) and the rank curve differentiates: D (0–2 discoveries) · C (3–4) · B (5–6) · A (7–8)
 · S (9–16). Locked by a regression invariant so it can't silently regress.
 
-**Two threshold calls the data can't make — they need your feel (see Q6, Q11):**
-- A ceiling Classic run (16 discoveries) is S, and S already starts at ~9 of 16. Should S demand
-  closer to full realization, or is "strong = S" right? → knob: `RankForScore` (9000/7000/5000/3000).
-- A *flawless* Exact K=3 constellation solve lands at rank **C** (4500); Octave at **B** (6500).
-  Perfect play of the easy relation earning only a C may feel punishing → knob: the flawless/Octave
-  bonuses in `GetScore`, or the rank thresholds.
+**Threshold calls — one resolved this pass, one left for your feel:**
+- **Resolved (tuned):** a *flawless* constellation solve was landing at rank **C** (Exact, 4500) /
+  **B** (Octave) — i.e. perfect play of the *harder* mode was out-ranked by a routine Classic
+  ceiling run (S). Bumped the flawless bonus (1500→2500) so a flawless solve now reaches
+  **B (Exact) / A (Octave) / S (Expert+Octave)** — a clear mastery ladder. Locked by
+  `MANIFOLD.Play.ConstellationRankCurve`. Revert the flawless bonus in `GetScore` if you prefer the
+  harsher original.
+- **Open (needs your feel):** a ceiling Classic run (16 discoveries) is S, and S starts at ~9 of 16.
+  Is "strong = S" right, or should S demand closer to full realization? Left unchanged — needing
+  >half the correspondences for the top grade is a defensible mastery bar, but it's your call.
+  → knob: `RankForScore` (9000/7000/5000/3000).
 
 ## Launch
 
@@ -72,11 +77,11 @@ Controls: `[E]` transport · `[R]` restart / new puzzle · `[C]` cycle mode
 9. Audio — does the octave-inference "click" land with the discovery chime / victory fanfare /
    failure buzz? Is the ambient pad pleasant?
 10. Readability — is the HUD legible; do you always know what to press next?
-11. **Rank payoff** — after a run you're proud of, does the grade you earn feel *deserved*? In
-    particular: a flawless Exact (easy-relation) constellation solve currently earns a C — too
-    harsh? And does a near-perfect Classic run reliably reach S, or does S come too easily?
-    → knobs: `GetScore` flawless/Octave bonuses and `RankForScore` thresholds (the baseline
-      above shows exactly where these currently land).
+11. **Rank payoff** — after a run you're proud of, does the grade you earn feel *deserved*? A
+    flawless constellation solve now earns B (Exact) / A (Octave) / S (Expert+Octave) after this
+    pass's tuning — does that ladder feel right when you play it? And does a near-perfect Classic
+    run reliably reach S, or does S come too easily?
+    → knobs: `GetScore` flawless/Octave bonuses and `RankForScore` thresholds.
 
 ## Report template
 

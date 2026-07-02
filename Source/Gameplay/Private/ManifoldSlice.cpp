@@ -744,7 +744,12 @@ int32 UManifoldSlice::GetScore() const
         }
         if (SessionState == EManifoldSessionState::Won && FailedProbes == 0)
         {
-            Score += 1500; // flawless read of the constellation
+            // Flawless read of the constellation. Weighted so a flawless solve is genuinely
+            // REWARDED rather than out-ranked by a routine Classic ceiling run: with K=3 (base
+            // 3000) this lifts flawless Exact to B, flawless Octave to A, and flawless
+            // Expert+Octave to S — a clear mastery ladder for the harder mode. (Tuning call from
+            // the balance pass; RankForScore thresholds are the knob if this should shift.)
+            Score += 2500;
         }
         if (bHideRelationHint && SessionState == EManifoldSessionState::Won)
         {
