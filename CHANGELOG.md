@@ -6,6 +6,19 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Fixed (whole-codebase adversarial audit — determinism)
+A fresh multi-agent audit of the (much larger) codebase confirmed **2** latent defects,
+both now fixed with regression tests (**66/66 green**):
+- **Content-stable structure ids.** The "stable, deterministic" structure ids hashed
+  `GetTypeHash(FName)` — the process-local name-table index, not the string bytes — so
+  they were reproducible only within one process, not across runs/builds/platforms. Now
+  hashed from the realm-id *string* in `CorrespondenceSystem` and all six kernels.
+  Gameplay was unaffected (in-run dedup keys on the ratio string), but any persisted id
+  would have silently mismatched. Test: `MANIFOLD.Correspondence.StableIdContentStable`.
+- **Complete session reset.** `bAutoTransportOnIgnite` was the one field `Setup` never
+  reset, so a slice reused after a replay leaked the flag. Both setups now restore the
+  default; callers set it after `Setup`. Test: `MANIFOLD.Play.SliceReuseResetsAutoTransport`.
+
 ### Added (depth — Constellation Lock)
 A new, harder puzzle mode that replaces "spot the one odd realm" with genuine
 cross-domain inference. **56/56 green.**
@@ -194,7 +207,7 @@ confirmed finding, with none deferred. E.g.:
   registration. AndroidFileServer plugin disabled (stops dev-token regeneration).
 
 ### Status
-- **60 / 60** automation tests green, headless. Repo is public and professional.
+- **66 / 66** automation tests green, headless. Repo is public and professional.
   Remaining phase (real art/VFX scenes, bound sound assets, bespoke UMG UI, human
   playtest) is human-owned and needs the editor + a display — see
   `Docs/IMPLEMENTATION_STATUS.md`.
