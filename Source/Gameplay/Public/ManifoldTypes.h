@@ -156,13 +156,26 @@ struct MANIFOLDGAMEPLAY_API FManifoldProfile
     static constexpr uint32 Magic = 0x4D414E50; // 'MANP'
     static constexpr uint32 Version = 3;
 
+    /**
+     * Version-aware body (reads or writes, per Ar's direction). Fields have only ever been
+     * APPENDED (v1: score/played/won; v2: +constellation; v3: +expedition), so an older save
+     * is a valid *prefix* of the current layout. Reading with the file's on-disk version pulls
+     * exactly the fields that existed then and leaves newer ones at their defaults — migrating
+     * a returning player's career forward across a format bump instead of discarding it.
+     */
+    void SerializeVersioned(FArchive& Ar, uint32 InVersion)
+    {
+        Ar << BestScore;
+        Ar << SessionsPlayed;
+        Ar << SessionsWon;
+        if (InVersion >= 2) { Ar << BestConstellationScore; }
+        if (InVersion >= 3) { Ar << BestExpeditionScore; }
+    }
+
     friend FArchive& operator<<(FArchive& Ar, FManifoldProfile& P)
     {
-        Ar << P.BestScore;
-        Ar << P.SessionsPlayed;
-        Ar << P.SessionsWon;
-        Ar << P.BestConstellationScore;
-        Ar << P.BestExpeditionScore;
+        // Writes/reads the CURRENT version's full field set (all call sites use current format).
+        P.SerializeVersioned(Ar, FManifoldProfile::Version);
         return Ar;
     }
 };
@@ -216,22 +229,36 @@ struct MANIFOLDGAMEPLAY_API FManifoldReplay
     UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
     TArray<int32> LockSelection;
 
-    /** Format tag so old files are rejected rather than silently misread. */
+    /** Format tag so foreign / newer files are rejected rather than silently misread. */
     static constexpr uint32 Magic = 0x4D414E52; // 'MANR'
     static constexpr uint32 Version = 2;
 
+    /**
+     * Version-aware body. Fields were only APPENDED (v1: the 7 seed/step/result fields;
+     * v2: +Mode/ConstellationSize/LockSelection), so a v1 replay is a valid prefix: it loads
+     * as a Classic session (Mode defaults to 0) instead of being rejected — a shared v1
+     * replay still plays back after a format bump.
+     */
+    void SerializeVersioned(FArchive& Ar, uint32 InVersion)
+    {
+        Ar << OrbitsSeed;
+        Ar << FluidsSeed;
+        Ar << Steps;
+        Ar << TransportSteps;
+        Ar << FinalDiscoveries;
+        Ar << FinalTransports;
+        Ar << FinalInsightRate;
+        if (InVersion >= 2)
+        {
+            Ar << Mode;
+            Ar << ConstellationSize;
+            Ar << LockSelection;
+        }
+    }
+
     friend FArchive& operator<<(FArchive& Ar, FManifoldReplay& R)
     {
-        Ar << R.OrbitsSeed;
-        Ar << R.FluidsSeed;
-        Ar << R.Steps;
-        Ar << R.TransportSteps;
-        Ar << R.FinalDiscoveries;
-        Ar << R.FinalTransports;
-        Ar << R.FinalInsightRate;
-        Ar << R.Mode;
-        Ar << R.ConstellationSize;
-        Ar << R.LockSelection;
+        R.SerializeVersioned(Ar, FManifoldReplay::Version);
         return Ar;
     }
 };

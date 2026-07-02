@@ -1428,6 +1428,100 @@ bool FProfileRoundTripTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// Save-format FORWARD MIGRATION: a returning player's OLDER save (from a build before a format
+// bump) must load and carry their career forward — not be silently discarded, which is what the
+// old all-or-nothing `Version != current` check did. Fields are append-only, so an old file is a
+// valid prefix of the current layout: loading at the file's own version reads its fields and
+// defaults the newer ones. A NEWER-than-current file is still rejected (its layout is unknown).
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSaveForwardMigrationTest, "MANIFOLD.Integration.SaveForwardMigration", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FSaveForwardMigrationTest::RunTest(const FString& Parameters)
+{
+    const FString Dir = FPaths::ProjectSavedDir();
+
+    // --- v1 profile (only the original 3 fields) migrates forward, career preserved ---
+    {
+        TArray<uint8> Bytes;
+        FMemoryWriter W(Bytes, /*bIsPersistent*/ true);
+        uint32 M = FManifoldProfile::Magic; uint32 V = 1;
+        int32 Best = 4200, Played = 9, Won = 4;
+        W << M; W << V; W << Best; W << Played; W << Won;
+        const FString Path = FPaths::Combine(Dir, TEXT("MigrateV1.manifoldprofile"));
+        UTEST_TRUE("write v1 profile", FFileHelper::SaveArrayToFile(Bytes, *Path));
+
+        FManifoldProfile L;
+        UTEST_TRUE("v1 profile loads (migrated forward)", UManifoldSlice::LoadProfile(L, Path));
+        UTEST_EQUAL("v1 best preserved", L.BestScore, 4200);
+        UTEST_EQUAL("v1 played preserved", L.SessionsPlayed, 9);
+        UTEST_EQUAL("v1 won preserved", L.SessionsWon, 4);
+        UTEST_EQUAL("v1 constellation defaults to 0", L.BestConstellationScore, 0);
+        UTEST_EQUAL("v1 expedition defaults to 0", L.BestExpeditionScore, 0);
+        FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*Path);
+    }
+
+    // --- v2 profile (adds constellation, pre-expedition) migrates forward ---
+    {
+        TArray<uint8> Bytes;
+        FMemoryWriter W(Bytes, /*bIsPersistent*/ true);
+        uint32 M = FManifoldProfile::Magic; uint32 V = 2;
+        int32 Best = 100, Played = 3, Won = 2, Con = 777;
+        W << M; W << V; W << Best; W << Played; W << Won; W << Con;
+        const FString Path = FPaths::Combine(Dir, TEXT("MigrateV2.manifoldprofile"));
+        UTEST_TRUE("write v2 profile", FFileHelper::SaveArrayToFile(Bytes, *Path));
+
+        FManifoldProfile L;
+        UTEST_TRUE("v2 profile loads (migrated forward)", UManifoldSlice::LoadProfile(L, Path));
+        UTEST_EQUAL("v2 best preserved", L.BestScore, 100);
+        UTEST_EQUAL("v2 constellation preserved", L.BestConstellationScore, 777);
+        UTEST_EQUAL("v2 expedition defaults to 0", L.BestExpeditionScore, 0);
+        FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*Path);
+    }
+
+    // --- a NEWER-than-current profile is rejected without clobbering the caller ---
+    {
+        TArray<uint8> Bytes;
+        FMemoryWriter W(Bytes, /*bIsPersistent*/ true);
+        uint32 M = FManifoldProfile::Magic; uint32 V = FManifoldProfile::Version + 1;
+        int32 A = 1, B = 2, C = 3, D = 4, E = 5, Fut = 6;
+        W << M; W << V; W << A; W << B; W << C; W << D; W << E; W << Fut;
+        const FString Path = FPaths::Combine(Dir, TEXT("MigrateFuture.manifoldprofile"));
+        FFileHelper::SaveArrayToFile(Bytes, *Path);
+
+        FManifoldProfile Existing; Existing.BestScore = 555;
+        UTEST_FALSE("future-version profile is rejected", UManifoldSlice::LoadProfile(Existing, Path));
+        UTEST_EQUAL("rejected future load leaves profile intact", Existing.BestScore, 555);
+        FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*Path);
+    }
+
+    // --- v1 replay (Classic-only, pre-constellation) migrates forward and plays as Classic ---
+    {
+        TArray<uint8> Bytes;
+        FMemoryWriter W(Bytes, /*bIsPersistent*/ true);
+        uint32 M = FManifoldReplay::Magic; uint32 V = 1;
+        uint64 OrbitsSeed = 12345ULL, FluidsSeed = 67890ULL;
+        int32 Steps = 50;
+        TArray<int32> Transports; Transports.Add(10); Transports.Add(20);
+        int32 Disc = 3, Trans = 2; float Rate = 0.75f;
+        W << M; W << V;
+        W << OrbitsSeed; W << FluidsSeed; W << Steps; W << Transports;
+        W << Disc; W << Trans; W << Rate;
+        const FString Path = FPaths::Combine(Dir, TEXT("MigrateV1.manifoldreplay"));
+        UTEST_TRUE("write v1 replay", FFileHelper::SaveArrayToFile(Bytes, *Path));
+
+        FManifoldReplay R;
+        UTEST_TRUE("v1 replay loads (migrated forward)", UManifoldSlice::LoadReplay(R, Path));
+        UTEST_EQUAL("v1 replay orbits seed preserved", static_cast<int64>(R.OrbitsSeed), static_cast<int64>(12345ULL));
+        UTEST_EQUAL("v1 replay steps preserved", R.Steps, 50);
+        UTEST_EQUAL("v1 replay transport count preserved", R.TransportSteps.Num(), 2);
+        UTEST_EQUAL("v1 replay mode defaults to Classic", static_cast<int32>(R.Mode), 0);
+        UTEST_EQUAL("v1 replay constellation size defaults to 0", R.ConstellationSize, 0);
+        UTEST_EQUAL("v1 replay lock selection empty", R.LockSelection.Num(), 0);
+        FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*Path);
+    }
+
+    return true;
+}
+
 // Decoy realm (the moat): a red-herring realm exhibits a DIFFERENT ratio, and the
 // correspondence engine must refuse to pair it with the true realms. This proves the
 // game can't be trivially solved by "everything matches" — the player must actually

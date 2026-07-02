@@ -822,15 +822,19 @@ bool UManifoldSlice::LoadProfile(FManifoldProfile& OutProfile, const FString& Pa
     uint32 Version = 0;
     Reader << Magic;
     Reader << Version;
-    if (Magic != FManifoldProfile::Magic || Version != FManifoldProfile::Version)
+    if (Magic != FManifoldProfile::Magic || Version == 0 || Version > FManifoldProfile::Version)
     {
+        // Not our file, or a NEWER format this build predates and can't safely read. An
+        // OLDER-but-known version is accepted below and migrated forward.
         return false;
     }
     // Deserialize into a temporary and only commit on a fully successful read, so a
     // truncated/corrupt file (valid header, short body) can never partially overwrite
     // the caller's profile (which would then be saved back, destroying the real save).
+    // Read at the file's OWN version so an older save loads its prefix of fields and the
+    // newer fields keep their defaults — the player's career survives a format bump.
     FManifoldProfile Temp;
-    Reader << Temp;
+    Temp.SerializeVersioned(Reader, Version);
     if (Reader.IsError())
     {
         return false;
@@ -1122,14 +1126,15 @@ bool UManifoldSlice::LoadReplay(FManifoldReplay& OutReplay, const FString& Path)
     uint32 Version = 0;
     Reader << Magic;
     Reader << Version;
-    if (Magic != FManifoldReplay::Magic || Version != FManifoldReplay::Version)
+    if (Magic != FManifoldReplay::Magic || Version == 0 || Version > FManifoldReplay::Version)
     {
-        return false; // not ours / wrong version — reject rather than misread
+        return false; // not ours, or a newer format we predate — reject rather than misread
     }
     // Read into a temporary; only commit on a fully successful read (a truncated file
-    // must not partially overwrite the caller's replay).
+    // must not partially overwrite the caller's replay). Read at the file's OWN version so
+    // an older (e.g. v1 Classic-only) replay migrates forward instead of being rejected.
     FManifoldReplay Temp;
-    Reader << Temp;
+    Temp.SerializeVersioned(Reader, Version);
     if (Reader.IsError())
     {
         return false;

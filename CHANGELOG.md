@@ -6,6 +6,18 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Fixed (save robustness — forward migration across format bumps)
+- **Older saves migrate forward instead of being wiped.** The profile/replay loaders used an
+  all-or-nothing `Version != current` check, so shipping any update that bumped the save format
+  (v1→v2→v3 already did this twice) would silently discard a returning player's career bests.
+  Git history confirms the fields are strictly append-only, so an older save is a valid *prefix*
+  of the current layout. A new `SerializeVersioned(Ar, version)` reads exactly the fields present
+  at the file's on-disk version and defaults the newer ones — the player's progress survives the
+  update. Newer-than-current files are still rejected (unknown layout); the truncated-file
+  `IsError()` guard is intact. Applied to both `FManifoldProfile` and `FManifoldReplay` (a v1
+  Classic-only replay now still plays back). Test: `MANIFOLD.Integration.SaveForwardMigration`
+  hand-builds real v1 / v2 / future payloads and asserts each path. **79/79 green.**
+
 ### Added (kernel contract coverage — complete)
 - **`Reset()` contract test:** `MANIFOLD.Systems.KernelReset` exercises the last untested
   `IRealmKernel` method across all **7** kernels — init → add → step → hash, then `Reset()`,
@@ -229,7 +241,7 @@ confirmed finding, with none deferred. E.g.:
   registration. AndroidFileServer plugin disabled (stops dev-token regeneration).
 
 ### Status
-- **78 / 78** automation tests green, headless. Repo is public and professional.
+- **79 / 79** automation tests green, headless. Repo is public and professional.
   Remaining phase (real art/VFX scenes, bound sound assets, bespoke UMG UI, human
   playtest) is human-owned and needs the editor + a display — see
   `Docs/IMPLEMENTATION_STATUS.md`.
