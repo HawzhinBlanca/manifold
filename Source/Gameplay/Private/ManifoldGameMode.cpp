@@ -8,8 +8,11 @@
 #include "ManifoldToneSynth.h"
 #include "GameFramework/DefaultPawn.h"
 #include "Engine/World.h"
+#include "Engine/Engine.h"
 #include "EngineUtils.h"
 #include "Misc/Paths.h"
+#include "Misc/Parse.h"
+#include "Misc/CommandLine.h"
 
 AManifoldGameMode::AManifoldGameMode()
 {
@@ -117,6 +120,16 @@ void AManifoldGameMode::Tick(float DeltaSeconds)
     {
         TitleTimer += DeltaSeconds;
         if (TitleTimer >= 6.0f) { bTitleShown = false; }
+    }
+
+    // Dev/CI affordance: `-ManifoldAutoShot` captures one HUD-inclusive screenshot ~9s in — after
+    // the title auto-dismisses and the live realm scene is on screen — for headless visual
+    // verification and marketing stills. Completely inert unless the flag is on the command line.
+    if (!bAutoShotTaken && GetWorld() && GetWorld()->GetTimeSeconds() > 9.0f &&
+        FParse::Param(FCommandLine::Get(), TEXT("ManifoldAutoShot")))
+    {
+        bAutoShotTaken = true;
+        if (GEngine) { GEngine->Exec(GetWorld(), TEXT("HighResShot 1280x720")); }
     }
 
     // Classic mode advances the live simulation; Constellation is a static reasoning

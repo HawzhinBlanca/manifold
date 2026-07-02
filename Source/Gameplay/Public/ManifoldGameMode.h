@@ -109,6 +109,9 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
     bool bNewBestThisSession = false;
 
+    /** One-shot guard for the -ManifoldAutoShot dev/CI screenshot affordance (see Tick). */
+    bool bAutoShotTaken = false;
+
 protected:
     float Accumulator = 0.0f;
 

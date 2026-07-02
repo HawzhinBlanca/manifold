@@ -76,7 +76,7 @@ void AManifoldHUD::DrawHUD()
         }
         else
         {
-            DrawText(TEXT("Five realms secretly share one hidden ratio. One is a decoy."),
+            DrawText(TEXT("Six realms secretly share one hidden ratio. One is a decoy."),
                 Cyan, CX - 210.0f, CY + 78.0f, Font);
             DrawText(TEXT("Find the correspondence and carry it across the seam."),
                 Cyan, CX - 195.0f, CY + 100.0f, Font);
