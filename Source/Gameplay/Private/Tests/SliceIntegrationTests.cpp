@@ -860,6 +860,70 @@ bool FKernelStepMultipleEquivalenceTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// Reset() must return a kernel to a clean, reproducible post-init state: after Reset, redoing
+// the same structures + steps must reproduce the same state hash (no leftover state leaks).
+// This completes IRealmKernel contract coverage across all 7 realms.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKernelResetTest, "MANIFOLD.Systems.KernelReset", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FKernelResetTest::RunTest(const FString& Parameters)
+{
+    {
+        UHarmonicsKernel* K = NewObject<UHarmonicsKernel>(); K->Initialize(7ULL);
+        K->AddMode(2.0, 1.0); K->AddMode(3.0, 1.0); K->Step(0.01f);
+        const uint64 H1 = K->ComputeStateHash();
+        K->Reset(); K->AddMode(2.0, 1.0); K->AddMode(3.0, 1.0); K->Step(0.01f);
+        if (!TestEqual(TEXT("Harmonics reset reproduces"), static_cast<int64>(K->ComputeStateHash()), static_cast<int64>(H1))) { return false; }
+    }
+    {
+        UWavesKernel* K = NewObject<UWavesKernel>(); K->Initialize(7ULL);
+        K->ExciteHarmonic(2, 1.0); K->ExciteHarmonic(3, 1.0); K->Step(0.001f);
+        const uint64 H1 = K->ComputeStateHash();
+        K->Reset(); K->ExciteHarmonic(2, 1.0); K->ExciteHarmonic(3, 1.0); K->Step(0.001f);
+        if (!TestEqual(TEXT("Waves reset reproduces"), static_cast<int64>(K->ComputeStateHash()), static_cast<int64>(H1))) { return false; }
+    }
+    {
+        URhythmKernel* K = NewObject<URhythmKernel>(); K->Initialize(7ULL);
+        K->AddVoice(3.0); K->AddVoice(2.0); K->Step(0.016f);
+        const uint64 H1 = K->ComputeStateHash();
+        K->Reset(); K->AddVoice(3.0); K->AddVoice(2.0); K->Step(0.016f);
+        if (!TestEqual(TEXT("Rhythm reset reproduces"), static_cast<int64>(K->ComputeStateHash()), static_cast<int64>(H1))) { return false; }
+    }
+    {
+        UGearsKernel* K = NewObject<UGearsKernel>(); K->Initialize(7ULL);
+        K->AddGear(3); K->AddGear(2); K->Step(0.016f);
+        const uint64 H1 = K->ComputeStateHash();
+        K->Reset(); K->AddGear(3); K->AddGear(2); K->Step(0.016f);
+        if (!TestEqual(TEXT("Gears reset reproduces"), static_cast<int64>(K->ComputeStateHash()), static_cast<int64>(H1))) { return false; }
+    }
+    {
+        UCircuitsKernel* K = NewObject<UCircuitsKernel>(); K->Initialize(7ULL);
+        K->AddTank(2.0, 1.0); K->AddTank(3.0, 1.0); K->Step(0.016f);
+        const uint64 H1 = K->ComputeStateHash();
+        K->Reset(); K->AddTank(2.0, 1.0); K->AddTank(3.0, 1.0); K->Step(0.016f);
+        if (!TestEqual(TEXT("Circuits reset reproduces"), static_cast<int64>(K->ComputeStateHash()), static_cast<int64>(H1))) { return false; }
+    }
+    {
+        auto Setup = [](UOrbitsKernel* K)
+        {
+            FOrbitsBodyDef Star; Star.Mass = 1.989e30; Star.bIsCentral = true; K->AddBody(Star);
+            FOrbitsBodyDef P; P.Mass = 1e24; P.Position = FVector(1.496e11, 0.0, 0.0);
+            P.Velocity = FVector(0.0, FMath::Sqrt((K->G * Star.Mass) / P.Position.X), 0.0); K->AddBody(P);
+        };
+        UOrbitsKernel* K = NewObject<UOrbitsKernel>(); K->Initialize(7ULL); Setup(K); K->Step(0.1f);
+        const uint64 H1 = K->ComputeStateHash();
+        K->Reset(); Setup(K); K->Step(0.1f);
+        if (!TestEqual(TEXT("Orbits reset reproduces"), static_cast<int64>(K->ComputeStateHash()), static_cast<int64>(H1))) { return false; }
+    }
+    {
+        auto Setup = [](UFluidsKernel* K) { K->AddVelocity(0.5f, 0.45f, 20.0f, 0.0f); K->AddVelocity(0.55f, 0.5f, 0.0f, 20.0f); };
+        UFluidsKernel* K = NewObject<UFluidsKernel>(); K->Initialize(7ULL); Setup(K); K->Step(0.016f);
+        const uint64 H1 = K->ComputeStateHash();
+        K->Reset(); Setup(K); K->Step(0.016f);
+        if (!TestEqual(TEXT("Fluids reset reproduces"), static_cast<int64>(K->ComputeStateHash()), static_cast<int64>(H1))) { return false; }
+    }
+    return true;
+}
+
 // Control build (Build Plan D3): with NO correspondence content the loop must NOT
 // manufacture insight — the moat is that unsolved seams stay unsolved. Here we run
 // only the Fluids realm (no resonance to correspond with), so nothing ignites.

@@ -6,6 +6,14 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Added (kernel contract coverage — complete)
+- **`Reset()` contract test:** `MANIFOLD.Systems.KernelReset` exercises the last untested
+  `IRealmKernel` method across all **7** kernels — init → add → step → hash, then `Reset()`,
+  re-add → re-step, and asserts the hash reproduces. This proves `Reset()` returns each kernel
+  to a clean, reproducible post-init state with no leftover state leaking across a reuse. With
+  the earlier serialization round-trip and `StepMultiple == N × Step` tests, every method on the
+  realm-kernel contract now has dedicated coverage. **78/78 green.**
+
 ### Added (integration coverage)
 - **Mixed-mode career test:** `MANIFOLD.Integration.MixedCareerProfile` composes a Classic
   win and a Constellation win onto one profile and asserts the separate per-mode bests,
@@ -221,7 +229,7 @@ confirmed finding, with none deferred. E.g.:
   registration. AndroidFileServer plugin disabled (stops dev-token regeneration).
 
 ### Status
-- **77 / 77** automation tests green, headless. Repo is public and professional.
+- **78 / 78** automation tests green, headless. Repo is public and professional.
   Remaining phase (real art/VFX scenes, bound sound assets, bespoke UMG UI, human
   playtest) is human-owned and needs the editor + a display — see
   `Docs/IMPLEMENTATION_STATUS.md`.
