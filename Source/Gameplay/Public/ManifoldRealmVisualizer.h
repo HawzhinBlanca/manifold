@@ -9,6 +9,7 @@
 class UStaticMesh;
 class UMaterialInterface;
 class UStaticMeshComponent;
+class UProceduralMeshComponent;
 
 /**
  * AManifoldRealmVisualizer — a REAL 3D view of the live realms, built from spawned
@@ -58,6 +59,17 @@ protected:
 
     /** Persistent procedural starfield (spawned once) — the cosmic backdrop. */
     UPROPERTY() TArray<UStaticMeshComponent*> Stars;
+
+    /** The Gears realm rendered as two real, code-generated meshing cogs whose TOOTH
+     *  COUNTS are the ratio (a P-tooth cog beside a Q-tooth cog IS the P:Q). */
+    UPROPERTY() UProceduralMeshComponent* GearCogP = nullptr;
+    UPROPERTY() UProceduralMeshComponent* GearCogQ = nullptr;
+    int32 LastGearP = -1;
+    int32 LastGearQ = -1;
+
+    /** Position + spin a cog, rebuilding its mesh only when the tooth count changes. */
+    void UpdateGearCog(UProceduralMeshComponent* Cog, int32 Teeth, int32& LastTeeth,
+                       const FVector& Pos, float Spin, const FLinearColor& Color);
 
     /** Number of stars in the backdrop shell. */
     UPROPERTY(EditAnywhere, Category = "MANIFOLD") int32 StarCount = 320;

@@ -11,6 +11,7 @@
 #include "RealmKernel.h"
 #include "CorrespondenceSystem.h"
 #include "TelemetrySystem.h"
+#include "ManifoldGearMesh.h"
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
 #include "Serialization/MemoryWriter.h"
@@ -614,6 +615,43 @@ bool FMixedCareerProfileTest::RunTest(const FString& Parameters)
     UTEST_EQUAL("loaded constellation best", Loaded.BestConstellationScore, Career.BestConstellationScore);
     UTEST_EQUAL("loaded sessions won", Loaded.SessionsWon, 2);
     FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*Path);
+
+    return true;
+}
+
+// Procedural gear-cog geometry: a cog with N teeth is generated in code (no imported
+// asset). The mesh is well-formed (indexed triangles, valid indices), scales with the
+// tooth count (so the ratio integer is literally the number of teeth you see), clamps a
+// degenerate 0-tooth request, and is deterministic.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGearMeshTest, "MANIFOLD.UI.GearMesh", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FGearMeshTest::RunTest(const FString& Parameters)
+{
+    TArray<FVector> V3, V8; TArray<int32> T3, T8;
+    ManifoldGearMesh::Build(3, 40.0f, 12.0f, 6.0f, V3, T3);
+    ManifoldGearMesh::Build(8, 40.0f, 12.0f, 6.0f, V8, T8);
+
+    UTEST_GREATER("3-tooth cog has vertices", V3.Num(), 0);
+    UTEST_GREATER("3-tooth cog has triangles", T3.Num(), 0);
+    UTEST_EQUAL("triangle list is whole triangles", T3.Num() % 3, 0);
+    UTEST_EQUAL("vertex count is 2 + 4*Teeth (3)", V3.Num(), 2 + 4 * 3);
+    UTEST_EQUAL("vertex count is 2 + 4*Teeth (8)", V8.Num(), 2 + 4 * 8);
+    UTEST_GREATER("more teeth -> more geometry", V8.Num(), V3.Num());
+
+    bool bInRange = true;
+    for (int32 Idx : T8) { if (Idx < 0 || Idx >= V8.Num()) { bInRange = false; break; } }
+    UTEST_TRUE("every triangle index references a real vertex", bInRange);
+
+    // Deterministic: identical inputs produce identical geometry.
+    TArray<FVector> V3b; TArray<int32> T3b;
+    ManifoldGearMesh::Build(3, 40.0f, 12.0f, 6.0f, V3b, T3b);
+    UTEST_TRUE("deterministic vertices", V3 == V3b);
+    UTEST_TRUE("deterministic triangles", T3 == T3b);
+
+    // A degenerate 0-tooth request clamps to a valid mesh (never empty/crash).
+    TArray<FVector> V0; TArray<int32> T0;
+    ManifoldGearMesh::Build(0, 40.0f, 12.0f, 6.0f, V0, T0);
+    UTEST_GREATER("zero teeth clamps to a valid cog", V0.Num(), 0);
 
     return true;
 }

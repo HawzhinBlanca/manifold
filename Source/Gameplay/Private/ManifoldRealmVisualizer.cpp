@@ -10,6 +10,8 @@
 #include "RhythmKernel.h"
 #include "GearsKernel.h"
 #include "CircuitsKernel.h"
+#include "ManifoldGearMesh.h"
+#include "ProceduralMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -97,6 +99,52 @@ void AManifoldRealmVisualizer::BeginPlay()
     }
 
     SpawnStarfield();
+
+    // Two persistent procedural cogs for the Gears realm (mesh rebuilt on tooth-count change).
+    auto MakeCog = [&](const TCHAR* Name) -> UProceduralMeshComponent*
+    {
+        UProceduralMeshComponent* Cog = NewObject<UProceduralMeshComponent>(this, Name);
+        Cog->SetupAttachment(SceneRoot);
+        Cog->RegisterComponent();
+        Cog->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        if (BaseMaterial) { Cog->CreateDynamicMaterialInstance(0, BaseMaterial); }
+        Cog->SetVisibility(false);
+        return Cog;
+    };
+    GearCogP = MakeCog(TEXT("GearCogP"));
+    GearCogQ = MakeCog(TEXT("GearCogQ"));
+}
+
+void AManifoldRealmVisualizer::UpdateGearCog(UProceduralMeshComponent* Cog, int32 Teeth,
+    int32& LastTeeth, const FVector& Pos, float Spin, const FLinearColor& Color)
+{
+    if (!Cog) return;
+    Cog->SetVisibility(true);
+    Cog->SetWorldLocation(Pos);
+    // Stand the cog up facing the camera (depth axis) and spin it; a cog with more teeth
+    // turns slower, as meshed gears do.
+    const float RollDeg = FMath::RadiansToDegrees(Spin / static_cast<float>(FMath::Max(1, Teeth)));
+    Cog->SetWorldRotation(FRotator(90.0f, 0.0f, RollDeg));
+
+    // Rebuild the mesh only when the tooth count changes (the teeth ARE the ratio integer).
+    if (Teeth != LastTeeth)
+    {
+        LastTeeth = Teeth;
+        TArray<FVector> V; TArray<int32> Tris;
+        ManifoldGearMesh::Build(Teeth, 34.0f, 12.0f, 8.0f, V, Tris);
+        const TArray<FVector> NoNormals;
+        const TArray<FVector2D> NoUV;
+        const TArray<FLinearColor> NoColors;
+        const TArray<FProcMeshTangent> NoTangents;
+        Cog->CreateMeshSection_LinearColor(0, V, Tris, NoNormals, NoUV, NoColors, NoTangents, false);
+    }
+
+    if (UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(Cog->GetMaterial(0)))
+    {
+        const FLinearColor Lit = Color * PulseFactor;
+        MID->SetVectorParameterValue(TEXT("Color"), Lit);
+        MID->SetVectorParameterValue(TEXT("BaseColor"), Lit);
+    }
 }
 
 void AManifoldRealmVisualizer::SpawnStarfield()
@@ -292,10 +340,18 @@ void AManifoldRealmVisualizer::Tick(float DeltaSeconds)
         const FIntPoint R = S->Rhythm->GetActiveRatios()[0].Ratio;
         PlaceRatioRealm(RhythmCenter, R.X, R.Y, RhythmAmber);
     }
+    // Gears: two real, code-generated meshing cogs whose tooth counts are the ratio.
     if (S->Gears && S->Gears->GetActiveRatios().Num() > 0)
     {
         const FIntPoint R = S->Gears->GetActiveRatios()[0].Ratio;
-        PlaceRatioRealm(GearsCenter, R.X, R.Y, GearsSteel);
+        const FVector Off(0.0, 60.0, 0.0);
+        UpdateGearCog(GearCogP, R.X, LastGearP, GearsCenter + Off,  SpinAngle * 4.0f, GearsSteel);
+        UpdateGearCog(GearCogQ, R.Y, LastGearQ, GearsCenter - Off, -SpinAngle * 4.0f, GearsSteel);
+    }
+    else
+    {
+        if (GearCogP) { GearCogP->SetVisibility(false); }
+        if (GearCogQ) { GearCogQ->SetVisibility(false); }
     }
     if (S->Circuits && S->Circuits->GetActiveRatios().Num() > 0)
     {
