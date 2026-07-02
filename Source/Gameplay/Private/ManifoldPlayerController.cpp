@@ -51,6 +51,10 @@ AManifoldPlayerController::AManifoldPlayerController()
     ExpeditionAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_Expedition"));
     ExpeditionAction->ValueType = EInputActionValueType::Boolean;
     MappingContext->MapKey(ExpeditionAction, EKeys::X);
+
+    HelpAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_Help"));
+    HelpAction->ValueType = EInputActionValueType::Boolean;
+    MappingContext->MapKey(HelpAction, EKeys::H);
 }
 
 void AManifoldPlayerController::BeginPlay()
@@ -87,6 +91,7 @@ void AManifoldPlayerController::BeginPlay()
         EIC->BindAction(ModeAction, ETriggerEvent::Started, this, &AManifoldPlayerController::OnToggleMode);
         EIC->BindAction(RevealAction, ETriggerEvent::Started, this, &AManifoldPlayerController::OnReveal);
         EIC->BindAction(ExpeditionAction, ETriggerEvent::Started, this, &AManifoldPlayerController::OnExpedition);
+        EIC->BindAction(HelpAction, ETriggerEvent::Started, this, &AManifoldPlayerController::OnHelp);
     }
 }
 
@@ -170,6 +175,17 @@ void AManifoldPlayerController::OnExpedition()
         if (AManifoldGameMode* GM = World->GetAuthGameMode<AManifoldGameMode>())
         {
             GM->ManifoldStartExpedition();
+        }
+    }
+}
+
+void AManifoldPlayerController::OnHelp()
+{
+    if (UWorld* World = GetWorld())
+    {
+        if (AManifoldGameMode* GM = World->GetAuthGameMode<AManifoldGameMode>())
+        {
+            GM->ManifoldToggleHelp();
         }
     }
 }

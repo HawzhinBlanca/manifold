@@ -64,6 +64,14 @@ public:
     UFUNCTION(Exec, BlueprintCallable, Category = "MANIFOLD")
     void ManifoldStartExpedition();
 
+    /** Toggle the controls/modes help overlay ([H]). */
+    UFUNCTION(Exec, BlueprintCallable, Category = "MANIFOLD")
+    void ManifoldToggleHelp() { bHelpShown = !bHelpShown; }
+
+    /** True while the help overlay is showing. */
+    UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
+    bool bHelpShown = false;
+
     // --- Expedition HUD accessors ---
     UFUNCTION(BlueprintPure, Category = "MANIFOLD") bool IsExpeditionActive() const { return bExpeditionActive; }
     UFUNCTION(BlueprintPure, Category = "MANIFOLD") int32 GetExpeditionLevel() const { return ExpeditionLevel; }

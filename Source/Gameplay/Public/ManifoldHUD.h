@@ -35,4 +35,7 @@ private:
      *  hint, probes, objective, and the resolution banner. Drawn instead of the classic
      *  realm readout when the session is in constellation mode. */
     void DrawConstellationReadout(UManifoldSlice* S, AManifoldGameMode* GM, UFont* Font, UFont* Big);
+
+    /** A modal controls/modes reference, toggled with [H]. */
+    void DrawHelpOverlay(UFont* Font, UFont* Big);
 };

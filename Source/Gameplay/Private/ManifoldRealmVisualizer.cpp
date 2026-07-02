@@ -293,6 +293,21 @@ void AManifoldRealmVisualizer::Tick(float DeltaSeconds)
                 const FVector P = OrbitsCenter
                     + FVector(Body.Position.X, Body.Position.Y, 0.0) / AstronomicalUnit * OrbitsScale;
                 PlaceSphere(P, Body.bIsCentral ? 70.0f : 28.0f, Body.bIsCentral ? StarGold : PlanetBlue);
+
+                // Trace each planet's orbital PATH as a faint ring — the orbit (the
+                // periodic structure the resonance lives in) made visible.
+                if (!Body.bIsCentral)
+                {
+                    const float OrbitR = FVector(Body.Position.X, Body.Position.Y, 0.0).Size()
+                        / AstronomicalUnit * OrbitsScale;
+                    const int32 PathBeads = 32;
+                    for (int32 k = 0; k < PathBeads; ++k)
+                    {
+                        const float A = 2.0f * PI * static_cast<float>(k) / PathBeads;
+                        PlaceSphere(OrbitsCenter + FVector(FMath::Cos(A) * OrbitR, FMath::Sin(A) * OrbitR, 0.0f),
+                            5.0f, FLinearColor(0.28f, 0.36f, 0.6f));
+                    }
+                }
             }
         }
     }

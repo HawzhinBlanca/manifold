@@ -40,6 +40,13 @@ void AManifoldHUD::DrawHUD()
     const FLinearColor Amber(1.0f, 0.6f, 0.4f);
     const FLinearColor PanelBg(0.02f, 0.03f, 0.07f, 0.72f);
 
+    // --- Controls / modes help overlay ([H]) — modal over everything ---
+    if (GM->bHelpShown)
+    {
+        DrawHelpOverlay(Font, Big);
+        return;
+    }
+
     // --- Intro title card (over the live realms + starfield), until first action ---
     if (GM->bTitleShown)
     {
@@ -64,8 +71,8 @@ void AManifoldHUD::DrawHUD()
                 Cyan, CX - 230.0f, CY + 100.0f, Font);
             DrawText(TEXT("the six ratios by it, then lock exactly the matching set."),
                 Cyan, CX - 220.0f, CY + 118.0f, Font);
-            DrawText(TEXT("[1-6] pick   [Space] lock   [C] classic   [R] new puzzle"),
-                Gold, CX - 200.0f, CY + 150.0f, Font);
+            DrawText(TEXT("[1-6] pick   [Space] lock   [C] classic   [R] new   [H] help"),
+                Gold, CX - 210.0f, CY + 150.0f, Font);
         }
         else
         {
@@ -73,8 +80,8 @@ void AManifoldHUD::DrawHUD()
                 Cyan, CX - 210.0f, CY + 78.0f, Font);
             DrawText(TEXT("Find the correspondence and carry it across the seam."),
                 Cyan, CX - 195.0f, CY + 100.0f, Font);
-            DrawText(TEXT("[E] transport   [R] restart   [C] constellation mode"),
-                Gold, CX - 150.0f, CY + 134.0f, Font);
+            DrawText(TEXT("[E] transport   [R] restart   [C] constellation   [H] help"),
+                Gold, CX - 165.0f, CY + 134.0f, Font);
         }
         // Persistent record — your bests across every mode, so "beat your best" has a home.
         DrawText(FString::Printf(TEXT("Best   Classic %d    Constellation %d    Expedition %d"),
@@ -202,6 +209,47 @@ void AManifoldHUD::DrawHUD()
             DrawText(TEXT(">>> NEW BEST! <<<"), Gold, CX - 66.0f, CY + 94.0f, Font);
         }
     }
+}
+
+void AManifoldHUD::DrawHelpOverlay(UFont* Font, UFont* Big)
+{
+    const FLinearColor Gold(1.0f, 0.85f, 0.2f);
+    const FLinearColor Cyan(0.3f, 0.8f, 1.0f);
+    const FLinearColor Dim(0.62f, 0.66f, 0.74f);
+
+    const float CX = Canvas ? Canvas->ClipX * 0.5f : 640.0f;
+    const float CY = Canvas ? Canvas->ClipY * 0.5f : 360.0f;
+
+    DrawPanel(CX - 340.0f, CY - 250.0f, 680.0f, 500.0f, FLinearColor(0.02f, 0.03f, 0.07f, 0.9f));
+    if (Big) { DrawText(TEXT("MANIFOLD — Controls & Modes"), Gold, CX - 220.0f, CY - 226.0f, Big, 1.1f); }
+
+    float Y = CY - 180.0f;
+    const float X = CX - 300.0f;
+    auto Row = [&](const FString& Keys, const FString& What, const FLinearColor& Col)
+    {
+        DrawText(Keys, Gold, X, Y, Font);
+        DrawText(What, Col, X + 150.0f, Y, Font);
+        Y += 26.0f;
+    };
+
+    Row(TEXT("Modes:"), TEXT(""), Cyan);
+    Row(TEXT("[C]"), TEXT("Cycle Classic -> Constellation -> Constellation (Expert)"), Dim);
+    Row(TEXT("[X]"), TEXT("Start a Constellation Expedition (escalating campaign)"), Dim);
+    Y += 12.0f;
+    Row(TEXT("Classic:"), TEXT(""), Cyan);
+    Row(TEXT("[E]"), TEXT("Transport the lit correspondence across the seam"), Dim);
+    Row(TEXT("[R]"), TEXT("Restart / new puzzle"), Dim);
+    Y += 12.0f;
+    Row(TEXT("Constellation Lock:"), TEXT(""), Cyan);
+    Row(TEXT("[1]-[6]"), TEXT("Pick / unpick a realm for your subset"), Dim);
+    Row(TEXT("[Space]"), TEXT("Lock the selected subset (exact match wins)"), Dim);
+    Row(TEXT("[V]"), TEXT("Pay points to reveal a realm's membership"), Dim);
+    Y += 16.0f;
+    DrawText(TEXT("Goal: find the realms that truly correspond (Exact, or Octave-equivalent"),
+        Cyan, X, Y, Font); Y += 24.0f;
+    DrawText(TEXT("where 3:1 = 3:2 = 6:1) and lock exactly them. Octave & flawless score more."),
+        Cyan, X, Y, Font); Y += 32.0f;
+    DrawText(TEXT("[H] close this help"), Gold, X, Y, Font);
 }
 
 void AManifoldHUD::DrawConstellationReadout(UManifoldSlice* S, AManifoldGameMode* GM, UFont* Font, UFont* Big)
