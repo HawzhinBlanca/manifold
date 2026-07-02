@@ -41,6 +41,7 @@ public:
     UPROPERTY(EditAnywhere, Category = "MANIFOLD") FVector WavesCenter     = FVector( 450.0, 0.0, 250.0);
     UPROPERTY(EditAnywhere, Category = "MANIFOLD") FVector RhythmCenter    = FVector( 900.0, 0.0, 250.0);
     UPROPERTY(EditAnywhere, Category = "MANIFOLD") FVector GearsCenter     = FVector(-450.0, 0.0, 560.0);
+    UPROPERTY(EditAnywhere, Category = "MANIFOLD") FVector CircuitsCenter  = FVector(   0.0, 0.0, 560.0);
     UPROPERTY(EditAnywhere, Category = "MANIFOLD") FVector DecoyCenter     = FVector( 450.0, 0.0, 560.0);
 
     /** World units per astronomical unit (Orbits are ~1e11 m). */
@@ -67,6 +68,12 @@ protected:
 
     /** Accumulated spin so the ratio-pair clusters gently orbit (a living scene). */
     float SpinAngle = 0.0f;
+
+    /** Discovery "flash": a brief scene brightening (blooms via post) when a new
+     *  correspondence surfaces, so an insight lands with a visible pulse. */
+    float PulseTimer = 0.0f;   // seconds remaining in the current flash
+    float PulseFactor = 1.0f;  // color multiplier applied to spheres this frame
+    int32 LastDiscoveryCount = 0;
 
     /** Frame-pooled sphere placement: reuse components, hide the leftovers. */
     void BeginFrame();

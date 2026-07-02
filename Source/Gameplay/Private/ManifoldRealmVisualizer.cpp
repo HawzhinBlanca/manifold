@@ -9,6 +9,7 @@
 #include "WavesKernel.h"
 #include "RhythmKernel.h"
 #include "GearsKernel.h"
+#include "CircuitsKernel.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -28,6 +29,7 @@ namespace
     const FLinearColor WavesTeal(0.3f, 0.9f, 0.8f);
     const FLinearColor RhythmAmber(1.0f, 0.6f, 0.35f);
     const FLinearColor GearsSteel(0.7f, 0.75f, 0.82f);
+    const FLinearColor CircuitsColor(0.35f, 0.9f, 0.7f);
     const FLinearColor DecoyGrey(0.5f, 0.5f, 0.55f);
     const FLinearColor SeamGold(1.0f, 0.8f, 0.2f);
     constexpr double AstronomicalUnit = 1.496e11; // metres
@@ -188,10 +190,12 @@ void AManifoldRealmVisualizer::PlaceSphere(const FVector& WorldPos, float Diamet
     Comp->SetWorldScale3D(FVector(DiameterUnits / EngineSphereDiameter));
     if (UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(Comp->GetMaterial(0)))
     {
+        // Brighten by the discovery-flash factor (>1 blooms via the post-process).
+        const FLinearColor Lit = Color * PulseFactor;
         // Set the common param names so the color applies whatever the base material
         // calls it (non-existent params are harmless no-ops).
-        MID->SetVectorParameterValue(TEXT("Color"), Color);
-        MID->SetVectorParameterValue(TEXT("BaseColor"), Color);
+        MID->SetVectorParameterValue(TEXT("Color"), Lit);
+        MID->SetVectorParameterValue(TEXT("BaseColor"), Lit);
     }
 }
 
@@ -220,6 +224,14 @@ void AManifoldRealmVisualizer::Tick(float DeltaSeconds)
     UManifoldSlice* S = GM->Slice;
 
     SpinAngle += DeltaSeconds * 0.6f; // gentle orbit of the ratio pairs
+
+    // Discovery flash: when the total discoveries tick up, brighten the scene briefly
+    // (the bloom post makes it read as a pulse of insight).
+    const int32 DiscoveriesNow = S->GetTotalDiscoveries();
+    if (DiscoveriesNow > LastDiscoveryCount) { PulseTimer = 0.5f; }
+    LastDiscoveryCount = DiscoveriesNow;
+    PulseTimer = FMath::Max(0.0f, PulseTimer - DeltaSeconds);
+    PulseFactor = 1.0f + 1.3f * (PulseTimer / 0.5f);
 
     BeginFrame();
 
@@ -284,6 +296,11 @@ void AManifoldRealmVisualizer::Tick(float DeltaSeconds)
     {
         const FIntPoint R = S->Gears->GetActiveRatios()[0].Ratio;
         PlaceRatioRealm(GearsCenter, R.X, R.Y, GearsSteel);
+    }
+    if (S->Circuits && S->Circuits->GetActiveRatios().Num() > 0)
+    {
+        const FIntPoint R = S->Circuits->GetActiveRatios()[0].Ratio;
+        PlaceRatioRealm(CircuitsCenter, R.X, R.Y, CircuitsColor);
     }
     // The decoy realm, set apart (above) and grey — a visible red herring.
     if (S->Decoy && S->Decoy->GetActiveRatios().Num() > 0)
