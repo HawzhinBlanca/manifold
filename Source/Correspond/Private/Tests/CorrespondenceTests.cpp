@@ -71,6 +71,66 @@ bool FCorrespondenceRelationNormalizeTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// The octave DECOYS are LOAD-BEARING. OctaveInvariant normalization is DIRECTIONAL — it does NOT
+// canonicalize term order (unlike Reciprocal) — and constellation discrimination depends on each
+// decoy's octave class staying DISTINCT from every family's base:1 member class. A well-meaning
+// "fix" that folded order to min:max would collapse 4:3 -> 3:1 and 8:5 -> 5:1 onto member classes
+// and silently break the puzzle (a decoy would then falsely correspond). This locks the intended
+// behavior; it was surfaced by an adversarial audit that proposed exactly that unsafe fix.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FOctaveDecoyDistinctnessTest, "MANIFOLD.Correspondence.OctaveDecoyDistinctness", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FOctaveDecoyDistinctnessTest::RunTest(const FString& Parameters)
+{
+    using EN = ECorrespondenceRelation;
+    auto Oct = [](const FString& R) { return UCorrespondenceSystem::NormalizeRatio(R, EN::OctaveInvariant); };
+
+    // The four octave families each collapse to a single base:1 class (mirrors ManifoldSlice kFamilyMembers).
+    const TCHAR* Families[4][3] = {
+        { TEXT("3:1"), TEXT("3:2"), TEXT("6:1") },
+        { TEXT("5:1"), TEXT("5:2"), TEXT("5:4") },
+        { TEXT("7:1"), TEXT("7:2"), TEXT("7:4") },
+        { TEXT("9:1"), TEXT("9:2"), TEXT("9:4") },
+    };
+    TArray<FString> MemberClasses;
+    for (int32 f = 0; f < 4; ++f)
+    {
+        const FString Base = Oct(Families[f][0]);
+        for (int32 m = 1; m < 3; ++m)
+        {
+            if (!TestEqual(FString::Printf(TEXT("family %d member %s collapses to base %s"), f, Families[f][m], *Base),
+                Oct(Families[f][m]), Base)) { return false; }
+        }
+        MemberClasses.Add(Base);
+    }
+    // Distinct families stay distinct classes.
+    for (int32 a = 0; a < 4; ++a)
+    {
+        for (int32 b = a + 1; b < 4; ++b)
+        {
+            if (!TestNotEqual(FString::Printf(TEXT("family %d != family %d"), a, b), MemberClasses[a], MemberClasses[b])) { return false; }
+        }
+    }
+
+    // The six octave decoys (mirrors ManifoldSlice kDecoyRatios) must each land OUTSIDE every member class.
+    const TCHAR* Decoys[] = { TEXT("5:3"), TEXT("4:3"), TEXT("7:5"), TEXT("8:5"), TEXT("7:3"), TEXT("9:5") };
+    for (const TCHAR* D : Decoys)
+    {
+        const FString DClass = Oct(D);
+        for (const FString& MC : MemberClasses)
+        {
+            if (!TestNotEqual(FString::Printf(TEXT("decoy %s (->%s) is not member class %s"), D, *DClass, *MC),
+                DClass, MC)) { return false; }
+        }
+    }
+
+    // Directionality is intentional (the contract): 4:3 -> "1:3" (NOT "3:1"), 8:5 -> "1:5" (NOT "5:1").
+    UTEST_EQUAL("octave 4:3 normalizes to 1:3 (directional)", Oct(TEXT("4:3")), FString(TEXT("1:3")));
+    UTEST_NOT_EQUAL("octave 4:3 (1:3) is not 3:1", Oct(TEXT("4:3")), Oct(TEXT("3:1")));
+    UTEST_NOT_EQUAL("octave 8:5 (1:5) is not 5:1", Oct(TEXT("8:5")), Oct(TEXT("5:1")));
+
+    return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCorrespondenceValidationTest, "MANIFOLD.Correspondence.MappingValidation", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 
 bool FCorrespondenceValidationTest::RunTest(const FString& Parameters)

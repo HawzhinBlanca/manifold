@@ -6,6 +6,19 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Hardening (correspondence core — adversarial audit)
+- **Locked the load-bearing octave-decoy distinctness contract.** An adversarial audit of the
+  matching core (`NormalizeRatio` / `DetectSharedStructureCorrespondences` / constellation
+  generation) confirmed the engine is sound — no reachable false-match, ambiguous/unsolvable puzzle,
+  or non-determinism — and surfaced one latent contract weakness: `NormalizeRatio(OctaveInvariant)`
+  is order-sensitive (unlike `Reciprocal`). Investigation showed this order-sensitivity is
+  **intentional and load-bearing**: the octave decoys depend on it (`4:3 → "1:3"` must stay distinct
+  from the base-3 member class `3:1`; the audit's suggested "canonicalize order" fix would have
+  collapsed decoys onto member classes and broken discrimination). Documented the directional
+  contract in `NormalizeRatio` and locked it with `MANIFOLD.Correspondence.OctaveDecoyDistinctness`
+  (asserts every family collapses, families stay distinct, and no decoy lands on a member class).
+  **83/83 green.**
+
 ## [0.9.0] — 2026-07-02 — "Correspondence Engine Complete"
 
 _First tagged release. The entire code-implementable game is built, verified (82/82 automation
@@ -298,7 +311,7 @@ confirmed finding, with none deferred. E.g.:
   registration. AndroidFileServer plugin disabled (stops dev-token regeneration).
 
 ### Status
-- **82 / 82** automation tests green, headless. Repo is public and professional.
+- **83 / 83** automation tests green, headless. Repo is public and professional.
   Remaining phase (real art/VFX scenes, bound sound assets, bespoke UMG UI, human
   playtest) is human-owned and needs the editor + a display — see
   `Docs/IMPLEMENTATION_STATUS.md`.

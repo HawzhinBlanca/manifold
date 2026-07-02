@@ -97,6 +97,15 @@ FString UCorrespondenceSystem::NormalizeRatio(const FString& Ratio, ECorresponde
 
     // Octave-invariance: divide out all factors of 2 from each term BEFORE reducing,
     // so period-doublings collapse into one class (3:2, 6:4, 3:1 -> 3:1).
+    //
+    // DIRECTIONAL BY DESIGN — do NOT canonicalize term order here (unlike the Reciprocal
+    // branch below). Ratios in this game are directional and emitted Hi:Lo (p >= q) by every
+    // kernel, and the octave DECOYS rely on order staying significant: 4:3 -> "1:3" must stay
+    // distinct from the base-3 member class 3:1 -> "3:1" (and 8:5 -> "1:5" from 5:1). Folding
+    // order to min:max would collapse those decoys onto the member classes and silently break
+    // constellation discrimination — see the reject filter in ManifoldSlice.cpp and the
+    // regression test MANIFOLD.Correspondence.OctaveDecoyDistinctness. (Reciprocal is the
+    // separate, order-independent relation.)
     if (Relation == ECorrespondenceRelation::OctaveInvariant)
     {
         while ((P & 1) == 0) { P >>= 1; }
