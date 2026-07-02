@@ -6,6 +6,17 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-07-02 — "Correspondence Engine Complete"
+
+_First tagged release. The entire code-implementable game is built, verified (82/82 automation
+tests, headless), and shippable: seven realms + a decoy, a relation-aware N-realm correspondence
+engine, two full play modes (Classic + Constellation Lock) with Expert and a playable Expedition
+campaign, deterministic shareable replays, scoring/ranks/per-mode profiles, procedural audio +
+starfield + emblem + branded HUD, Enhanced Input, and a headless packaging path. Save/load is
+forward-migrating and hardened against untrusted replay files; the realm palette is colorblind-safe.
+The remaining pre-1.0 lane is the bespoke art/VFX pass (see `Docs/ART_DIRECTION.md`), which needs a
+display + art direction._
+
 ### Art / Accessibility (colorblind-safe realm palette + direction doc)
 - **Realm colours are now colorblind-safe and centralised.** The seven realm colours moved from
   ad-hoc literals in the visualizer (which had near-identical teal Waves/Circuits and blue
