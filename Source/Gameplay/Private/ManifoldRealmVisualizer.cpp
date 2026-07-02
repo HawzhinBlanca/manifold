@@ -11,6 +11,7 @@
 #include "GearsKernel.h"
 #include "CircuitsKernel.h"
 #include "ManifoldGearMesh.h"
+#include "ManifoldWaveMesh.h"
 #include "ProceduralMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/DirectionalLightComponent.h"
@@ -113,6 +114,36 @@ void AManifoldRealmVisualizer::BeginPlay()
     };
     GearCogP = MakeCog(TEXT("GearCogP"));
     GearCogQ = MakeCog(TEXT("GearCogQ"));
+    WaveRibbonP = MakeCog(TEXT("WaveRibbonP")); // same procedural-mesh setup, different geometry
+    WaveRibbonQ = MakeCog(TEXT("WaveRibbonQ"));
+}
+
+void AManifoldRealmVisualizer::UpdateWaveRibbon(UProceduralMeshComponent* Ribbon, int32 Harmonic,
+    int32& LastHarmonic, const FVector& Pos, const FLinearColor& Color)
+{
+    if (!Ribbon) return;
+    Ribbon->SetVisibility(true);
+    Ribbon->SetWorldLocation(Pos);
+    Ribbon->SetWorldRotation(FRotator::ZeroRotator);
+
+    if (Harmonic != LastHarmonic)
+    {
+        LastHarmonic = Harmonic;
+        TArray<FVector> V; TArray<int32> Tris;
+        ManifoldWaveMesh::Build(Harmonic, 150.0f, 34.0f, 4.0f, V, Tris);
+        const TArray<FVector> NoNormals;
+        const TArray<FVector2D> NoUV;
+        const TArray<FLinearColor> NoColors;
+        const TArray<FProcMeshTangent> NoTangents;
+        Ribbon->CreateMeshSection_LinearColor(0, V, Tris, NoNormals, NoUV, NoColors, NoTangents, false);
+    }
+
+    if (UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(Ribbon->GetMaterial(0)))
+    {
+        const FLinearColor Lit = Color * PulseFactor;
+        MID->SetVectorParameterValue(TEXT("Color"), Lit);
+        MID->SetVectorParameterValue(TEXT("BaseColor"), Lit);
+    }
 }
 
 void AManifoldRealmVisualizer::UpdateGearCog(UProceduralMeshComponent* Cog, int32 Teeth,
@@ -345,10 +376,17 @@ void AManifoldRealmVisualizer::Tick(float DeltaSeconds)
         const FIntPoint R = S->Harmonics->GetActiveRatios()[0].Ratio;
         PlaceRatioRealm(HarmonicsCenter, R.X, R.Y, HarmonicsViolet);
     }
+    // Waves: two standing-wave ribbons whose hump counts (harmonics) are the ratio.
     if (S->Waves && S->Waves->GetActiveRatios().Num() > 0)
     {
         const FIntPoint R = S->Waves->GetActiveRatios()[0].Ratio;
-        PlaceRatioRealm(WavesCenter, R.X, R.Y, WavesTeal);
+        UpdateWaveRibbon(WaveRibbonP, R.X, LastWaveP, WavesCenter + FVector(0.0, 0.0, 55.0), WavesTeal);
+        UpdateWaveRibbon(WaveRibbonQ, R.Y, LastWaveQ, WavesCenter - FVector(0.0, 0.0, 55.0), WavesTeal);
+    }
+    else
+    {
+        if (WaveRibbonP) { WaveRibbonP->SetVisibility(false); }
+        if (WaveRibbonQ) { WaveRibbonQ->SetVisibility(false); }
     }
     if (S->Rhythm && S->Rhythm->GetActiveRatios().Num() > 0)
     {

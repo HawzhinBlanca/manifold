@@ -71,6 +71,17 @@ protected:
     void UpdateGearCog(UProceduralMeshComponent* Cog, int32 Teeth, int32& LastTeeth,
                        const FVector& Pos, float Spin, const FLinearColor& Color);
 
+    /** The Waves realm rendered as two standing-wave ribbons whose HARMONIC (hump count)
+     *  is the ratio (a P-hump ribbon beside a Q-hump ribbon IS the P:Q). */
+    UPROPERTY() UProceduralMeshComponent* WaveRibbonP = nullptr;
+    UPROPERTY() UProceduralMeshComponent* WaveRibbonQ = nullptr;
+    int32 LastWaveP = -1;
+    int32 LastWaveQ = -1;
+
+    /** Position a ribbon, rebuilding its mesh only when the harmonic changes. */
+    void UpdateWaveRibbon(UProceduralMeshComponent* Ribbon, int32 Harmonic, int32& LastHarmonic,
+                          const FVector& Pos, const FLinearColor& Color);
+
     /** Number of stars in the backdrop shell. */
     UPROPERTY(EditAnywhere, Category = "MANIFOLD") int32 StarCount = 320;
 

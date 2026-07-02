@@ -12,6 +12,7 @@
 #include "CorrespondenceSystem.h"
 #include "TelemetrySystem.h"
 #include "ManifoldGearMesh.h"
+#include "ManifoldWaveMesh.h"
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
 #include "Serialization/MemoryWriter.h"
@@ -691,6 +692,43 @@ bool FConstellationRankCurveTest::RunTest(const FString& Parameters)
         static_cast<int32>(ExpertRank), static_cast<int32>(OctaveRank));
     UTEST_EQUAL("a flawless expert-octave solve earns the top rank (S)",
         static_cast<int32>(ExpertRank), static_cast<int32>(EManifoldRank::S));
+    return true;
+}
+
+// Procedural standing-wave ribbon: the N-th harmonic is drawn as sin(N*pi*t), so the
+// number of humps is the harmonic (a 3-hump ribbon beside a 2-hump ribbon is the 3:2).
+// Well-formed indexed mesh, scales with the harmonic, reaches +/-Amplitude, deterministic.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FWaveMeshTest, "MANIFOLD.UI.WaveMesh", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FWaveMeshTest::RunTest(const FString& Parameters)
+{
+    TArray<FVector> V2, V5; TArray<int32> T2, T5;
+    ManifoldWaveMesh::Build(2, 200.0f, 40.0f, 4.0f, V2, T2);
+    ManifoldWaveMesh::Build(5, 200.0f, 40.0f, 4.0f, V5, T5);
+
+    UTEST_GREATER("N=2 ribbon has vertices", V2.Num(), 0);
+    UTEST_EQUAL("triangle list is whole triangles", T2.Num() % 3, 0);
+    UTEST_EQUAL("vertex count = 2*(16*N+1) for N=2", V2.Num(), 2 * (16 * 2 + 1));
+    UTEST_GREATER("higher harmonic -> more geometry", V5.Num(), V2.Num());
+
+    bool bInRange = true;
+    for (int32 Idx : T5) { if (Idx < 0 || Idx >= V5.Num()) { bInRange = false; break; } }
+    UTEST_TRUE("every triangle index references a real vertex", bInRange);
+
+    float MaxY = -1.0e9f, MinY = 1.0e9f;
+    for (const FVector& P : V2) { MaxY = FMath::Max(MaxY, static_cast<float>(P.Y)); MinY = FMath::Min(MinY, static_cast<float>(P.Y)); }
+    UTEST_TRUE("ribbon swings to +Amplitude", MaxY > 39.0f);
+    UTEST_TRUE("ribbon swings to -Amplitude", MinY < -39.0f);
+
+    TArray<FVector> V2b; TArray<int32> T2b;
+    ManifoldWaveMesh::Build(2, 200.0f, 40.0f, 4.0f, V2b, T2b);
+    UTEST_TRUE("deterministic vertices", V2 == V2b);
+    UTEST_TRUE("deterministic triangles", T2 == T2b);
+
+    TArray<FVector> V0; TArray<int32> T0;
+    ManifoldWaveMesh::Build(0, 200.0f, 40.0f, 4.0f, V0, T0);
+    UTEST_GREATER("zero harmonic clamps to a valid ribbon", V0.Num(), 0);
+
     return true;
 }
 
