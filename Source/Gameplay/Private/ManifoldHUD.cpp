@@ -46,7 +46,7 @@ void AManifoldHUD::DrawHUD()
         const float CX = Canvas ? Canvas->ClipX * 0.5f : 640.0f;
         const float CY = Canvas ? Canvas->ClipY * 0.5f : 360.0f;
 
-        DrawPanel(CX - 320.0f, CY - 180.0f, 640.0f, 340.0f, FLinearColor(0.02f, 0.03f, 0.07f, 0.8f));
+        DrawPanel(CX - 320.0f, CY - 180.0f, 640.0f, 388.0f, FLinearColor(0.02f, 0.03f, 0.07f, 0.8f));
         if (Emblem)
         {
             DrawTexture(Emblem, CX - 70.0f, CY - 160.0f, 140.0f, 140.0f, 0, 0, 1, 1);
@@ -76,6 +76,13 @@ void AManifoldHUD::DrawHUD()
             DrawText(TEXT("[E] transport   [R] restart   [C] constellation mode"),
                 Gold, CX - 150.0f, CY + 134.0f, Font);
         }
+        // Persistent record — your bests across every mode, so "beat your best" has a home.
+        DrawText(FString::Printf(TEXT("Best   Classic %d    Constellation %d    Expedition %d"),
+            GM->Profile.BestScore, GM->Profile.BestConstellationScore, GM->Profile.BestExpeditionScore),
+            Dim, CX - 240.0f, CY + 178.0f, Font);
+        DrawText(FString::Printf(TEXT("Sessions won %d / %d       [X] Constellation Expedition"),
+            GM->Profile.SessionsWon, GM->Profile.SessionsPlayed),
+            Dim, CX - 240.0f, CY + 196.0f, Font);
         return; // show only the title over the scene until the player begins
     }
 
