@@ -196,6 +196,33 @@ FManifoldExpeditionResult UManifoldSlice::RunExpedition(int64 BaseSeed, int32 Nu
     return Result;
 }
 
+FManifoldExpeditionResult UManifoldSlice::RunConstellationExpedition(int64 BaseSeed, int32 NumLevels, UObject* Outer)
+{
+    FManifoldExpeditionResult Result;
+    UObject* Package = Outer ? Outer : (UObject*)GetTransientPackage();
+
+    for (int32 Level = 0; Level < NumLevels; ++Level)
+    {
+        UManifoldSlice* Slice = NewObject<UManifoldSlice>(Package);
+
+        // Escalating difficulty: the rule is HIDDEN (Expert) from the third level on, so
+        // later levels demand inferring the relation, not just applying it.
+        const bool bExpert = (Level >= 2);
+        Slice->SetupConstellation(BaseSeed + Level, 3, bExpert);
+
+        // A perfect run locks the correct constellation each level.
+        if (!Slice->PlayerLockConstellation(Slice->GetConstellation()))
+        {
+            break; // (a perfect player never misses; guards against a mis-generated level)
+        }
+        ++Result.LevelsCleared;
+        Result.TotalScore += Slice->GetScore();
+    }
+
+    Result.bCompleted = (Result.LevelsCleared == NumLevels);
+    return Result;
+}
+
 void UManifoldSlice::PickSharedRatio(uint64 Seed, int32& OutP, int32& OutQ)
 {
     // Curated coprime small-integer ratios (p > q, both <= 9 so every realm can
@@ -473,6 +500,12 @@ bool UManifoldSlice::PlayerLockConstellation(const TArray<int32>& SelectedRealmI
     if (Selection != Constellation)
     {
         ++FailedProbes;
+        // A wrong lock buzzes — audible negative feedback (no display needed).
+        if (Audio)
+        {
+            LastAudioCue = Audio->CueForConstellationFailure();
+            AudioCues.Add(LastAudioCue);
+        }
         return false;
     }
 
@@ -480,6 +513,12 @@ bool UManifoldSlice::PlayerLockConstellation(const TArray<int32>& SelectedRealmI
     // relation; decoys do not), driving discoveries/telemetry/audio/scoring through the
     // same path as organic discovery. Idempotent, so a repeat lock awards nothing new.
     Correspond->DetectSharedStructureCorrespondences();
+    // ...then a bright victory fanfare over the discovery chimes.
+    if (Audio)
+    {
+        LastAudioCue = Audio->CueForConstellationVictory();
+        AudioCues.Add(LastAudioCue);
+    }
     EvaluateObjective();
     return true;
 }

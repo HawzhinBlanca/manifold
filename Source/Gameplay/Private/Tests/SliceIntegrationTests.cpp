@@ -359,6 +359,54 @@ bool FConstellationExpertTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// Constellation locks give audible feedback with no display: a wrong lock buzzes, and a
+// correct lock sounds the discovery chimes plus a bright victory fanfare (emitted last).
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FConstellationAudioTest, "MANIFOLD.Play.ConstellationAudio", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FConstellationAudioTest::RunTest(const FString& Parameters)
+{
+    UManifoldSlice* S = NewObject<UManifoldSlice>();
+    S->SetupConstellation(321, 3);
+    const int32 Base = S->GetAudioCueCount();
+
+    TArray<int32> Wrong = S->GetConstellation();
+    for (int32 i = 0; i < 6; ++i) { if (!S->GetConstellation().Contains(i)) { Wrong[0] = i; break; } }
+    S->PlayerLockConstellation(Wrong);
+    UTEST_EQUAL("a wrong lock emits one cue", S->GetAudioCueCount(), Base + 1);
+    UTEST_EQUAL("the wrong-lock cue is a buzz",
+        static_cast<int32>(S->GetLastAudioCue().Intent), static_cast<int32>(EManifoldCueIntent::FailureBuzz));
+
+    const int32 AfterWrong = S->GetAudioCueCount();
+    S->PlayerLockConstellation(S->GetConstellation());
+    UTEST_GREATER("the correct lock emits discovery chimes + a victory", S->GetAudioCueCount(), AfterWrong + 1);
+    UTEST_EQUAL("the last cue is the victory fanfare",
+        static_cast<int32>(S->GetLastAudioCue().Intent), static_cast<int32>(EManifoldCueIntent::Victory));
+    return true;
+}
+
+// A Constellation expedition strings subset-hunt puzzles into an escalating campaign with
+// one cumulative score: a perfect run clears every level, it's deterministic in the base
+// seed, and more levels accumulate more score (the difficulty ramp is real).
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FConstellationExpeditionTest, "MANIFOLD.Play.ConstellationExpedition", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FConstellationExpeditionTest::RunTest(const FString& Parameters)
+{
+    const FManifoldExpeditionResult R = UManifoldSlice::RunConstellationExpedition(900, 5);
+    UTEST_EQUAL("a perfect run clears all five levels", R.LevelsCleared, 5);
+    UTEST_TRUE("the expedition completed", R.bCompleted);
+    UTEST_GREATER("cumulative score is positive", R.TotalScore, 0);
+
+    // Deterministic in the base seed.
+    const FManifoldExpeditionResult R2 = UManifoldSlice::RunConstellationExpedition(900, 5);
+    UTEST_EQUAL("deterministic levels cleared", R2.LevelsCleared, R.LevelsCleared);
+    UTEST_EQUAL("deterministic cumulative score", R2.TotalScore, R.TotalScore);
+
+    // More levels accumulate more score (each cleared level adds a positive amount).
+    const FManifoldExpeditionResult R3 = UManifoldSlice::RunConstellationExpedition(900, 3);
+    UTEST_GREATER("five levels outscore three", R.TotalScore, R3.TotalScore);
+    return true;
+}
+
 // Control build (Build Plan D3): with NO correspondence content the loop must NOT
 // manufacture insight — the moat is that unsolved seams stay unsolved. Here we run
 // only the Fluids realm (no resonance to correspond with), so nothing ignites.

@@ -33,7 +33,9 @@ enum class EManifoldCueIntent : uint8
 {
     RealmAmbient,
     DiscoveryChime,
-    ChordResolve
+    ChordResolve,
+    FailureBuzz,   // a wrong Constellation lock — a low, dissonant buzz
+    Victory        // a completed Constellation — a bright, resolved fanfare
 };
 
 /**
@@ -105,6 +107,14 @@ public:
     /** Transporting across the seam: resolve toward the destination realm's tonic. */
     UFUNCTION(BlueprintPure, Category = "MANIFOLD|Audio")
     FManifoldAudioCue CueForTransport(FName FromRealm, FName ToRealm) const;
+
+    /** A wrong Constellation lock: a low minor-second buzz — deliberately unresolved. */
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD|Audio")
+    FManifoldAudioCue CueForConstellationFailure() const;
+
+    /** A completed Constellation: a bright perfect-fifth fanfare — the puzzle resolves. */
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD|Audio")
+    FManifoldAudioCue CueForConstellationVictory() const;
 
 private:
     /** Deterministic realm identity: hand-tuned for the named realms, hashed otherwise. */

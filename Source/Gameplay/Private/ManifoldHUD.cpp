@@ -138,7 +138,9 @@ void AManifoldHUD::DrawHUD()
         const FManifoldAudioCue Cue = S->GetLastAudioCue();
         const TCHAR* Intent =
             Cue.Intent == EManifoldCueIntent::DiscoveryChime ? TEXT("chime") :
-            Cue.Intent == EManifoldCueIntent::ChordResolve   ? TEXT("resolve") : TEXT("ambient");
+            Cue.Intent == EManifoldCueIntent::ChordResolve   ? TEXT("resolve") :
+            Cue.Intent == EManifoldCueIntent::FailureBuzz    ? TEXT("buzz") :
+            Cue.Intent == EManifoldCueIntent::Victory        ? TEXT("victory") : TEXT("ambient");
         Line(FString::Printf(TEXT("Objective %d/%d    Audio: %s +%d st"),
             Sum.Discoveries, GM->Objective.TargetDiscoveries, Intent, Cue.IntervalSemitones), Dim);
     }

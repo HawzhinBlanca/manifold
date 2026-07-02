@@ -199,6 +199,14 @@ public:
      */
     static FManifoldExpeditionResult RunExpedition(int64 BaseSeed, int32 NumLevels, int32 StepsPerLevel = 30, UObject* Outer = nullptr);
 
+    /**
+     * Play a CONSTELLATION expedition: NumLevels subset-hunt puzzles back to back with
+     * escalating difficulty (the rule is hidden — Expert — from level 3 onward), each
+     * solved by a perfect player, returning how many were cleared and the cumulative
+     * score. Deterministic in BaseSeed. Gives the harder mode a campaign + a single score.
+     */
+    static FManifoldExpeditionResult RunConstellationExpedition(int64 BaseSeed, int32 NumLevels, UObject* Outer = nullptr);
+
     // =====================================================================
     // CONSTELLATION LOCK — the harder puzzle (infer the relation, pick the subset)
     // =====================================================================

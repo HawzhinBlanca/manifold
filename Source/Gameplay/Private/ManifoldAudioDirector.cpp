@@ -66,3 +66,27 @@ FManifoldAudioCue UManifoldAudioDirector::CueForTransport(FName FromRealm, FName
     Cue.Intensity = 1.0f;
     return Cue;
 }
+
+FManifoldAudioCue UManifoldAudioDirector::CueForConstellationFailure() const
+{
+    FManifoldAudioCue Cue;
+    Cue.Intent = EManifoldCueIntent::FailureBuzz;
+    Cue.Realm = FName(TEXT("Constellation"));
+    Cue.RootMidi = 46;                              // low
+    Cue.Mode = EManifoldAudioMode::Locrian;         // the darkest mode, fittingly
+    Cue.IntervalSemitones = 1;                      // minor second — deliberately dissonant
+    Cue.Intensity = 0.6f;
+    return Cue;
+}
+
+FManifoldAudioCue UManifoldAudioDirector::CueForConstellationVictory() const
+{
+    FManifoldAudioCue Cue;
+    Cue.Intent = EManifoldCueIntent::Victory;
+    Cue.Realm = FName(TEXT("Constellation"));
+    Cue.RootMidi = 72;                              // bright, an octave above middle C
+    Cue.Mode = EManifoldAudioMode::Ionian;          // major
+    Cue.IntervalSemitones = 7;                      // perfect fifth — consonant, resolved
+    Cue.Intensity = 0.95f;
+    return Cue;
+}
