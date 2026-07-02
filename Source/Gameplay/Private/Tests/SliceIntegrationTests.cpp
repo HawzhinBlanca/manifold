@@ -656,6 +656,44 @@ bool FGearMeshTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// Balance curve: the difficulty tier a player takes on is reflected in a strictly higher
+// rank for a flawless solve — Exact < Octave < Expert-Octave — and a flawless Expert-Octave
+// solve earns the top rank. This locks the intended difficulty->rank design against silent
+// regression (the verifiable half of tuning; felt pacing still wants a human).
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FConstellationRankCurveTest, "MANIFOLD.Play.ConstellationRankCurve", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FConstellationRankCurveTest::RunTest(const FString& Parameters)
+{
+    int64 ExactSeed = -1, OctaveSeed = -1;
+    for (int64 S = 0; S < 500 && (ExactSeed < 0 || OctaveSeed < 0); ++S)
+    {
+        const ECorrespondenceRelation R = UManifoldSlice::PickRelation(static_cast<uint64>(S));
+        if (R == ECorrespondenceRelation::Exact && ExactSeed < 0) { ExactSeed = S; }
+        if (R == ECorrespondenceRelation::OctaveInvariant && OctaveSeed < 0) { OctaveSeed = S; }
+    }
+    UTEST_TRUE("found an exact seed and an octave seed", ExactSeed >= 0 && OctaveSeed >= 0);
+
+    auto FlawlessRank = [](int64 Seed, bool bExpert) -> EManifoldRank
+    {
+        UManifoldSlice* Slice = NewObject<UManifoldSlice>();
+        Slice->SetupConstellation(Seed, 3, bExpert);
+        Slice->PlayerLockConstellation(Slice->GetConstellation()); // flawless: no probes/reveals
+        return Slice->GetRank();
+    };
+
+    const EManifoldRank ExactRank  = FlawlessRank(ExactSeed, false);
+    const EManifoldRank OctaveRank = FlawlessRank(OctaveSeed, false);
+    const EManifoldRank ExpertRank = FlawlessRank(OctaveSeed, true);
+
+    UTEST_GREATER("octave flawless outranks exact flawless",
+        static_cast<int32>(OctaveRank), static_cast<int32>(ExactRank));
+    UTEST_GREATER("expert-octave flawless outranks plain octave",
+        static_cast<int32>(ExpertRank), static_cast<int32>(OctaveRank));
+    UTEST_EQUAL("a flawless expert-octave solve earns the top rank (S)",
+        static_cast<int32>(ExpertRank), static_cast<int32>(EManifoldRank::S));
+    return true;
+}
+
 // Control build (Build Plan D3): with NO correspondence content the loop must NOT
 // manufacture insight — the moat is that unsolved seams stay unsolved. Here we run
 // only the Fluids realm (no resonance to correspond with), so nothing ignites.
