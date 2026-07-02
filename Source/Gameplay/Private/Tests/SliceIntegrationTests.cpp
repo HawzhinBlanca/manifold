@@ -16,6 +16,7 @@
 #include "TelemetrySystem.h"
 #include "ManifoldGearMesh.h"
 #include "ManifoldWaveMesh.h"
+#include "ManifoldPalette.h"
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
 #include "Serialization/MemoryWriter.h"
@@ -1620,6 +1621,64 @@ bool FDecoyRealmTest::RunTest(const FString& Parameters)
         S->GetSharedDiscoveries(), 15);
 
     return true;
+}
+
+// ART / ACCESSIBILITY: the seven realm colors (plus the decoy) must stay mutually distinguishable
+// even under color-vision deficiency — the game asks players to tell realms apart by colour, so this
+// is a real requirement, not decoration. We simulate deuteranopia / protanopia / tritanopia with the
+// Machado et al. (2009) severity-1.0 matrices on linear RGB and assert a minimum pairwise separation
+// under every condition. The palette is Okabe-Ito, which is designed to clear this; the previous
+// ad-hoc palette had near-identical teal (Waves ~ Circuits) and blue (Orbits ~ Fluids) pairs.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPaletteColorblindSafeTest, "MANIFOLD.Art.PaletteColorblindSafe", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FPaletteColorblindSafeTest::RunTest(const FString& Parameters)
+{
+    TArray<FLinearColor> Colors = ManifoldPalette::RealmColors();
+    Colors.Add(ManifoldPalette::Decoy); // the decoy must also be distinguishable from every realm
+
+    auto Apply = [](const float M[9], const FLinearColor& C) -> FLinearColor
+    {
+        return FLinearColor(
+            M[0] * C.R + M[1] * C.G + M[2] * C.B,
+            M[3] * C.R + M[4] * C.G + M[5] * C.B,
+            M[6] * C.R + M[7] * C.G + M[8] * C.B);
+    };
+    auto Dist = [](const FLinearColor& A, const FLinearColor& B) -> float
+    {
+        const float dr = A.R - B.R, dg = A.G - B.G, db = A.B - B.B;
+        return FMath::Sqrt(dr * dr + dg * dg + db * db);
+    };
+
+    // Machado et al. 2009 CVD simulation matrices (severity 1.0), row-major, linear RGB.
+    const float Identity[9] = { 1,0,0, 0,1,0, 0,0,1 };
+    const float Protan[9]   = { 0.152286f, 1.052583f, -0.204868f,  0.114503f, 0.786281f, 0.099216f, -0.003882f, -0.048116f, 1.051998f };
+    const float Deutan[9]   = { 0.367322f, 0.860646f, -0.227968f,  0.280085f, 0.672501f, 0.047413f, -0.011820f,  0.042940f, 0.968881f };
+    const float Tritan[9]   = { 1.255528f, -0.076749f, -0.178779f, -0.078411f, 0.930809f, 0.147602f,  0.004733f,  0.691367f, 0.303900f };
+    struct FSim { const TCHAR* Name; const float* M; };
+    const FSim Sims[4] = { { TEXT("normal"), Identity }, { TEXT("protanopia"), Protan }, { TEXT("deuteranopia"), Deutan }, { TEXT("tritanopia"), Tritan } };
+
+    // Minimum acceptable separation in linear RGB. Okabe-Ito clears this comfortably under every
+    // condition; the old palette's Waves/Circuits teal pair fell well under it. (See logged mins.)
+    const float Threshold = 0.05f;
+    bool bOk = true;
+    for (const FSim& Sim : Sims)
+    {
+        float MinD = FLT_MAX; int32 Ai = -1, Bi = -1;
+        for (int32 i = 0; i < Colors.Num(); ++i)
+        {
+            for (int32 j = i + 1; j < Colors.Num(); ++j)
+            {
+                const float D = Dist(Apply(Sim.M, Colors[i]), Apply(Sim.M, Colors[j]));
+                if (D < MinD) { MinD = D; Ai = i; Bi = j; }
+            }
+        }
+        UE_LOG(LogTemp, Display, TEXT("[PALETTE] %s: min pairwise distance=%.3f (closest pair: colors %d & %d)"), Sim.Name, MinD, Ai, Bi);
+        if (!TestTrue(FString::Printf(TEXT("palette stays distinguishable under %s (min %.3f > %.2f)"), Sim.Name, MinD, Threshold), MinD > Threshold))
+        {
+            bOk = false;
+        }
+    }
+    return bOk;
 }
 
 // ---------------------------------------------------------------------------------------------

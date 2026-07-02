@@ -22,19 +22,23 @@
 #include "Engine/World.h"
 #include "DeterministicRNG.h"
 #include "UObject/ConstructorHelpers.h"
+#include "ManifoldPalette.h"
 
 namespace
 {
-    const FLinearColor StarGold(1.0f, 0.85f, 0.25f);
-    const FLinearColor PlanetBlue(0.35f, 0.6f, 1.0f);
-    const FLinearColor FluidsCyan(0.25f, 0.7f, 1.0f);
-    const FLinearColor HarmonicsViolet(0.75f, 0.45f, 1.0f);
-    const FLinearColor WavesTeal(0.3f, 0.9f, 0.8f);
-    const FLinearColor RhythmAmber(1.0f, 0.6f, 0.35f);
-    const FLinearColor GearsSteel(0.7f, 0.75f, 0.82f);
-    const FLinearColor CircuitsColor(0.35f, 0.9f, 0.7f);
-    const FLinearColor DecoyGrey(0.5f, 0.5f, 0.55f);
-    const FLinearColor SeamGold(1.0f, 0.8f, 0.2f);
+    // Realm colors come from the central, colorblind-safe ManifoldPalette (Okabe-Ito), which is
+    // locked by MANIFOLD.Art.PaletteColorblindSafe. The local aliases keep the rest of this file
+    // unchanged while making the palette the single source of truth.
+    const FLinearColor StarGold = ManifoldPalette::Star;
+    const FLinearColor PlanetBlue = ManifoldPalette::Orbits;
+    const FLinearColor FluidsCyan = ManifoldPalette::Fluids;
+    const FLinearColor HarmonicsViolet = ManifoldPalette::Harmonics;
+    const FLinearColor WavesTeal = ManifoldPalette::Waves;
+    const FLinearColor RhythmAmber = ManifoldPalette::Rhythm;
+    const FLinearColor GearsSteel = ManifoldPalette::Gears;
+    const FLinearColor CircuitsColor = ManifoldPalette::Circuits;
+    const FLinearColor DecoyGrey = ManifoldPalette::Decoy;
+    const FLinearColor SeamGold = ManifoldPalette::Seam;
     constexpr double AstronomicalUnit = 1.496e11; // metres
     constexpr float EngineSphereDiameter = 100.0f; // /Engine/BasicShapes/Sphere is ~100uu
 }

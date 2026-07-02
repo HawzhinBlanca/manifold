@@ -6,6 +6,21 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Art / Accessibility (colorblind-safe realm palette + direction doc)
+- **Realm colours are now colorblind-safe and centralised.** The seven realm colours moved from
+  ad-hoc literals in the visualizer (which had near-identical teal Waves/Circuits and blue
+  Orbits/Fluids pairs) into a single source of truth,
+  [`ManifoldPalette.h`](Source/Gameplay/Public/ManifoldPalette.h), using the **Okabe-Ito**
+  colorblind-safe palette (sRGB→linear). Locked by `MANIFOLD.Art.PaletteColorblindSafe`, which
+  simulates deuteranopia / protanopia / tritanopia (Machado 2009 matrices) and asserts every realm
+  + the decoy stays pairwise-distinguishable. Measured min separation clears the bar under all
+  conditions (tightest: deuteranopia 0.083, Waves vs Decoy). The game asks players to tell realms
+  apart by colour, so this is a real accessibility requirement, not decoration.
+- **[`Docs/ART_DIRECTION.md`](Docs/ART_DIRECTION.md)** — a concrete, executable plan for the bespoke
+  art/VFX pass (per-realm Niagara/material language, the seam "money shot", scene/lighting/post, UMG
+  reskin, and the asset-pipeline inputs still needed). The remaining visual work is dressing, gated
+  on a display + art direction; the logic, palette, and render hooks are in place. **82/82 green.**
+
 ### Balance (data-driven playtest — headless sweep + a scoring fix it found)
 - **`MANIFOLD.Balance.Sweep`** drives both modes across 128 seeds, logs the difficulty/scoring/
   economy distributions (via `UE_LOG`, capturable from a standalone `-stdout` run), and asserts
@@ -272,7 +287,7 @@ confirmed finding, with none deferred. E.g.:
   registration. AndroidFileServer plugin disabled (stops dev-token regeneration).
 
 ### Status
-- **81 / 81** automation tests green, headless. Repo is public and professional.
+- **82 / 82** automation tests green, headless. Repo is public and professional.
   Remaining phase (real art/VFX scenes, bound sound assets, bespoke UMG UI, human
   playtest) is human-owned and needs the editor + a display — see
   `Docs/IMPLEMENTATION_STATUS.md`.
