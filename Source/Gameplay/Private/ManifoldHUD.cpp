@@ -247,7 +247,7 @@ void AManifoldHUD::DrawConstellationReadout(UManifoldSlice* S, AManifoldGameMode
     const FManifoldSessionSummary Sum = S->GetSessionSummary();
     Line(FString::Printf(TEXT("Locked pairs %d/%d    wasted probes %d"),
         Sum.Discoveries, S->GetObjectiveTarget(), S->GetFailedProbes()), Violet);
-    Line(FString::Printf(TEXT("Score %d    Best %d"), Sum.Score, GM->Profile.BestScore), Gold);
+    Line(FString::Printf(TEXT("Score %d    Best %d"), Sum.Score, GM->Profile.BestConstellationScore), Gold);
 
     if (S->GetSessionState() == EManifoldSessionState::InProgress)
     {
@@ -285,6 +285,6 @@ void AManifoldHUD::DrawConstellationReadout(UManifoldSlice* S, AManifoldGameMode
             DrawText(FString::Printf(TEXT("RANK %s"), RankLetter), Gold, CX + 150.0f, CY + 40.0f, Big, 1.8f);
         }
         DrawText(FString::Printf(TEXT("Score %d  (best %d)    %d probes wasted    [R] new puzzle"),
-            Sum.Score, GM->Profile.BestScore, S->GetFailedProbes()), Dim, CX - 230.0f, CY + 72.0f, Font);
+            Sum.Score, GM->Profile.BestConstellationScore, S->GetFailedProbes()), Dim, CX - 230.0f, CY + 72.0f, Font);
     }
 }

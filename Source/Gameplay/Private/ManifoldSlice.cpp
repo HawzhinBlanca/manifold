@@ -668,6 +668,7 @@ FManifoldSessionSummary UManifoldSlice::GetSessionSummary() const
     Summary.Steps = CurrentStep;
     Summary.Score = GetScore();
     Summary.Rank = RankForScore(Summary.Score);
+    Summary.bConstellation = bConstellationMode;
     return Summary;
 }
 
@@ -720,7 +721,15 @@ void UManifoldSlice::RecordSessionInProfile(FManifoldProfile& Profile, const FMa
     {
         ++Profile.SessionsWon;
     }
-    Profile.BestScore = FMath::Max(Profile.BestScore, Summary.Score);
+    // The two modes have separate leaderboards (their scores aren't comparable).
+    if (Summary.bConstellation)
+    {
+        Profile.BestConstellationScore = FMath::Max(Profile.BestConstellationScore, Summary.Score);
+    }
+    else
+    {
+        Profile.BestScore = FMath::Max(Profile.BestScore, Summary.Score);
+    }
 }
 
 FManifoldReplay UManifoldSlice::CaptureReplay() const

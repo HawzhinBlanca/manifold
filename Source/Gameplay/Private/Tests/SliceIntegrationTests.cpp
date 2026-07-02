@@ -407,6 +407,42 @@ bool FConstellationExpeditionTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// The two modes keep SEPARATE best scores (their scores aren't comparable), and both
+// survive a profile save/load round-trip (format v2).
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProfilePerModeTest, "MANIFOLD.Play.ProfilePerMode", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FProfilePerModeTest::RunTest(const FString& Parameters)
+{
+    FManifoldProfile P;
+
+    FManifoldSessionSummary Classic;
+    Classic.State = EManifoldSessionState::Won;
+    Classic.Score = 5000;
+    Classic.bConstellation = false;
+    UManifoldSlice::RecordSessionInProfile(P, Classic);
+    UTEST_EQUAL("classic best recorded", P.BestScore, 5000);
+    UTEST_EQUAL("constellation best untouched", P.BestConstellationScore, 0);
+
+    FManifoldSessionSummary Const;
+    Const.State = EManifoldSessionState::Won;
+    Const.Score = 8000;
+    Const.bConstellation = true;
+    UManifoldSlice::RecordSessionInProfile(P, Const);
+    UTEST_EQUAL("classic best unchanged by a constellation run", P.BestScore, 5000);
+    UTEST_EQUAL("constellation best recorded separately", P.BestConstellationScore, 8000);
+    UTEST_EQUAL("both sessions counted", P.SessionsPlayed, 2);
+    UTEST_EQUAL("both wins counted", P.SessionsWon, 2);
+
+    const FString Path = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("TestPerMode.manifoldprofile"));
+    UTEST_TRUE("save profile", UManifoldSlice::SaveProfile(P, Path));
+    FManifoldProfile L;
+    UTEST_TRUE("load profile", UManifoldSlice::LoadProfile(L, Path));
+    UTEST_EQUAL("loaded classic best", L.BestScore, 5000);
+    UTEST_EQUAL("loaded constellation best", L.BestConstellationScore, 8000);
+    FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*Path);
+    return true;
+}
+
 // Control build (Build Plan D3): with NO correspondence content the loop must NOT
 // manufacture insight — the moat is that unsolved seams stay unsolved. Here we run
 // only the Fluids realm (no resonance to correspond with), so nothing ignites.

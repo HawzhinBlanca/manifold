@@ -100,6 +100,10 @@ struct MANIFOLDGAMEPLAY_API FManifoldSessionSummary
     /** Performance grade derived from the score (S is best). */
     UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
     EManifoldRank Rank = EManifoldRank::D;
+
+    /** True if this was a Constellation-Lock session (scored on its own leaderboard). */
+    UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
+    bool bConstellation = false;
 };
 
 /**
@@ -132,7 +136,7 @@ struct MANIFOLDGAMEPLAY_API FManifoldProfile
     GENERATED_BODY()
 
     UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
-    int32 BestScore = 0;
+    int32 BestScore = 0; // best Classic score
 
     UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
     int32 SessionsPlayed = 0;
@@ -140,14 +144,20 @@ struct MANIFOLDGAMEPLAY_API FManifoldProfile
     UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
     int32 SessionsWon = 0;
 
+    /** Best Constellation-Lock score — a separate leaderboard (the two modes aren't
+     *  comparable, so "beat your best" tracks each independently). */
+    UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
+    int32 BestConstellationScore = 0;
+
     static constexpr uint32 Magic = 0x4D414E50; // 'MANP'
-    static constexpr uint32 Version = 1;
+    static constexpr uint32 Version = 2;
 
     friend FArchive& operator<<(FArchive& Ar, FManifoldProfile& P)
     {
         Ar << P.BestScore;
         Ar << P.SessionsPlayed;
         Ar << P.SessionsWon;
+        Ar << P.BestConstellationScore;
         return Ar;
     }
 };
