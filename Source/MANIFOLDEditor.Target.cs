@@ -16,6 +16,7 @@ public class MANIFOLDEditorTarget : TargetRules
 			"MANIFOLDKernelsWaves",
 			"MANIFOLDKernelsRhythm",
 			"MANIFOLDKernelsGears",
+			"MANIFOLDKernelsCircuits",
 			"MANIFOLDCorrespond",
 			"MANIFOLDTelemetry",
 			"MANIFOLDGameplay"

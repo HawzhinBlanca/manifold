@@ -23,6 +23,7 @@ public class MANIFOLDGameplay : ModuleRules
             "MANIFOLDKernelsWaves",
             "MANIFOLDKernelsRhythm",
             "MANIFOLDKernelsGears",
+            "MANIFOLDKernelsCircuits",
             "MANIFOLDCorrespond",
             "MANIFOLDTelemetry"
         });

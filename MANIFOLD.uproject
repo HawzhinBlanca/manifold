@@ -40,6 +40,11 @@
 			"LoadingPhase": "Default"
 		},
 		{
+			"Name": "MANIFOLDKernelsCircuits",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
 			"Name": "MANIFOLDCorrespond",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"

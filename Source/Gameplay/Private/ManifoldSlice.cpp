@@ -7,6 +7,7 @@
 #include "WavesKernel.h"
 #include "RhythmKernel.h"
 #include "GearsKernel.h"
+#include "CircuitsKernel.h"
 #include "CorrespondenceSystem.h"
 #include "TelemetrySystem.h"
 #include "DeterministicRNG.h"
@@ -52,6 +53,7 @@ void UManifoldSlice::Setup(uint64 OrbitsSeed, uint64 FluidsSeed)
     Waves = NewObject<UWavesKernel>(this);
     Rhythm = NewObject<URhythmKernel>(this);
     Gears = NewObject<UGearsKernel>(this);
+    Circuits = NewObject<UCircuitsKernel>(this);
     Decoy = NewObject<UHarmonicsKernel>(this);
     Correspond = NewObject<UCorrespondenceSystem>(this);
     Telemetry = NewObject<UTelemetrySystem>(this);
@@ -63,6 +65,7 @@ void UManifoldSlice::Setup(uint64 OrbitsSeed, uint64 FluidsSeed)
     Waves->Initialize(OrbitsSeed ^ 0x123456);
     Rhythm->Initialize(OrbitsSeed ^ 0x789ABC);
     Gears->Initialize(OrbitsSeed ^ 0x2468AC);
+    Circuits->Initialize(OrbitsSeed ^ 0x13579B);
     Decoy->Initialize(OrbitsSeed ^ 0xFEDCBA);
     Correspond->RegisterKernels(Orbits, Fluids);
 
@@ -75,6 +78,7 @@ void UManifoldSlice::Setup(uint64 OrbitsSeed, uint64 FluidsSeed)
     Correspond->RegisterRealm(TEXT("Waves"), TEXT("WaveHarmonic"), Waves);
     Correspond->RegisterRealm(TEXT("Rhythm"), TEXT("RhythmRatio"), Rhythm);
     Correspond->RegisterRealm(TEXT("Gears"), TEXT("GearRatio"), Gears);
+    Correspond->RegisterRealm(TEXT("Circuits"), TEXT("CircuitResonance"), Circuits);
     Correspond->RegisterRealm(TEXT("Decoy"), TEXT("HarmonicRatio"), Decoy);
 
     Telemetry->InitializeTelemetry(TEXT("SlicePlaythrough.log"));
@@ -159,6 +163,11 @@ void UManifoldSlice::Setup(uint64 OrbitsSeed, uint64 FluidsSeed)
     Gears->AddGear(SharedP);
     Gears->AddGear(SharedQ);
 
+    // --- Circuits: two resonant LC tanks tuned to Q and P — the same P:Q, in the
+    //     domain of ELECTROMAGNETISM ---
+    Circuits->AddTank(static_cast<double>(SharedQ), 1.0);
+    Circuits->AddTank(static_cast<double>(SharedP), 1.0);
+
     // --- Decoy: a harmonic ratio that deliberately does NOT match the hidden one.
     //     The correspondence engine must refuse to pair it with the true realms. ---
     Decoy->AddMode(static_cast<double>(DecoyQ), 1.0);
@@ -175,8 +184,8 @@ FManifoldExpeditionResult UManifoldSlice::RunExpedition(int64 BaseSeed, int32 Nu
         UManifoldSlice* Slice = NewObject<UManifoldSlice>(Package);
 
         // Escalating difficulty: each level demands more discoveries. A single session
-        // can surface at most 11 (1 seam + C(5,2)=10 cross-domain analogies), so the
-        // target eventually exceeds what's discoverable and the expedition ends.
+        // can surface at most 16 (1 seam + C(6,2)=15 cross-domain analogies among the six
+        // sharing realms), so the target eventually exceeds what's discoverable and ends it.
         FManifoldObjective Obj;
         Obj.TargetDiscoveries = 2 + Level * 2;
         Obj.StepBudget = 0;
@@ -407,6 +416,7 @@ void UManifoldSlice::SetupConstellation(int64 InSeed, int32 InConstellationSize,
     Rhythm = NewObject<URhythmKernel>(this);
     Gears = NewObject<UGearsKernel>(this);
     Decoy = NewObject<UHarmonicsKernel>(this);
+    Circuits = nullptr; // Circuits is a Classic-mode ratio realm; unused in constellation
     Fluids = nullptr; // no Orbits<->Fluids seam in constellation mode
     Correspond = NewObject<UCorrespondenceSystem>(this);
     Telemetry = NewObject<UTelemetrySystem>(this);
@@ -840,6 +850,7 @@ void UManifoldSlice::Tick()
     if (Waves) { Waves->Step(0.001f); }
     if (Rhythm) { Rhythm->Step(0.016f); }
     if (Gears) { Gears->Step(0.016f); }
+    if (Circuits) { Circuits->Step(0.016f); }
     if (Decoy) { Decoy->Step(0.016f); }
     CurrentTime = Fluids->GetSimulationTime();
 
@@ -951,6 +962,19 @@ FString UManifoldSlice::GetGearsRatio() const
     if (Gears)
     {
         const TArray<FGearRatioMatch>& Ratios = Gears->GetActiveRatios();
+        if (Ratios.Num() > 0)
+        {
+            return FString::Printf(TEXT("%d:%d"), Ratios[0].Ratio.X, Ratios[0].Ratio.Y);
+        }
+    }
+    return TEXT("-");
+}
+
+FString UManifoldSlice::GetCircuitsRatio() const
+{
+    if (Circuits)
+    {
+        const TArray<FCircuitRatioMatch>& Ratios = Circuits->GetActiveRatios();
         if (Ratios.Num() > 0)
         {
             return FString::Printf(TEXT("%d:%d"), Ratios[0].Ratio.X, Ratios[0].Ratio.Y);

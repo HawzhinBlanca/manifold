@@ -901,6 +901,7 @@ bool FProceduralVariationTest::RunTest(const FString& Parameters)
     UTEST_EQUAL("Orbits realizes the hidden ratio", A->GetOrbitsRatio(), A->GetSharedRatio());
     UTEST_EQUAL("Harmonics realizes the hidden ratio", A->GetHarmonicsRatio(), A->GetSharedRatio());
     UTEST_EQUAL("Rhythm realizes the hidden ratio", A->GetRhythmRatio(), A->GetSharedRatio());
+    UTEST_EQUAL("Circuits realizes the hidden ratio", A->GetCircuitsRatio(), A->GetSharedRatio());
     UTEST_GREATER("The hidden ratio is discovered across domains", A->GetSharedDiscoveries(), 0);
     UTEST_GREATER("The seam ignites on the hidden ratio", A->GetCorrespondencesIgnited(), 0);
 
@@ -908,27 +909,27 @@ bool FProceduralVariationTest::RunTest(const FString& Parameters)
 }
 
 // Expedition (campaign): escalating-difficulty levels played back to back, ending at
-// the first level the player can't clear. A session can surface up to 11 discoveries
-// (1 seam + C(5,2)=10 cross-domain), so a target of 12 is the natural difficulty wall.
+// the first level the player can't clear. A session can surface up to 16 discoveries
+// (1 seam + C(6,2)=15 cross-domain among the six sharing realms), so a target of 18 is
+// the natural difficulty wall.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FExpeditionTest, "MANIFOLD.Play.Expedition", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 
 bool FExpeditionTest::RunTest(const FString& Parameters)
 {
-    // Levels 0..4 demand 2, 4, 6, 8, 10 discoveries — all clearable (<= 11).
-    const FManifoldExpeditionResult Five = UManifoldSlice::RunExpedition(500LL, 5, 30);
-    UTEST_EQUAL("Cleared all five levels", Five.LevelsCleared, 5);
-    UTEST_TRUE("Five-level expedition completed", Five.bCompleted);
-    UTEST_GREATER("Accumulated a positive total score", Five.TotalScore, 0);
+    // Levels 0..7 demand 2, 4, 6, 8, 10, 12, 14, 16 discoveries — all clearable (<= 16).
+    const FManifoldExpeditionResult Eight = UManifoldSlice::RunExpedition(500LL, 8, 30);
+    UTEST_EQUAL("Cleared all eight levels", Eight.LevelsCleared, 8);
+    UTEST_TRUE("Eight-level expedition completed", Eight.bCompleted);
+    UTEST_GREATER("Accumulated a positive total score", Eight.TotalScore, 0);
 
-    // Levels 0..5 demand 2, 4, 6, 8, 10, 12 — level 5 (target 12) is unclearable, so
-    // the expedition ends after 5 cleared levels.
-    const FManifoldExpeditionResult Six = UManifoldSlice::RunExpedition(500LL, 6, 30);
-    UTEST_EQUAL("Difficulty wall stops the run at 5 cleared", Six.LevelsCleared, 5);
-    UTEST_FALSE("Six-level expedition is not completed", Six.bCompleted);
+    // Level 8 demands 18 (> 16), which is unclearable, so the run ends after 8 cleared.
+    const FManifoldExpeditionResult Nine = UManifoldSlice::RunExpedition(500LL, 9, 30);
+    UTEST_EQUAL("Difficulty wall stops the run at 8 cleared", Nine.LevelsCleared, 8);
+    UTEST_FALSE("Nine-level expedition is not completed", Nine.bCompleted);
 
     // Deterministic in the base seed.
-    const FManifoldExpeditionResult Again = UManifoldSlice::RunExpedition(500LL, 5, 30);
-    UTEST_EQUAL("Same base seed -> same total score", Again.TotalScore, Five.TotalScore);
+    const FManifoldExpeditionResult Again = UManifoldSlice::RunExpedition(500LL, 8, 30);
+    UTEST_EQUAL("Same base seed -> same total score", Again.TotalScore, Eight.TotalScore);
 
     return true;
 }
@@ -1090,10 +1091,10 @@ bool FDecoyRealmTest::RunTest(const FString& Parameters)
     UTEST_NOT_EQUAL("Decoy ratio differs from the hidden ratio (red herring)",
         S->GetDecoyRatio(), S->GetSharedRatio());
 
-    // The five TRUE ratio realms correspond pairwise (C(5,2) = 10). The decoy shares
+    // The six TRUE ratio realms correspond pairwise (C(6,2) = 15). The decoy shares
     // its ratio with none of them, so the engine adds no false correspondence.
     UTEST_EQUAL("Engine refuses the false correspondence (no decoy inflation)",
-        S->GetSharedDiscoveries(), 10);
+        S->GetSharedDiscoveries(), 15);
 
     return true;
 }

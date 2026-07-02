@@ -141,9 +141,9 @@ void AManifoldGameMode::Tick(float DeltaSeconds)
     {
         AmbientTimer = 0.0f;
         static const FName Realms[] = {
-            TEXT("Orbits"), TEXT("Harmonics"), TEXT("Waves"), TEXT("Rhythm"), TEXT("Gears")
+            TEXT("Orbits"), TEXT("Harmonics"), TEXT("Waves"), TEXT("Rhythm"), TEXT("Gears"), TEXT("Circuits")
         };
-        const FName Realm = Realms[AmbientRealmIndex % 5];
+        const FName Realm = Realms[AmbientRealmIndex % 6];
         ++AmbientRealmIndex;
 
         FManifoldAudioCue Cue = Slice->Audio->CueForRealmAmbient(Realm);
