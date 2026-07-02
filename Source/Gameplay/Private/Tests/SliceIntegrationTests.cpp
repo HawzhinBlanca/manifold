@@ -485,6 +485,65 @@ bool FConstellationRevealTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// The shared-structure StableId must be CONTENT-stable (derived from the realm-id strings),
+// not from process-local FName handles — otherwise the "deterministic id" contract breaks
+// across runs/builds. Recompute the id from the string hashes and require an exact match.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSharedStructureStableIdTest, "MANIFOLD.Correspondence.StableIdContentStable", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FSharedStructureStableIdTest::RunTest(const FString& Parameters)
+{
+    auto MakeRealm = [](int32 Lo, int32 Hi)
+    {
+        UHarmonicsKernel* K = NewObject<UHarmonicsKernel>();
+        K->Initialize(1ULL);
+        K->AddMode(static_cast<double>(Lo), 1.0);
+        K->AddMode(static_cast<double>(Hi), 1.0);
+        K->Step(0.01f);
+        return K;
+    };
+    UHarmonicsKernel* A = MakeRealm(2, 3); // 3:2
+    UHarmonicsKernel* B = MakeRealm(2, 3); // 3:2
+
+    UCorrespondenceSystem* Sys = NewObject<UCorrespondenceSystem>();
+    FGuid Captured; FName GotA, GotB; FString GotRatio; bool bFired = false;
+    Sys->OnSharedStructureDiscovered.AddLambda(
+        [&Captured, &GotA, &GotB, &GotRatio, &bFired](FName a, FName b, FString r, FGuid id)
+        {
+            if (!bFired) { bFired = true; GotA = a; GotB = b; GotRatio = r; Captured = id; }
+        });
+    Sys->RegisterRealm(FName(TEXT("Alpha")), TEXT("HarmonicRatio"), A);
+    Sys->RegisterRealm(FName(TEXT("Beta")),  TEXT("HarmonicRatio"), B);
+    Sys->DetectSharedStructureCorrespondences();
+
+    UTEST_TRUE("a shared structure fired", bFired);
+    const uint32 hA = GetTypeHash(GotA.ToString());
+    const uint32 hB = GetTypeHash(GotB.ToString());
+    const uint32 hR = GetTypeHash(GotRatio);
+    const FGuid Expected(hA ^ hB, hA + hB, hR, 0x5AA5u);
+    UTEST_EQUAL("StableId is content-stable (string-hashed, not FName-hashed)", Captured, Expected);
+    return true;
+}
+
+// Setup() must reset EVERY session field on reuse — including bAutoTransportOnIgnite, which
+// RunReplay flips to false. Reusing a slice after a replay must still auto-transport.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSliceReuseFlagResetTest, "MANIFOLD.Play.SliceReuseResetsAutoTransport", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FSliceReuseFlagResetTest::RunTest(const FString& Parameters)
+{
+    UManifoldSlice* Slice = NewObject<UManifoldSlice>();
+
+    // RunReplay leaves bAutoTransportOnIgnite = false on this instance.
+    const FManifoldReplay Rep = Slice->RecordReplay(1111, 2222, 30);
+    Slice->RunReplay(Rep);
+
+    // Reuse the SAME instance for a fresh classic run WITHOUT re-setting the flag.
+    Slice->Setup(1111ULL, 2222ULL);
+    const FManifoldSliceResult R = Slice->RunPlaythrough(30);
+    UTEST_GREATER("Setup reset auto-transport, so a reused slice still transports",
+        R.TransportsCompleted, 0);
+    return true;
+}
+
 // Control build (Build Plan D3): with NO correspondence content the loop must NOT
 // manufacture insight — the moat is that unsolved seams stay unsolved. Here we run
 // only the Fluids realm (no resonance to correspond with), so nothing ignites.
@@ -587,8 +646,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FInteractiveSessionTest, "MANIFOLD.Play.Interac
 bool FInteractiveSessionTest::RunTest(const FString& Parameters)
 {
     UManifoldSlice* Slice = NewObject<UManifoldSlice>();
-    Slice->bAutoTransportOnIgnite = false; // interactive: player triggers transport
     Slice->Setup(1111ULL, 2222ULL);
+    Slice->bAutoTransportOnIgnite = false; // interactive: player triggers transport (set after Setup)
 
     for (int32 i = 0; i < 30; ++i)
     {
@@ -855,8 +914,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCaptureReplayTest, "MANIFOLD.Play.CaptureRepla
 bool FCaptureReplayTest::RunTest(const FString& Parameters)
 {
     UManifoldSlice* S = NewObject<UManifoldSlice>();
-    S->bAutoTransportOnIgnite = false; // interactive: the player transports
     S->Setup(1111ULL, 2222ULL);
+    S->bAutoTransportOnIgnite = false; // interactive: the player transports (set after Setup)
     for (int32 i = 0; i < 30; ++i)
     {
         S->Tick();

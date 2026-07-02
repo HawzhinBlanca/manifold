@@ -171,9 +171,11 @@ int32 UCorrespondenceSystem::DetectSharedStructureCorrespondences()
                 IgnitedSharedStructures.Add(Key);
                 // Stable identity for the shared structure: deterministic from the
                 // (order-independent) realm pair + normalized ratio, so the same analogy
-                // always has the same id (no throwaway GUIDs).
-                const uint32 HashA = GetTypeHash(RealmRatios[i].Key);
-                const uint32 HashB = GetTypeHash(RealmRatios[j].Key);
+                // always has the same id (no throwaway GUIDs). Hash the realm-id STRINGS
+                // (content-stable) rather than the FName handles (whose GetTypeHash is the
+                // process-local name-table index — not reproducible across runs/platforms).
+                const uint32 HashA = GetTypeHash(RealmRatios[i].Key.ToString());
+                const uint32 HashB = GetTypeHash(RealmRatios[j].Key.ToString());
                 const uint32 RatioHash = GetTypeHash(NormI);
                 const FGuid StableId(HashA ^ HashB, HashA + HashB, RatioHash, 0x5AA5u);
                 OnSharedStructureDiscovered.Broadcast(

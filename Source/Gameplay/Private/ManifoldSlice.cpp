@@ -33,6 +33,7 @@ void UManifoldSlice::Setup(uint64 OrbitsSeed, uint64 FluidsSeed)
     TransportStepLog.Reset();
     AudioCues.Reset();
     LastAudioCue = FManifoldAudioCue();
+    bAutoTransportOnIgnite = true; // restore the default; callers override AFTER Setup
 
     // Not a constellation session (SetupConstellation sets this true).
     bConstellationMode = false;
@@ -331,6 +332,7 @@ void UManifoldSlice::SetupConstellation(int64 InSeed, int32 InConstellationSize,
     LastAudioCue = FManifoldAudioCue();
     FailedProbes = 0;
     RevealedRealms.Reset();
+    bAutoTransportOnIgnite = true; // default (unused in constellation, but reset for hygiene)
 
     const int32 N = 6; // Orbits, Harmonics, Waves, Rhythm, Gears, Decoy
     ConstellationSize = FMath::Clamp(InConstellationSize, 2, 3);

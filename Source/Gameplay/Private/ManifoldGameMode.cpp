@@ -81,10 +81,11 @@ void AManifoldGameMode::StartSession()
     }
     else
     {
-        // Interactive: the correspondence lights up, but the PLAYER triggers transport.
-        Slice->bAutoTransportOnIgnite = false;
         Slice->SetObjective(Objective);
         Slice->Setup(1111ULL, 2222ULL);
+        // Interactive: the correspondence lights up, but the PLAYER triggers transport.
+        // Set AFTER Setup (which resets the flag to its auto default).
+        Slice->bAutoTransportOnIgnite = false;
     }
 
     // Spawn the debug-draw view of both realms + the resonance/seam ribbons (once).

@@ -136,7 +136,7 @@ bool UGearsKernel::Query(const FRealmQuery& QueryObj, FRealmQueryResult& Result)
         if (Best)
         {
             // Stable identity: same realm + same detected ratio => same id across frames.
-            Result.StructureId = FGuid(GetTypeHash(GetRealmId()),
+            Result.StructureId = FGuid(GetTypeHash(GetRealmId().ToString()),
                 static_cast<uint32>(Best->Ratio.X), static_cast<uint32>(Best->Ratio.Y),
                 GetSimulationVersion());
             Result.StructureType = QueryObj.QueryType;
@@ -158,7 +158,7 @@ void UGearsKernel::QueryAll(const FRealmQuery& QueryDesc, TArray<FRealmQueryResu
         if (Match.Strength < MinStr) continue;
 
         FRealmQueryResult Result;
-        Result.StructureId = FGuid(GetTypeHash(GetRealmId()),
+        Result.StructureId = FGuid(GetTypeHash(GetRealmId().ToString()),
             static_cast<uint32>(Match.Ratio.X), static_cast<uint32>(Match.Ratio.Y),
             GetSimulationVersion());
         Result.StructureType = QueryDesc.QueryType;

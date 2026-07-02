@@ -529,7 +529,7 @@ void UFluidsKernel::DetectVortices()
             // the ~50-unit matching threshold.
             const uint32 QX = static_cast<uint32>(FMath::RoundToInt(NewVor.Position.X / 50.0f));
             const uint32 QY = static_cast<uint32>(FMath::RoundToInt(NewVor.Position.Y / 50.0f));
-            NewVor.Id = FGuid(GetTypeHash(GetRealmId()), QX, QY, GetSimulationVersion());
+            NewVor.Id = FGuid(GetTypeHash(GetRealmId().ToString()), QX, QY, GetSimulationVersion());
         }
         StableVortices.Add(NewVor);
     }

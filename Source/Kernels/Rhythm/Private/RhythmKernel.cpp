@@ -136,7 +136,7 @@ bool URhythmKernel::Query(const FRealmQuery& QueryObj, FRealmQueryResult& Result
         {
             // Stable identity: same realm + same detected ratio => same id across
             // frames, so the correspondence layer can dedup and transport by it.
-            Result.StructureId = FGuid(GetTypeHash(GetRealmId()),
+            Result.StructureId = FGuid(GetTypeHash(GetRealmId().ToString()),
                 static_cast<uint32>(Best->Ratio.X), static_cast<uint32>(Best->Ratio.Y),
                 GetSimulationVersion());
             Result.StructureType = QueryObj.QueryType;
@@ -159,7 +159,7 @@ void URhythmKernel::QueryAll(const FRealmQuery& QueryDesc, TArray<FRealmQueryRes
         if (Match.Strength < MinStr) continue;
 
         FRealmQueryResult Result;
-        Result.StructureId = FGuid(GetTypeHash(GetRealmId()),
+        Result.StructureId = FGuid(GetTypeHash(GetRealmId().ToString()),
             static_cast<uint32>(Match.Ratio.X), static_cast<uint32>(Match.Ratio.Y),
             GetSimulationVersion());
         Result.StructureType = QueryDesc.QueryType;
