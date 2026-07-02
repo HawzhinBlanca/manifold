@@ -214,7 +214,13 @@ public:
      * PlayerLockConstellation (not by ticking).
      */
     UFUNCTION(BlueprintCallable, Category = "MANIFOLD|Constellation")
-    void SetupConstellation(int64 Seed, int32 ConstellationSize = 3);
+    void SetupConstellation(int64 Seed, int32 ConstellationSize = 3, bool bExpertHideRule = false);
+
+    /** Expert mode: the active relation is NOT revealed on the HUD, so the player must
+     *  infer the rule (Exact vs Octave) from the ratios themselves — the design's full
+     *  challenge. Earns a scoring bonus on a win. */
+    UFUNCTION(BlueprintPure, Category = "MANIFOLD|Constellation")
+    bool IsRelationHintHidden() const { return bHideRelationHint; }
 
     /** Deterministically choose this session's structural relation from the seed. */
     static ECorrespondenceRelation PickRelation(uint64 Seed);
@@ -336,6 +342,7 @@ private:
     TArray<FName> ConstellationRealmIds; // realm id per index, in display order
     TArray<FString> RealmSurfaceRatios;  // surface ratio "p:q" per index (as shown)
     int32 FailedProbes = 0;
+    bool bHideRelationHint = false;      // expert mode: don't reveal the active relation
 
     void HandleIgnited(FGuid SourceStructure, FGuid TargetStructure, float Scale);
     void HandleSharedDiscovery(FName RealmA, FName RealmB, FString Ratio, FGuid StableId);

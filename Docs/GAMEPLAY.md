@@ -50,6 +50,13 @@ lock ignites every pairing in the constellation and wins; a wrong guess is a *wa
 probe* that costs points. This is inference and set-selection under a hidden rule — real
 cross-domain reasoning, not spotting the odd number out.
 
+**Difficulty & rank.** Octave puzzles (harder to infer than Exact) and *flawless* solves
+(no wasted probe) score higher, so the **S → D** rank reflects skill. Press `C` a second
+time for **Expert**: the rule itself is hidden (`Rule: ???`), so you must infer whether
+it's Exact or Octave from the ratios alone — the full challenge — worth a bonus on a win.
+Press `C` once more to return to Classic. Each session is deterministic in its seed and
+records as a shareable, reproducible replay.
+
 ## The realms
 
 | Realm | Domain | How it shows the ratio |

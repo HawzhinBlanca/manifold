@@ -334,6 +334,31 @@ bool FConstellationScoringTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// Expert Constellation hides the rule (the player must infer Exact vs Octave), which is
+// the same puzzle as normal but worth more on a win — the design's full inference challenge.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FConstellationExpertTest, "MANIFOLD.Play.ConstellationExpert", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FConstellationExpertTest::RunTest(const FString& Parameters)
+{
+    // The SAME puzzle (same seed) solved normally and in expert (hidden-rule) mode.
+    UManifoldSlice* Normal = NewObject<UManifoldSlice>();
+    Normal->SetupConstellation(2024, 3, false);
+    UTEST_FALSE("normal reveals the rule", Normal->IsRelationHintHidden());
+    UTEST_TRUE("normal win", Normal->PlayerLockConstellation(Normal->GetConstellation()));
+    const int32 NormalScore = Normal->GetScore();
+
+    UManifoldSlice* Expert = NewObject<UManifoldSlice>();
+    Expert->SetupConstellation(2024, 3, true);
+    UTEST_TRUE("expert hides the rule", Expert->IsRelationHintHidden());
+    UTEST_TRUE("expert is the same puzzle (rule only hidden)",
+        Expert->GetConstellation() == Normal->GetConstellation());
+    UTEST_TRUE("expert win", Expert->PlayerLockConstellation(Expert->GetConstellation()));
+
+    UTEST_GREATER("expert (inferred the hidden rule) outscores normal",
+        Expert->GetScore(), NormalScore);
+    return true;
+}
+
 // Control build (Build Plan D3): with NO correspondence content the loop must NOT
 // manufacture insight — the moat is that unsolved seams stay unsolved. Here we run
 // only the Fluids realm (no resonance to correspond with), so nothing ignites.

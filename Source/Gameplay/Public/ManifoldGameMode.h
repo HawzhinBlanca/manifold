@@ -59,6 +59,10 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MANIFOLD")
     EManifoldPlayMode PlayMode = EManifoldPlayMode::Classic;
 
+    /** Expert Constellation: the active rule is hidden, so the player must infer it. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MANIFOLD")
+    bool bConstellationExpert = false;
+
     /** The realms the player has tentatively selected (for the HUD). */
     const TArray<int32>& GetPendingSelection() const { return PendingSelection; }
 

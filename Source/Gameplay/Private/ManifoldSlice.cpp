@@ -42,6 +42,7 @@ void UManifoldSlice::Setup(uint64 OrbitsSeed, uint64 FluidsSeed)
     ConstellationRealmIds.Reset();
     RealmSurfaceRatios.Reset();
     FailedProbes = 0;
+    bHideRelationHint = false;
 
     Orbits = NewObject<UOrbitsKernel>(this);
     Fluids = NewObject<UFluidsKernel>(this);
@@ -281,11 +282,12 @@ void UManifoldSlice::PickConstellation(uint64 Seed, int32 NumRealms, int32 K, TA
     OutMembers = MoveTemp(Pool);
 }
 
-void UManifoldSlice::SetupConstellation(int64 InSeed, int32 InConstellationSize)
+void UManifoldSlice::SetupConstellation(int64 InSeed, int32 InConstellationSize, bool bExpertHideRule)
 {
     const uint64 Seed = static_cast<uint64>(InSeed);
     SavedOrbitsSeed = Seed;
     SavedFluidsSeed = Seed;
+    bHideRelationHint = bExpertHideRule;
 
     // Reset all session accumulators (reuse safety).
     IgnitedCount = 0;
@@ -653,6 +655,10 @@ int32 UManifoldSlice::GetScore() const
         if (SessionState == EManifoldSessionState::Won && FailedProbes == 0)
         {
             Score += 1500; // flawless read of the constellation
+        }
+        if (bHideRelationHint && SessionState == EManifoldSessionState::Won)
+        {
+            Score += 2500; // expert: inferred the hidden rule with no hint
         }
         Score -= FailedProbes * 250;
     }

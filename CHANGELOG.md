@@ -46,8 +46,13 @@ cross-domain inference. **56/56 green.**
 - **Meaningful rank.** Constellation scoring now grades difficulty and precision: an
   Octave solve (the rule is harder to infer) earns a bonus over an Exact solve, a flawless
   (no wasted probe) solve earns a bonus, and every wrong lock costs points — so the S/A/B/
-  C/D rank actually reflects skill. Test: `MANIFOLD.Play.ConstellationScoring`. The whole
-  game still cooks into a shippable standalone build (packaging SUCCESS). **59/59 green.**
+  C/D rank actually reflects skill. Test: `MANIFOLD.Play.ConstellationScoring`.
+- **Expert mode (the full design).** Cycling `[C]` a second time hides the rule itself
+  (`Rule: ???`) — the player must infer whether the session is Exact or Octave from the
+  ratios alone, the design's complete inference challenge, worth a win bonus. Same puzzle,
+  no hint. Test: `MANIFOLD.Play.ConstellationExpert`. The whole game still cooks into a
+  shippable standalone build (packaging SUCCESS); two adversarial audits (feature + cross-
+  module integration) returned zero findings. **60/60 green.**
 
 ### Hardened (no mocks / placeholders)
 An adversarial, codebase-wide incompleteness audit found 16 real stubs/fakes;
@@ -189,7 +194,7 @@ confirmed finding, with none deferred. E.g.:
   registration. AndroidFileServer plugin disabled (stops dev-token regeneration).
 
 ### Status
-- **59 / 59** automation tests green, headless. Repo is public and professional.
+- **60 / 60** automation tests green, headless. Repo is public and professional.
   Remaining phase (real art/VFX scenes, bound sound assets, bespoke UMG UI, human
   playtest) is human-owned and needs the editor + a display — see
   `Docs/IMPLEMENTATION_STATUS.md`.

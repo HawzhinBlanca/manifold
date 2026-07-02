@@ -67,7 +67,7 @@ void AManifoldGameMode::StartSession()
         // A fresh puzzle each start: the seed rotates so the relation/constellation vary.
         const int64 Seed = 7001 + ConstellationSeedCounter;
         ++ConstellationSeedCounter;
-        Slice->SetupConstellation(Seed, 3);
+        Slice->SetupConstellation(Seed, 3, bConstellationExpert);
     }
     else
     {
@@ -180,12 +180,26 @@ void AManifoldGameMode::ManifoldTransport()
 
 void AManifoldGameMode::ManifoldToggleMode()
 {
-    PlayMode = (PlayMode == EManifoldPlayMode::Classic)
-        ? EManifoldPlayMode::Constellation
-        : EManifoldPlayMode::Classic;
+    // Cycle: Classic -> Constellation -> Constellation (Expert, rule hidden) -> Classic.
+    if (PlayMode == EManifoldPlayMode::Classic)
+    {
+        PlayMode = EManifoldPlayMode::Constellation;
+        bConstellationExpert = false;
+    }
+    else if (!bConstellationExpert)
+    {
+        bConstellationExpert = true; // same mode, now with the rule hidden
+    }
+    else
+    {
+        PlayMode = EManifoldPlayMode::Classic;
+        bConstellationExpert = false;
+    }
+
     StartSession();
     UE_LOG(LogTemp, Display, TEXT("[MANIFOLD] Mode: %s"),
-        PlayMode == EManifoldPlayMode::Constellation ? TEXT("Constellation Lock") : TEXT("Classic"));
+        PlayMode == EManifoldPlayMode::Classic ? TEXT("Classic") :
+        bConstellationExpert ? TEXT("Constellation Lock (Expert)") : TEXT("Constellation Lock"));
 }
 
 void AManifoldGameMode::ConstellationToggleRealm(int32 Index)

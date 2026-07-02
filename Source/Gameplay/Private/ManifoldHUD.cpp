@@ -222,8 +222,16 @@ void AManifoldHUD::DrawConstellationReadout(UManifoldSlice* S, AManifoldGameMode
     };
 
     // The rule the corresponding realms obey (the player normalizes each ratio by it).
-    Line(FString::Printf(TEXT("Rule: %s   -   which realms correspond under it?"),
-        *S->GetActiveRelationName()), Cyan);
+    // Expert mode hides it — the player must infer Exact vs Octave from the ratios.
+    if (S->IsRelationHintHidden())
+    {
+        Line(TEXT("Rule: ???  (EXPERT)  -  infer Exact vs Octave from the ratios"), Gold);
+    }
+    else
+    {
+        Line(FString::Printf(TEXT("Rule: %s   -   which realms correspond under it?"),
+            *S->GetActiveRelationName()), Cyan);
+    }
 
     const TArray<int32>& Pick = GM->GetPendingSelection();
     for (int32 i = 0; i < S->GetConstellationRealmCount(); ++i)
