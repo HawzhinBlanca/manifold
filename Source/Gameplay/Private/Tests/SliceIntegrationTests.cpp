@@ -1797,6 +1797,75 @@ bool FMaliciousReplayRejectedTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// SECURITY (kernel/gameplay audit): `Steps` is a raw int32 scalar in an UNTRUSTED, shareable replay,
+// and RunReplay uses it DIRECTLY as a loop bound — each iteration advances every physics kernel plus
+// correspondence detection. The bounded-array guard covers array COUNTS but not this scalar, so a
+// crafted Steps near INT32_MAX turned a ~44-byte file into ~2.1e9 iterations of full-CPU work (a
+// compute DoS on merely replaying a shared file). LoadReplay now rejects an out-of-range Steps up
+// front (and RunReplay clamps defensively). This test proves the bound rejects hostile values, the
+// boundary is inclusive, and it does not over-reject a legitimate small session.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FReplayStepsBoundedTest, "MANIFOLD.Integration.ReplayStepsBounded", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FReplayStepsBoundedTest::RunTest(const FString& Parameters)
+{
+    const FString Dir = FPaths::ProjectSavedDir();
+
+    // Write a COMPLETE, otherwise-valid v1 replay body carrying the given Steps, so the ONLY reason a
+    // load can fail is the Steps range check (never a truncated-body under-read).
+    auto WriteReplayWithSteps = [&](int32 StepsValue, const TCHAR* Name) -> FString
+    {
+        TArray<uint8> Bytes;
+        FMemoryWriter W(Bytes, /*bIsPersistent*/ true);
+        uint32 M = FManifoldReplay::Magic; uint32 V = 1;
+        uint64 O = 7ULL, F = 9ULL; int32 Steps = StepsValue;
+        int32 Count = 0;                       // empty (valid) TransportSteps
+        int32 Disc = 1, Trans = 1; float Rate = 0.25f;
+        W << M; W << V; W << O; W << F; W << Steps; W << Count; W << Disc; W << Trans; W << Rate;
+        const FString Path = FPaths::Combine(Dir, Name);
+        FFileHelper::SaveArrayToFile(Bytes, *Path);
+        return Path;
+    };
+
+    FManifoldReplay R;
+
+    // Hostile: Steps = INT32_MAX -> rejected (would otherwise drive a ~2.1e9-iteration loop).
+    {
+        const FString P = WriteReplayWithSteps(0x7FFFFFFF, TEXT("EvilSteps.manifoldreplay"));
+        UTEST_FALSE("INT32_MAX Steps is rejected at load (no compute DoS)", UManifoldSlice::LoadReplay(R, P));
+        FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*P);
+    }
+    // Just past the ceiling -> rejected.
+    {
+        const FString P = WriteReplayWithSteps(FManifoldReplay::MaxSteps + 1, TEXT("OverSteps.manifoldreplay"));
+        UTEST_FALSE("Steps just over MaxSteps is rejected", UManifoldSlice::LoadReplay(R, P));
+        FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*P);
+    }
+    // Negative Steps -> rejected.
+    {
+        const FString P = WriteReplayWithSteps(-1, TEXT("NegSteps.manifoldreplay"));
+        UTEST_FALSE("negative Steps is rejected", UManifoldSlice::LoadReplay(R, P));
+        FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*P);
+    }
+    // Boundary: exactly MaxSteps is accepted (inclusive bound; never rejects a legitimate replay).
+    {
+        const FString P = WriteReplayWithSteps(FManifoldReplay::MaxSteps, TEXT("MaxSteps.manifoldreplay"));
+        FManifoldReplay Loaded;
+        UTEST_TRUE("Steps == MaxSteps is accepted (boundary inclusive)", UManifoldSlice::LoadReplay(Loaded, P));
+        UTEST_EQUAL("boundary Steps preserved", Loaded.Steps, FManifoldReplay::MaxSteps);
+        FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*P);
+    }
+    // A normal small session loads unchanged (the guard must not over-reject).
+    {
+        const FString P = WriteReplayWithSteps(500, TEXT("SmallSteps.manifoldreplay"));
+        FManifoldReplay Loaded;
+        UTEST_TRUE("a normal small-Steps replay still loads", UManifoldSlice::LoadReplay(Loaded, P));
+        UTEST_EQUAL("small Steps preserved", Loaded.Steps, 500);
+        FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*P);
+    }
+
+    return true;
+}
+
 // Decoy realm (the moat): a red-herring realm exhibits a DIFFERENT ratio, and the
 // correspondence engine must refuse to pair it with the true realms. This proves the
 // game can't be trivially solved by "everything matches" — the player must actually

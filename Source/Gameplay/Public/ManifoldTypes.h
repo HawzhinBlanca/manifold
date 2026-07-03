@@ -234,6 +234,18 @@ struct MANIFOLDGAMEPLAY_API FManifoldReplay
     static constexpr uint32 Version = 2;
 
     /**
+     * Upper bound on a deserialized `Steps`. A replay is UNTRUSTED, shareable input, and `Steps` is
+     * a raw scalar that RunReplay uses directly as a loop bound — each iteration advances every
+     * physics kernel plus correspondence detection. Left unbounded, a crafted `Steps` near INT32_MAX
+     * turns a ~44-byte file into ~2.1e9 iterations of full-CPU work (a denial-of-service on merely
+     * replaying a shared file). This ceiling is ~1000x any real recorded session (which wins in tens
+     * of steps and is bounded by the objective's StepBudget), so it never rejects a legitimate replay,
+     * yet caps the worst case to a bounded, brief loop. Companion to the bounded-array guard above —
+     * that bounds untrusted array COUNTS; this bounds the untrusted scalar step count.
+     */
+    static constexpr int32 MaxSteps = 1000000;
+
+    /**
      * Version-aware body. Fields were only APPENDED (v1: the 7 seed/step/result fields;
      * v2: +Mode/ConstellationSize/LockSelection), so a v1 replay is a valid prefix: it loads
      * as a Classic session (Mode defaults to 0) instead of being rejected — a shared v1

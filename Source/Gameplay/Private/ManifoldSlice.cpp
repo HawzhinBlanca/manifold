@@ -1111,7 +1111,11 @@ FManifoldSliceResult UManifoldSlice::RunReplay(const FManifoldReplay& Replay)
         TransportsPerStep.FindOrAdd(Step)++;
     }
 
-    for (int32 i = 0; i < Replay.Steps; ++i)
+    // Defense in depth: LoadReplay already rejects an out-of-range Steps, but RunReplay is a public
+    // BlueprintCallable that can be handed a replay built in memory (bypassing the load guard). Clamp
+    // the loop bound to the same ceiling so no caller can drive an unbounded compute loop.
+    const int32 SafeSteps = FMath::Clamp(Replay.Steps, 0, FManifoldReplay::MaxSteps);
+    for (int32 i = 0; i < SafeSteps; ++i)
     {
         Tick();
         if (const int32* Count = TransportsPerStep.Find(static_cast<int32>(CurrentStep)))
@@ -1173,6 +1177,14 @@ bool UManifoldSlice::LoadReplay(FManifoldReplay& OutReplay, const FString& Path)
     FManifoldReplay Temp;
     Temp.SerializeVersioned(Reader, Version);
     if (Reader.IsError())
+    {
+        return false;
+    }
+    // `Steps` is an untrusted scalar that RunReplay uses directly as a loop bound (each iteration
+    // steps every physics kernel). Reject a hostile/corrupt value up front so it never round-trips
+    // as a valid replay — a crafted Steps near INT32_MAX would otherwise drive a ~2.1e9-iteration
+    // compute DoS. (The array COUNTS were already bounded during the read above.)
+    if (Temp.Steps < 0 || Temp.Steps > FManifoldReplay::MaxSteps)
     {
         return false;
     }
