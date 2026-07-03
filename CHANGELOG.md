@@ -6,6 +6,19 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Correctness — Waves hash coverage (all-kernels hash-blind-spot sweep, final)
+- After the Orbits (per-body `Mass`) and Fluids (velocity grids + config) hash blind spots, a
+  systematic adversarial audit of the **five remaining kernels** (Harmonics, Waves, Rhythm, Gears,
+  Circuits) for the same three defect classes (hash coverage, config serialization, untrusted
+  `SetState`) found the hash-coverage class in **exactly one** — Waves — and cleared the other four.
+  `WavesKernel::Step` advances each wave's phase by `HarmonicNumber * Fundamental` (the frequency is
+  derived from `Fundamental` each step, not stored), but `ComputeStateHash` folded only the per-wave
+  `HarmonicNumber`/`Phase`/`Amplitude` and omitted `Fundamental` — so two states differing only in
+  `Fundamental` (e.g. 220 Hz vs 440 Hz) hashed identically yet diverge on the next step. `Fundamental`
+  is serialized/restored and `SetParameter`-mutable, so those states are reachable across save/load or
+  a mid-session change. Now folded. Locked by `MANIFOLD.Kernels.Waves.HashCoversFundamental`. **100/100
+  green** (up from 99). This completes the hash-coverage sweep across **all seven kernels**.
+
 ### Robustness — replay hardening (Correspondence / Gameplay adversarial audit)
 - A fresh 6-lens adversarial audit of the previously-unaudited **Correspondence engine + Gameplay +
   GameMode** surfaces (finders each a distinct lens → verifiers told to *refute* every finding and
