@@ -1866,6 +1866,47 @@ bool FReplayStepsBoundedTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// Regression (gameplay audit): an EXPERT constellation session (rule hidden) earns a +2500 bonus,
+// but the expert flag was NOT persisted in FManifoldReplay, so RunReplay rebuilt the puzzle as
+// non-expert and the reproduced score was short by exactly 2500 — contradicting the "reproduces
+// exactly / bit-for-bit" contract on RecordConstellationReplay/RunReplay. The flag is now carried
+// (v3 append) and honored on replay. This test proves the expert bonus is (a) present at record,
+// (b) survives the serialize round-trip, and (c) is reproduced by RunReplay to the same score.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FConstellationExpertReplayScoreTest, "MANIFOLD.Integration.ConstellationExpertReplayScore", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FConstellationExpertReplayScoreTest::RunTest(const FString& Parameters)
+{
+    const int64 Seed = 2024;
+
+    // Record an EXPERT constellation session (rule hidden -> flawless win earns the +2500 expert bonus).
+    UManifoldSlice* Rec = NewObject<UManifoldSlice>();
+    const FManifoldReplay ExpertReplay = Rec->RecordConstellationReplay(Seed, 3, /*bExpertHideRule*/ true);
+    const int32 RecordedScore = Rec->GetScore();
+    UTEST_TRUE("recorded expert replay carries the expert flag", ExpertReplay.bExpertHideRule);
+
+    // Baseline: the SAME puzzle recorded non-expert scores exactly 2500 less — so the expert flag is
+    // the sole differentiator, and reproducing it wrong would be a visible score/rank error.
+    UManifoldSlice* RecNormal = NewObject<UManifoldSlice>();
+    RecNormal->RecordConstellationReplay(Seed, 3, /*bExpertHideRule*/ false);
+    const int32 NormalScore = RecNormal->GetScore();
+    UTEST_EQUAL("expert record outscores normal by exactly the expert bonus", RecordedScore, NormalScore + 2500);
+
+    // Round-trip the expert replay through the on-disk format (v3), then reproduce it on a FRESH slice.
+    const FString Path = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("ExpertReplay.manifoldreplay"));
+    UTEST_TRUE("save expert replay", UManifoldSlice::SaveReplay(ExpertReplay, Path));
+    FManifoldReplay Loaded;
+    UTEST_TRUE("load expert replay", UManifoldSlice::LoadReplay(Loaded, Path));
+    UTEST_TRUE("expert flag survives the serialize round-trip", Loaded.bExpertHideRule);
+    FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*Path);
+
+    UManifoldSlice* Repro = NewObject<UManifoldSlice>();
+    Repro->RunReplay(Loaded);
+    UTEST_EQUAL("reproduced expert session scores identically (bonus reproduced, not lost)",
+        Repro->GetScore(), RecordedScore);
+
+    return true;
+}
+
 // Decoy realm (the moat): a red-herring realm exhibits a DIFFERENT ratio, and the
 // correspondence engine must refuse to pair it with the true realms. This proves the
 // game can't be trivially solved by "everything matches" — the player must actually

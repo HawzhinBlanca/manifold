@@ -229,9 +229,16 @@ struct MANIFOLDGAMEPLAY_API FManifoldReplay
     UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
     TArray<int32> LockSelection;
 
+    /** Expert mode: the active relation (Exact/Octave) was HIDDEN and the player inferred it. This
+     *  is a difficulty input to SetupConstellation and is worth a scoring bonus on a win, so it must
+     *  be persisted (v3+) — otherwise RunReplay rebuilds the puzzle as non-expert and the reproduced
+     *  score is short by the expert bonus, breaking the "reproduces exactly" contract. */
+    UPROPERTY(BlueprintReadOnly, Category = "MANIFOLD")
+    bool bExpertHideRule = false;
+
     /** Format tag so foreign / newer files are rejected rather than silently misread. */
     static constexpr uint32 Magic = 0x4D414E52; // 'MANR'
-    static constexpr uint32 Version = 2;
+    static constexpr uint32 Version = 3;
 
     /**
      * Upper bound on a deserialized `Steps`. A replay is UNTRUSTED, shareable input, and `Steps` is
@@ -247,9 +254,10 @@ struct MANIFOLDGAMEPLAY_API FManifoldReplay
 
     /**
      * Version-aware body. Fields were only APPENDED (v1: the 7 seed/step/result fields;
-     * v2: +Mode/ConstellationSize/LockSelection), so a v1 replay is a valid prefix: it loads
-     * as a Classic session (Mode defaults to 0) instead of being rejected — a shared v1
-     * replay still plays back after a format bump.
+     * v2: +Mode/ConstellationSize/LockSelection; v3: +bExpertHideRule), so an older replay is a
+     * valid prefix: a v1 file loads as a Classic session (Mode defaults to 0) and a v2 file loads as
+     * a non-expert constellation session (bExpertHideRule defaults to false) instead of being
+     * rejected — a shared older replay still plays back after a format bump.
      */
     /**
      * Bounded read of a TArray<int32> from a possibly-UNTRUSTED archive (replays are shareable).
@@ -301,6 +309,10 @@ struct MANIFOLDGAMEPLAY_API FManifoldReplay
             Ar << Mode;
             Ar << ConstellationSize;
             SerializeBoundedInt32Array(Ar, LockSelection); // untrusted count — bound before alloc
+        }
+        if (InVersion >= 3)
+        {
+            Ar << bExpertHideRule;
         }
     }
 

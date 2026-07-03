@@ -137,11 +137,13 @@ public:
     UFUNCTION(BlueprintCallable, Category = "MANIFOLD")
     FManifoldSliceResult RunReplay(const FManifoldReplay& Replay);
 
-    /** Record a Constellation-Lock session as a reproducible replay: build the puzzle from
-     *  the seed, lock the correct subset, and capture the seed + subset + result. Re-running
-     *  it via RunReplay reproduces the session exactly (SetupConstellation is deterministic). */
+    /** Record a Constellation-Lock session as a reproducible replay: build the puzzle from the
+     *  seed (at the given difficulty, including whether the rule is hidden — expert), lock the
+     *  correct subset, and capture the seed + subset + expert flag + result. Re-running it via
+     *  RunReplay reproduces the session exactly, INCLUDING its score/rank (SetupConstellation is
+     *  deterministic and the expert flag is now persisted). */
     UFUNCTION(BlueprintCallable, Category = "MANIFOLD|Constellation")
-    FManifoldReplay RecordConstellationReplay(int64 Seed, int32 ConstellationSize = 3);
+    FManifoldReplay RecordConstellationReplay(int64 Seed, int32 ConstellationSize = 3, bool bExpertHideRule = false);
 
     /** Capture the CURRENT (interactively-played) session as a shareable replay: its
      *  seeds, the exact steps the player transported, and the result so far. Re-running

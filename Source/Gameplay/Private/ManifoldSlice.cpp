@@ -1055,9 +1055,9 @@ FManifoldReplay UManifoldSlice::RecordReplay(int64 OrbitsSeed, int64 FluidsSeed,
     return Replay;
 }
 
-FManifoldReplay UManifoldSlice::RecordConstellationReplay(int64 Seed, int32 InConstellationSize)
+FManifoldReplay UManifoldSlice::RecordConstellationReplay(int64 Seed, int32 InConstellationSize, bool bExpertHideRule)
 {
-    SetupConstellation(Seed, InConstellationSize);
+    SetupConstellation(Seed, InConstellationSize, bExpertHideRule);
     const TArray<int32> Answer = Constellation; // the correct subset (deterministic)
     PlayerLockConstellation(Answer);
 
@@ -1068,6 +1068,7 @@ FManifoldReplay UManifoldSlice::RecordConstellationReplay(int64 Seed, int32 InCo
     Replay.Steps = 0;
     Replay.ConstellationSize = ConstellationSize;
     Replay.LockSelection = Answer;
+    Replay.bExpertHideRule = bExpertHideRule; // persist the difficulty so RunReplay reproduces the score
     Replay.FinalDiscoveries = GetTotalDiscoveries();
     Replay.FinalTransports = TransportCount;
     Replay.FinalInsightRate = GetInsightRate();
@@ -1084,7 +1085,9 @@ FManifoldSliceResult UManifoldSlice::RunReplay(const FManifoldReplay& Replay)
     // recorded subset. SetupConstellation + PlayerLockConstellation reproduce it exactly.
     if (Replay.Mode == 1)
     {
-        SetupConstellation(static_cast<int64>(Replay.OrbitsSeed), Replay.ConstellationSize);
+        // Rebuild at the SAME difficulty — including the expert (hidden-rule) flag — so the
+        // reproduced session earns the same score/rank as the one recorded.
+        SetupConstellation(static_cast<int64>(Replay.OrbitsSeed), Replay.ConstellationSize, Replay.bExpertHideRule);
         PlayerLockConstellation(Replay.LockSelection);
 
         FManifoldSliceResult Result;
