@@ -6,6 +6,23 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Hardening (gameplay glue — adversarial audit)
+- An adversarial audit of `UManifoldSlice` (scoring / profile / constellation / transport) + Telemetry
+  confirmed four defects (verifiers refuted eight weaker claims); all fixed, the two medium ones
+  locked by `MANIFOLD.Play.ScoreOverflowSafe` and `MANIFOLD.Integration.LostDoesNotSetBest`:
+  - **Speed-bonus int32 overflow (UB).** `(StepBudget − CurrentStep) * 10` overflowed int32 for a
+    near-`INT32_MAX` budget passed via the unclamped public `SetObjective`, and could poison the
+    persisted best. Now computed in int64 and capped.
+  - **A Lost session could overwrite a Won best.** `RecordSessionInProfile` updated the best on
+    `Score > best` with no win check; a high-discovery *loss* overwrote a legitimate best and reported
+    "new best!". Best updates are now gated on `State == Won`.
+  - **Replay lied about a stale-vortex transport (low).** `DoTransportPendingVortex` discarded
+    `Transport()`'s result and `PlayerRequestTransport` always returned true; they now report whether
+    a transport actually fired.
+  - **Leaked telemetry file handle (low).** `RecordConstellationReplay` never called
+    `ShutdownTelemetry` (held the log open until GC); now closed like every other session exit.
+  **86/86 green.**
+
 ### Hardening (Fluids kernel — adversarial audit)
 - A focused multi-agent audit of the previously un-audited kernel physics + mesh builders confirmed
   two real Fluids-kernel defects (both fixed, locked by `MANIFOLD.Kernels.Fluids.RobustParamsAndUniqueVortexIds`):
@@ -324,7 +341,7 @@ confirmed finding, with none deferred. E.g.:
   registration. AndroidFileServer plugin disabled (stops dev-token regeneration).
 
 ### Status
-- **84 / 84** automation tests green, headless. Repo is public and professional.
+- **86 / 86** automation tests green, headless. Repo is public and professional.
   Remaining phase (real art/VFX scenes, bound sound assets, bespoke UMG UI, human
   playtest) is human-owned and needs the editor + a display — see
   `Docs/IMPLEMENTATION_STATUS.md`.

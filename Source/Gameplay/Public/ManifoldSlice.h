@@ -383,6 +383,6 @@ private:
     void HandleIgnited(FGuid SourceStructure, FGuid TargetStructure, float Scale);
     void HandleSharedDiscovery(FName RealmA, FName RealmB, FString Ratio, FGuid StableId);
     void HandleTransport(FGuid Source, FName TargetRealm, FGuid TargetId, float Strength);
-    void DoTransportPendingVortex();
+    bool DoTransportPendingVortex(); // returns whether a transport actually fired
     void EvaluateObjective();
 };

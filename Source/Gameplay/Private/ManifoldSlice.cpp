@@ -644,13 +644,18 @@ void UManifoldSlice::HandleSharedDiscovery(FName RealmA, FName /*RealmB*/, FStri
     }
 }
 
-void UManifoldSlice::DoTransportPendingVortex()
+bool UManifoldSlice::DoTransportPendingVortex()
 {
     if (bCorrespondenceAvailable && PendingVortexId.IsValid())
     {
-        Correspond->Transport(PendingVortexId, TEXT("Orbits"));
+        // Report whether a transport ACTUALLY fired: the pending vortex may have drifted (getting a
+        // new cell-quantized id) or dissipated since ignition, so Correspond->Transport can return
+        // false and increment nothing. Consume the attempt either way, but tell the truth.
+        const bool bTransported = Correspond->Transport(PendingVortexId, TEXT("Orbits"));
         bCorrespondenceAvailable = false;
+        return bTransported;
     }
+    return false;
 }
 
 bool UManifoldSlice::PlayerRequestTransport()
@@ -659,8 +664,8 @@ bool UManifoldSlice::PlayerRequestTransport()
     {
         return false;
     }
-    DoTransportPendingVortex();
-    return true;
+    // Return the real outcome, not just intent — a stale/dissipated vortex means no transport fired.
+    return DoTransportPendingVortex();
 }
 
 void UManifoldSlice::HandleTransport(FGuid /*Source*/, FName TargetRealm, FGuid /*TargetId*/, float /*Strength*/)
@@ -731,7 +736,12 @@ int32 UManifoldSlice::GetScore() const
     Score += FMath::Clamp(FMath::RoundToInt(GetInsightRate() * 100.0f), 0, 250);
     if (SessionState == EManifoldSessionState::Won && Objective.StepBudget > 0)
     {
-        Score += FMath::Max(0, Objective.StepBudget - static_cast<int32>(CurrentStep)) * 10;
+        // Speed bonus for winning under budget, computed in int64 and bounded. StepBudget arrives
+        // via the public SetObjective with no clamp, so a near-INT32_MAX budget would overflow the
+        // int32 "* 10" (undefined behavior) before the final Max(0) could help. The cap also keeps
+        // the score sane for any out-of-band budget.
+        const int64 Remaining = static_cast<int64>(Objective.StepBudget) - static_cast<int64>(CurrentStep);
+        Score += static_cast<int32>(FMath::Clamp<int64>(Remaining * 10, 0, 100000));
     }
     // Constellation Lock grades difficulty AND precision, so the rank means something:
     // the Octave rule is harder to infer than Exact, and a flawless (no wasted probe)
@@ -776,6 +786,14 @@ bool UManifoldSlice::RecordSessionInProfile(FManifoldProfile& Profile, const FMa
     if (Summary.State == EManifoldSessionState::Won)
     {
         ++Profile.SessionsWon;
+    }
+    // A "best" score must represent a COMPLETED (Won) run. A Lost session can still accumulate a
+    // large discovery-driven score (discoveries aren't capped at the target, and a run can meet the
+    // target yet lose on the insight gate / step budget), and without this gate it would overwrite a
+    // legitimate best and report a spurious "new best!" for a loss.
+    if (Summary.State != EManifoldSessionState::Won)
+    {
+        return false;
     }
     // The two modes have separate leaderboards (their scores aren't comparable). Report
     // whether this beat the mode's previous best so the UI can celebrate it.
@@ -1053,6 +1071,10 @@ FManifoldReplay UManifoldSlice::RecordConstellationReplay(int64 Seed, int32 InCo
     Replay.FinalDiscoveries = GetTotalDiscoveries();
     Replay.FinalTransports = TransportCount;
     Replay.FinalInsightRate = GetInsightRate();
+    // Close the telemetry log handle here as every other session-terminating path does
+    // (RunPlaythrough / RunReplay); SetupConstellation opened it and this driver would otherwise
+    // leave it dangling until GC — a Windows file lock across back-to-back records.
+    if (Telemetry) { Telemetry->ShutdownTelemetry(); }
     return Replay;
 }
 

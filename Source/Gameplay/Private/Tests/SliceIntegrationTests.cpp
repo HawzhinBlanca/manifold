@@ -1370,6 +1370,59 @@ bool FRankTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// Regression (audit): a near-INT32_MAX StepBudget — accepted verbatim by the public SetObjective —
+// must NOT overflow the win speed-bonus term (was an int32 "* 10", undefined behavior). The score
+// stays non-negative and bounded (the bonus is computed in int64 and capped).
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FScoreOverflowSafeTest, "MANIFOLD.Play.ScoreOverflowSafe", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FScoreOverflowSafeTest::RunTest(const FString& Parameters)
+{
+    UManifoldSlice* S = NewObject<UManifoldSlice>();
+    FManifoldObjective O;
+    O.TargetDiscoveries = 1;          // wins almost immediately, so CurrentStep stays tiny
+    O.StepBudget = 2147483647;        // INT32_MAX: old code did (budget - step) * 10 -> int32 overflow
+    S->SetObjective(O);
+    S->Setup(1111ULL, 2222ULL);
+    S->RunPlaythrough(30);
+
+    const int32 Sc = S->GetScore();
+    UTEST_TRUE("score won under a huge budget", static_cast<int32>(S->GetSessionState()) == static_cast<int32>(EManifoldSessionState::Won));
+    UTEST_TRUE("score is non-negative (no overflow garbage)", Sc >= 0);
+    UTEST_TRUE("score is bounded — speed bonus is capped, not overflowed", Sc <= 200000);
+    // Determinism: the same objective + seed reproduces the same bounded score.
+    UManifoldSlice* S2 = NewObject<UManifoldSlice>();
+    S2->SetObjective(O); S2->Setup(1111ULL, 2222ULL); S2->RunPlaythrough(30);
+    UTEST_EQUAL("bounded score is deterministic", S2->GetScore(), Sc);
+    return true;
+}
+
+// Regression (audit): a "best" score must represent a WON run. A high-scoring LOSS (discoveries
+// aren't capped at the target; a run can hit the target yet lose on the insight/step gate) must not
+// overwrite a lower Won best or report a spurious "new best!".
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLostDoesNotSetBestTest, "MANIFOLD.Integration.LostDoesNotSetBest", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FLostDoesNotSetBestTest::RunTest(const FString& Parameters)
+{
+    FManifoldProfile P;
+    FManifoldSessionSummary Won; Won.State = EManifoldSessionState::Won; Won.Score = 4000; Won.bConstellation = false;
+    UTEST_TRUE("a won session sets the best", UManifoldSlice::RecordSessionInProfile(P, Won));
+    UTEST_EQUAL("classic best is the won score", P.BestScore, 4000);
+
+    FManifoldSessionSummary Lost; Lost.State = EManifoldSessionState::Lost; Lost.Score = 15000; Lost.bConstellation = false;
+    UTEST_FALSE("a high-scoring loss is never a new best", UManifoldSlice::RecordSessionInProfile(P, Lost));
+    UTEST_EQUAL("a loss does NOT overwrite the won best", P.BestScore, 4000);
+    UTEST_EQUAL("played counts the loss", P.SessionsPlayed, 2);
+    UTEST_EQUAL("won not incremented by the loss", P.SessionsWon, 1);
+
+    // Same guard on the separate Constellation leaderboard.
+    FManifoldSessionSummary CWon; CWon.State = EManifoldSessionState::Won; CWon.Score = 5000; CWon.bConstellation = true;
+    UManifoldSlice::RecordSessionInProfile(P, CWon);
+    FManifoldSessionSummary CLost; CLost.State = EManifoldSessionState::Lost; CLost.Score = 9000; CLost.bConstellation = true;
+    UTEST_FALSE("a constellation loss is not a new best", UManifoldSlice::RecordSessionInProfile(P, CLost));
+    UTEST_EQUAL("constellation best unchanged by the loss", P.BestConstellationScore, 5000);
+    return true;
+}
+
 // Persistent profile: sessions fold into a profile (counts + best score), and the
 // profile round-trips through a versioned save file.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProfileRoundTripTest, "MANIFOLD.Play.ProfileRoundTrip", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
