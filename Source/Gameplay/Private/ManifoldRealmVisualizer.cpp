@@ -322,9 +322,12 @@ void AManifoldRealmVisualizer::SpawnStarfield()
     for (int32 i = 0; i < StarCount; ++i)
     {
         const FVector Dir = Rng.VRand();
-        const float Radius = Rng.FRandRange(2600.0f, 4200.0f);
-        const float Size = Rng.FRandRange(4.0f, 16.0f);
-        const float Bright = Rng.FRandRange(0.3f, 1.0f);
+        // Depth: a few big, bright "hero" stars nearer the front over a faint distant field,
+        // rather than a flat wash of uniform dots.
+        const bool bHero = (Rng.FRand() < 0.06f);
+        const float Radius = bHero ? Rng.FRandRange(2200.0f, 3100.0f) : Rng.FRandRange(2900.0f, 4400.0f);
+        const float Size   = bHero ? Rng.FRandRange(20.0f, 42.0f)     : Rng.FRandRange(3.0f, 11.0f);
+        const float Bright = bHero ? Rng.FRandRange(1.1f, 1.7f)       : Rng.FRandRange(0.22f, 0.85f);
 
         // Mostly white; a few pale blue or warm gold for variety.
         FLinearColor Col(Bright, Bright, Bright);
