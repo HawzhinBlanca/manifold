@@ -65,12 +65,24 @@ AManifoldRealmVisualizer::AManifoldRealmVisualizer()
     {
         BaseMaterial = MatFinder.Object;
     }
-    // Unlit emissive material for the realm orbs — self-lit so they glow the palette colour and
-    // bloom via the post-process, rather than reading as shaded solid balls.
-    static ConstructorHelpers::FObjectFinder<UMaterialInterface> EmissiveFinder(TEXT("/Engine/EngineMaterials/EmissiveMeshMaterial.EmissiveMeshMaterial"));
+    // Authored energy-sphere material (M_RealmOrb): an unlit emissive with a Fresnel rim so each
+    // realm reads as a glowing 3D sphere with a hot edge, not a flat disc. Driven by the "Color"
+    // param the visualizer's ApplyGlow already sets. Falls back to the engine emissive if missing.
+    static ConstructorHelpers::FObjectFinder<UMaterialInterface> EmissiveFinder(TEXT("/Game/Materials/M_RealmOrb.M_RealmOrb"));
     if (EmissiveFinder.Succeeded())
     {
         EmissiveMaterial = EmissiveFinder.Object;
+    }
+    else
+    {
+        static ConstructorHelpers::FObjectFinder<UMaterialInterface> EmissiveFallback(TEXT("/Engine/EngineMaterials/EmissiveMeshMaterial.EmissiveMeshMaterial"));
+        if (EmissiveFallback.Succeeded()) { EmissiveMaterial = EmissiveFallback.Object; }
+    }
+    // Procedural nebula backdrop material (two-sided, unlit) for a giant inside-out shell.
+    static ConstructorHelpers::FObjectFinder<UMaterialInterface> NebulaFinder(TEXT("/Game/Materials/M_Nebula.M_Nebula"));
+    if (NebulaFinder.Succeeded())
+    {
+        NebulaMaterial = NebulaFinder.Object;
     }
 }
 
@@ -172,6 +184,20 @@ void AManifoldRealmVisualizer::BeginPlay()
             S.bOverride_SceneFringeIntensity = true;       S.SceneFringeIntensity = 0.5f;
             S.bOverride_VignetteIntensity = true;          S.VignetteIntensity = 0.42f;
         }
+    }
+
+    // Giant inside-out nebula shell — a real cosmic backdrop instead of empty black.
+    if (SphereMesh && NebulaMaterial)
+    {
+        Backdrop = NewObject<UStaticMeshComponent>(this, TEXT("NebulaBackdrop"));
+        Backdrop->SetupAttachment(SceneRoot);
+        Backdrop->RegisterComponent();
+        Backdrop->SetStaticMesh(SphereMesh);
+        Backdrop->SetMaterial(0, NebulaMaterial);
+        Backdrop->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        Backdrop->SetCastShadow(false);
+        Backdrop->SetWorldLocation(FVector(0.0, 0.0, 300.0));
+        Backdrop->SetWorldScale3D(FVector(220.0f)); // ~11000uu radius shell around the whole scene
     }
 
     SpawnStarfield();

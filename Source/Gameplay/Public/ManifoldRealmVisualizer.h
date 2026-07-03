@@ -56,6 +56,8 @@ protected:
     UPROPERTY() UStaticMesh* SphereMesh = nullptr;
     UPROPERTY() UMaterialInterface* BaseMaterial = nullptr;
     UPROPERTY() UMaterialInterface* EmissiveMaterial = nullptr; // glowing realm orbs (unlit, blooms)
+    UPROPERTY() UMaterialInterface* NebulaMaterial = nullptr;   // procedural nebula backdrop
+    UPROPERTY() UStaticMeshComponent* Backdrop = nullptr;       // giant inside-out nebula shell
     UPROPERTY() USceneComponent* SceneRoot = nullptr;
     UPROPERTY() TArray<UStaticMeshComponent*> Pool;
 
