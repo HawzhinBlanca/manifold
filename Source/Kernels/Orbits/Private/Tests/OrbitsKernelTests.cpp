@@ -204,6 +204,83 @@ bool FOrbitsResonanceIdAcrossRunsTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// Regression (kernel audit): ComputeOrbitalElements fed unclamped cosines into Acos for the
+// inclination, ascending-node, and argument-of-periapsis angles. A perfectly EQUATORIAL orbit has
+// its angular-momentum vector aligned with +Z, so hVec.Z/h is 1.0 in exact arithmetic — but float
+// rounding can nudge it to 1.0000001, and Acos of a value past ±1 is NaN. That NaN then poisons the
+// element, the period/mean-motion built on it, and the resonance math downstream. The cosines are
+// now clamped to [-1,1] (matching the true-anomaly path); this test locks the finiteness invariant
+// across the exact edge cases (planar prograde/retrograde, near-circular, eccentric+inclined) that
+// drive the cosines to their ±1 extremes.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FOrbitsElementsFiniteTest, "MANIFOLD.Kernels.Orbits.OrbitalElementsFinite", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FOrbitsElementsFiniteTest::RunTest(const FString& Parameters)
+{
+    UOrbitsKernel* Kernel = NewObject<UOrbitsKernel>();
+    Kernel->Initialize(1234ULL);
+
+    FOrbitsBodyDef Star;
+    Star.Name = TEXT("Star");
+    Star.Mass = 1.989e30;
+    Star.bIsCentral = true;
+    Kernel->AddBody(Star);
+
+    const double AU = 1.496e11;
+    const double Vc = FMath::Sqrt((Kernel->G * Star.Mass) / AU);
+
+    TArray<FGuid> Ids;
+
+    // Planar PROGRADE circular orbit in the XY plane: hVec is purely +Z, so hVec.Z/h == 1 (the
+    // inclination-Acos edge). e≈0 also drives the near-circular ascending-node/periapsis paths.
+    {
+        FOrbitsBodyDef B; B.Name = TEXT("Prograde"); B.Mass = 5.972e24;
+        B.Position = FVector(AU, 0.0, 0.0); B.Velocity = FVector(0.0, Vc, 0.0);
+        Ids.Add(Kernel->AddBody(B));
+    }
+    // Planar RETROGRADE orbit: hVec is purely -Z, hVec.Z/h == -1 (the inclination = pi extreme).
+    {
+        FOrbitsBodyDef B; B.Name = TEXT("Retrograde"); B.Mass = 5.972e24;
+        B.Position = FVector(1.7 * AU, 0.0, 0.0); B.Velocity = FVector(0.0, -FMath::Sqrt((Kernel->G * Star.Mass) / (1.7 * AU)), 0.0);
+        Ids.Add(Kernel->AddBody(B));
+    }
+    // Eccentric + inclined orbit: exercises the general (n>0, e>0) Acos branches off the extremes.
+    {
+        FOrbitsBodyDef B; B.Name = TEXT("Inclined"); B.Mass = 6.4e23;
+        const double R = 2.3 * AU;
+        const double Vp = FMath::Sqrt((Kernel->G * Star.Mass) / R); // circular speed at R
+        B.Position = FVector(R, 0.0, 0.0);
+        B.Velocity = FVector(0.0, Vp * 0.9, Vp * 0.44); // sub-circular + out-of-plane -> eccentric & inclined, bound
+        Ids.Add(Kernel->AddBody(B));
+    }
+
+    auto AllElementsFinite = [this, Kernel](const TArray<FGuid>& BodyIds, const TCHAR* When) -> bool
+    {
+        bool bOk = true;
+        for (const FGuid& Id : BodyIds)
+        {
+            FOrbitalElements E;
+            if (!Kernel->GetOrbitalElements(Id, E)) { continue; } // central body / unbound: no elements is fine
+            const bool bFinite =
+                FMath::IsFinite(E.SemiMajorAxis) && FMath::IsFinite(E.Eccentricity) &&
+                FMath::IsFinite(E.Inclination) && FMath::IsFinite(E.LongitudeOfAscendingNode) &&
+                FMath::IsFinite(E.ArgumentOfPeriapsis) && FMath::IsFinite(E.TrueAnomaly) &&
+                FMath::IsFinite(E.Period) && FMath::IsFinite(E.MeanMotion);
+            if (!bFinite) { bOk = false; }
+            TestTrue(FString::Printf(TEXT("All orbital elements finite (%s)"), When), bFinite);
+        }
+        return bOk;
+    };
+
+    // Compute elements at t=0 and after several steps (positions drift toward, but stay near, the
+    // planar extremes — the clamp must hold every frame, not just the pristine initial state).
+    Kernel->Step(0.1f);
+    AllElementsFinite(Ids, TEXT("initial"));
+    for (int32 i = 0; i < 20; ++i) { Kernel->Step(3600.0f); }
+    AllElementsFinite(Ids, TEXT("after 20 steps"));
+
+    return true;
+}
+
 // Regression (adversarial audit): ComputeStateHash folded only Positions and Velocities and
 // omitted per-body Mass — yet mass drives the next step's accelerations (ComputeAccelerations
 // multiplies by Masses[j]/Masses[i]). Two states with identical positions/velocities but a

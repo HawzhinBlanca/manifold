@@ -524,14 +524,16 @@ void UOrbitsKernel::RecomputeOrbitalElements()
         FVector eVec = ((vSqr - Mu / r) * R - FVector::DotProduct(R, V) * V) / Mu;
         double e = eVec.Size();
 
-        // Inclination
-        double Inclination = (h > 0.0) ? FMath::Acos(hVec.Z / h) : 0.0;
+        // Inclination. Clamp the cosine to [-1,1] before Acos: float rounding can push the ratio a
+        // hair past ±1, and Acos of that is NaN, which then poisons every downstream orbital element
+        // (and the period/resonance math built on them). Matches the clamped true-anomaly path below.
+        double Inclination = (h > 0.0) ? FMath::Acos(FMath::Clamp(hVec.Z / h, -1.0, 1.0)) : 0.0;
 
         // Longitude of ascending node (Omega)
         double Omega = 0.0;
         if (n > 0.0)
         {
-            Omega = FMath::Acos(nVec.X / n);
+            Omega = FMath::Acos(FMath::Clamp(nVec.X / n, -1.0, 1.0));
             if (nVec.Y < 0.0) Omega = (2.0 * PI) - Omega;
         }
 
@@ -541,7 +543,7 @@ void UOrbitsKernel::RecomputeOrbitalElements()
         {
             if (n > 0.0)
             {
-                ArgPeri = FMath::Acos(FVector::DotProduct(nVec, eVec) / (n * e));
+                ArgPeri = FMath::Acos(FMath::Clamp(FVector::DotProduct(nVec, eVec) / (n * e), -1.0, 1.0));
                 if (eVec.Z < 0.0) ArgPeri = (2.0 * PI) - ArgPeri;
             }
             else
