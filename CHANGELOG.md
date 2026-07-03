@@ -6,6 +6,26 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Robustness — replay hardening (Correspondence / Gameplay adversarial audit)
+- A fresh 6-lens adversarial audit of the previously-unaudited **Correspondence engine + Gameplay +
+  GameMode** surfaces (finders each a distinct lens → verifiers told to *refute* every finding and
+  reproduce it against the real code) reported 5 candidates; **2 survived**, both fixed here, **99/99
+  green** (up from 97). The 3 refuted were correctly killed as dead-code / unobserved (an
+  `FName`-hash audio voice never compared across runs) or not-wired-to-untrusted-input.
+  - **Unbounded replay `Steps` (compute-DoS).** `FManifoldReplay::Steps` is a raw `int32` in a
+    shareable, UNTRUSTED replay, used directly as RunReplay's loop bound — each iteration steps all
+    seven kernels + decoy + correspondence detection. The bounded-array guard covered array *counts*
+    but not this *scalar*, so a crafted `Steps = 0x7FFFFFFF` turned a ~44-byte file into ~2.1e9
+    iterations of full-CPU work. Now `FManifoldReplay::MaxSteps = 1,000,000` (~1000× any real
+    session); LoadReplay rejects out-of-range up front and RunReplay clamps defensively. Locked by
+    `MANIFOLD.Integration.ReplayStepsBounded`.
+  - **Expert flag not persisted in replays (score/rank fidelity).** An expert (hidden-rule)
+    constellation win earns +2500, but `FManifoldReplay` didn't carry the expert flag, so RunReplay
+    rebuilt the puzzle as non-expert and reproduced a score short by 2500 — breaking the "reproduces
+    exactly" contract. The flag is now an append-only **v3** field (forward-migrating: v1/v2 replays
+    still load, flag defaults false); RecordConstellationReplay stores it and RunReplay honors it.
+    Locked by `MANIFOLD.Integration.ConstellationExpertReplayScore`.
+
 ### Correctness — solver config carried through serialize/replay (kernel audit follow-up, final)
 - **Per-realm solver config was not part of the serialized state.** Orbits `G`/`Softening`/`bFullNBody`
   and Fluids `Viscosity`/`Diffusion`/`Decay` drive their kernel every step and are mutable via the

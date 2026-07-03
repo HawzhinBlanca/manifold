@@ -1,6 +1,6 @@
 # MANIFOLD — Playtest Checklist
 
-The logic is fully headless-tested (97/97). What a machine *can't* judge is **feel**. This
+The logic is fully headless-tested (99/99). What a machine *can't* judge is **feel**. This
 is the one thing that needs you at the controls. Play a few sessions, then jot answers to
 the questions below — each maps to a concrete knob I can turn from your feedback.
 
