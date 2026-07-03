@@ -177,20 +177,22 @@ void AManifoldHUD::DrawHUD()
     // --- Win / lose banner, centered ---
     if (Sum.State != EManifoldSessionState::InProgress)
     {
-        const float CX = Canvas ? Canvas->ClipX * 0.5f : 640.0f;
+        // Centre the win/lose banner in the region to the RIGHT of the persistent left readout
+        // panel (~0.7 of the width) so the two panels don't overlap.
+        const float BX = Canvas ? Canvas->ClipX * 0.70f : 900.0f;
         const float CY = Canvas ? Canvas->ClipY * 0.42f : 360.0f;
         const bool bWon = Sum.State == EManifoldSessionState::Won;
 
-        DrawPanel(CX - 300.0f, CY - 70.0f, 600.0f, 192.0f, FLinearColor(0.02f, 0.03f, 0.07f, 0.85f));
+        DrawPanel(BX - 300.0f, CY - 70.0f, 600.0f, 192.0f, FLinearColor(0.02f, 0.03f, 0.07f, 0.92f));
         if (Emblem)
         {
-            DrawTexture(Emblem, CX - 48.0f, CY - 58.0f, 96.0f, 96.0f, 0, 0, 1, 1);
+            DrawTexture(Emblem, BX - 48.0f, CY - 58.0f, 96.0f, 96.0f, 0, 0, 1, 1);
         }
         const FString Title = bWon ? TEXT("CORRESPONDENCE COMPLETE") : TEXT("SESSION LOST");
         const FLinearColor TitleCol = bWon ? Gold : FLinearColor(1.0f, 0.35f, 0.35f);
         if (Big)
         {
-            DrawText(Title, TitleCol, CX - 230.0f, CY + 44.0f, Big, 1.25f);
+            DrawText(Title, TitleCol, BX - 230.0f, CY + 44.0f, Big, 1.25f);
         }
         // Big rank grade.
         const TCHAR* RankLetter =
@@ -200,13 +202,13 @@ void AManifoldHUD::DrawHUD()
             Sum.Rank == EManifoldRank::C ? TEXT("C") : TEXT("D");
         if (Big)
         {
-            DrawText(FString::Printf(TEXT("RANK %s"), RankLetter), Gold, CX + 150.0f, CY + 40.0f, Big, 1.8f);
+            DrawText(FString::Printf(TEXT("RANK %s"), RankLetter), Gold, BX + 150.0f, CY + 40.0f, Big, 1.8f);
         }
         DrawText(FString::Printf(TEXT("Score %d  (best %d)    %d discoveries    [R] play again"),
-            Sum.Score, GM->Profile.BestScore, Sum.Discoveries), Dim, CX - 230.0f, CY + 72.0f, Font);
+            Sum.Score, GM->Profile.BestScore, Sum.Discoveries), Dim, BX - 230.0f, CY + 72.0f, Font);
         if (GM->bNewBestThisSession)
         {
-            DrawText(TEXT(">>> NEW BEST! <<<"), Gold, CX - 66.0f, CY + 94.0f, Font);
+            DrawText(TEXT(">>> NEW BEST! <<<"), Gold, BX - 66.0f, CY + 94.0f, Font);
         }
     }
 }
@@ -334,17 +336,18 @@ void AManifoldHUD::DrawConstellationReadout(UManifoldSlice* S, AManifoldGameMode
     // --- Resolution banner (won only; constellation has no lose state) ---
     if (Sum.State != EManifoldSessionState::InProgress)
     {
-        const float CX = Canvas ? Canvas->ClipX * 0.5f : 640.0f;
+        // Centre the banner right of the persistent left readout panel so they don't overlap.
+        const float BX = Canvas ? Canvas->ClipX * 0.70f : 900.0f;
         const float CY = Canvas ? Canvas->ClipY * 0.42f : 360.0f;
 
-        DrawPanel(CX - 300.0f, CY - 70.0f, 600.0f, 192.0f, FLinearColor(0.02f, 0.03f, 0.07f, 0.85f));
+        DrawPanel(BX - 300.0f, CY - 70.0f, 600.0f, 192.0f, FLinearColor(0.02f, 0.03f, 0.07f, 0.92f));
         if (Emblem)
         {
-            DrawTexture(Emblem, CX - 48.0f, CY - 58.0f, 96.0f, 96.0f, 0, 0, 1, 1);
+            DrawTexture(Emblem, BX - 48.0f, CY - 58.0f, 96.0f, 96.0f, 0, 0, 1, 1);
         }
         if (Big)
         {
-            DrawText(TEXT("CONSTELLATION LOCKED"), Gold, CX - 230.0f, CY + 44.0f, Big, 1.25f);
+            DrawText(TEXT("CONSTELLATION LOCKED"), Gold, BX - 230.0f, CY + 44.0f, Big, 1.25f);
         }
         const TCHAR* RankLetter =
             Sum.Rank == EManifoldRank::S ? TEXT("S") :
@@ -353,13 +356,13 @@ void AManifoldHUD::DrawConstellationReadout(UManifoldSlice* S, AManifoldGameMode
             Sum.Rank == EManifoldRank::C ? TEXT("C") : TEXT("D");
         if (Big)
         {
-            DrawText(FString::Printf(TEXT("RANK %s"), RankLetter), Gold, CX + 150.0f, CY + 40.0f, Big, 1.8f);
+            DrawText(FString::Printf(TEXT("RANK %s"), RankLetter), Gold, BX + 150.0f, CY + 40.0f, Big, 1.8f);
         }
         DrawText(FString::Printf(TEXT("Score %d  (best %d)    %d probes wasted    [R] new puzzle"),
-            Sum.Score, GM->Profile.BestConstellationScore, S->GetFailedProbes()), Dim, CX - 230.0f, CY + 72.0f, Font);
+            Sum.Score, GM->Profile.BestConstellationScore, S->GetFailedProbes()), Dim, BX - 230.0f, CY + 72.0f, Font);
         if (GM->bNewBestThisSession)
         {
-            DrawText(TEXT(">>> NEW BEST! <<<"), Gold, CX - 66.0f, CY + 94.0f, Font);
+            DrawText(TEXT(">>> NEW BEST! <<<"), Gold, BX - 66.0f, CY + 94.0f, Font);
         }
     }
 }
