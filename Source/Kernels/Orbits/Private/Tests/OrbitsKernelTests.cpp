@@ -203,3 +203,35 @@ bool FOrbitsResonanceIdAcrossRunsTest::RunTest(const FString& Parameters)
 
     return true;
 }
+
+// Regression (adversarial audit): ComputeStateHash folded only Positions and Velocities and
+// omitted per-body Mass — yet mass drives the next step's accelerations (ComputeAccelerations
+// multiplies by Masses[j]/Masses[i]). Two states with identical positions/velocities but a
+// different mass are genuinely divergent and previously hashed IDENTICALLY, hiding the
+// divergence from the hash-based determinism/round-trip checks. Mass is now folded in.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FOrbitsHashCoversMassTest, "MANIFOLD.Kernels.Orbits.HashCoversMass", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FOrbitsHashCoversMassTest::RunTest(const FString& Parameters)
+{
+    // Build a two-body state at fixed positions/velocities, parameterized only by the central
+    // mass. No Step() is taken, so Positions/Velocities are byte-identical across mass values —
+    // the ONLY differing state is the mass.
+    auto BuildHash = [](double StarMass) -> uint64
+    {
+        UOrbitsKernel* K = NewObject<UOrbitsKernel>();
+        K->Initialize(2024ULL);
+        FOrbitsBodyDef Star; Star.Name = TEXT("Star"); Star.Mass = StarMass; Star.bIsCentral = true;
+        K->AddBody(Star);
+        FOrbitsBodyDef Planet; Planet.Name = TEXT("Planet"); Planet.Mass = 1e24;
+        Planet.Position = FVector(1.496e11, 0.0, 0.0);
+        Planet.Velocity = FVector(0.0, 30000.0, 0.0);
+        K->AddBody(Planet);
+        return K->ComputeStateHash();
+    };
+
+    const uint64 HRef = BuildHash(1.989e30);
+    UTEST_TRUE("a mass-only divergence must change the Orbits state hash", HRef != BuildHash(1.989e31));
+    UTEST_TRUE("identical bodies hash identically", HRef == BuildHash(1.989e30));
+
+    return true;
+}

@@ -125,16 +125,28 @@ void UFluidsKernel::DeserializeState(FArchive& Ar)
 
 uint64 UFluidsKernel::ComputeStateHash() const
 {
-    // Bitwise hash of density array
+    // Bitwise hash of ALL simulation-driving grids: density AND both velocity
+    // components. The velocity fields u/v drive advection (Advect) and vortex
+    // detection (DetectVortices) every step, so a state that diverges only in
+    // velocity — with byte-identical density — MUST hash differently, or the
+    // divergence goes UNDETECTED (this hash IS the determinism/divergence detector
+    // compared by VerifyDeterminism and the replay layer). Distinct per-grid value
+    // and index multipliers keep the folds from cancelling across equal-length grids.
     uint64 Hash = 0xFEDCBA9876543210ULL;
-    for (int32 i = 0; i < d.Num(); ++i)
+    auto FoldGrid = [&Hash](const TArray<float>& Grid, uint64 ValMul, uint64 IdxMul)
     {
-        uint32 Bits;
-        float Val = d[i];
-        FMemory::Memcpy(&Bits, &Val, sizeof(float));
-        Hash ^= static_cast<uint64>(Bits) * 0x9E3779B97F4A7C15ULL;
-        Hash ^= static_cast<uint64>(i) * 0xBF58476D1CE4E5B9ULL;
-    }
+        for (int32 i = 0; i < Grid.Num(); ++i)
+        {
+            uint32 Bits;
+            float Val = Grid[i];
+            FMemory::Memcpy(&Bits, &Val, sizeof(float));
+            Hash ^= static_cast<uint64>(Bits) * ValMul;
+            Hash ^= static_cast<uint64>(i) * IdxMul;
+        }
+    };
+    FoldGrid(d, 0x9E3779B97F4A7C15ULL, 0xBF58476D1CE4E5B9ULL); // density (unchanged constants)
+    FoldGrid(u, 0xC2B2AE3D27D4EB4FULL, 0x165667B19E3779F9ULL); // velocity X
+    FoldGrid(v, 0xD6E8FEB86659FD93ULL, 0xCB92BA72B4C7E9FBULL); // velocity Y
     return Hash;
 }
 

@@ -6,6 +6,25 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Correctness — determinism-hash coverage (adversarial kernel/core audit)
+- A 4-lens adversarial audit (determinism / detection / serialization / numerical) of the seven
+  physics kernels + deterministic core, whose verifiers were told to *refute* every finding against
+  the real code, confirmed **8** real defects. The two highest-leverage — blind spots in the
+  divergence detector itself — are fixed here, **93/93 green** (up from 91):
+  - **`UFluidsKernel::ComputeStateHash` folded only the density grid `d`**, omitting the velocity
+    fields `u`/`v` that drive advection and vortex detection every step. Two states differing *only*
+    in velocity (byte-identical density) hashed identically, so a real simulation divergence slipped
+    past `VerifyDeterminism` and the replay comparator. Now folds `u` and `v` with distinct per-grid
+    multipliers. Locked by `MANIFOLD.Kernels.Fluids.HashCoversVelocity`.
+  - **`UOrbitsKernel::ComputeStateHash` omitted per-body `Mass`**, yet mass drives the next step's
+    accelerations (`Masses[j]/Masses[i]`). Two states with identical positions/velocities but a
+    different mass hashed identically. Now folds `Mass`. Locked by `MANIFOLD.Kernels.Orbits.HashCoversMass`.
+  - Remaining confirmed findings queued for follow-up iterations: kernel config fields (Orbits
+    `G`/`Softening`/`bFullNBody`, Fluids `Viscosity`/`Diffusion`/`Decay`) not carried through
+    serialize/deserialize; `UFluidsKernel::SetState` not validating an untrusted `GridSize` against
+    the grid-array lengths; and an unclamped `Acos` in the Orbits argument-of-periapsis that can
+    return NaN.
+
 ### Craft-quality pass (multi-lens review — coverage gaps + genuine simplifications)
 - A craft-lens review (a different lens than the correctness audits: test-coverage completeness and
   code duplication, not bugs) surfaced four genuinely-untested behaviours and several verbatim

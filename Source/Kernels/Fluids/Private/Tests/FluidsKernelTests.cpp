@@ -144,3 +144,45 @@ bool FFluidsRobustnessTest::RunTest(const FString& Parameters)
 
     return true;
 }
+
+// Regression (adversarial audit): ComputeStateHash folded ONLY the density grid `d`, omitting
+// the velocity fields u/v that drive advection and vortex detection every step. Two states that
+// differ ONLY in velocity — with a byte-identical density grid — therefore hashed IDENTICALLY,
+// so a genuine simulation divergence in velocity slipped past VerifyDeterminism and the replay
+// comparator (the state hash IS the divergence detector). The hash now folds u and v; a
+// velocity-only difference must change it.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFluidsHashCoversVelocityTest, "MANIFOLD.Kernels.Fluids.HashCoversVelocity", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FFluidsHashCoversVelocityTest::RunTest(const FString& Parameters)
+{
+    UFluidsKernel* SeedK = NewObject<UFluidsKernel>();
+    SeedK->Initialize(9090ULL);
+    SeedK->AddVelocity(0.5f, 0.45f, 20.0f, 0.0f);
+    SeedK->AddVelocity(0.5f, 0.55f, -20.0f, 0.0f);
+    for (int32 s = 0; s < 4; ++s) { SeedK->Step(0.016f); }
+
+    const FFluidsState Snapshot = *static_cast<const FFluidsState*>(SeedK->GetState().Get());
+    UTEST_TRUE("snapshot has a populated velocity grid", Snapshot.VelocityX.Num() > 0);
+
+    auto HashOf = [](const FFluidsState& S) -> uint64
+    {
+        UFluidsKernel* Tmp = NewObject<UFluidsKernel>();
+        Tmp->SetState(S); // repopulates d/u/v from the state's Density/VelocityX/VelocityY
+        return Tmp->ComputeStateHash();
+    };
+
+    const uint64 HBase = HashOf(Snapshot);
+    UTEST_TRUE("identical state hashes identically", HashOf(Snapshot) == HBase);
+
+    // Perturb ONE velocity-X cell; the density grid stays byte-identical to the baseline.
+    FFluidsState VelPerturbed = Snapshot;
+    VelPerturbed.VelocityX[VelPerturbed.VelocityX.Num() / 2] += 3.5f;
+    UTEST_TRUE("a velocity-only divergence must change the state hash", HashOf(VelPerturbed) != HBase);
+
+    // Control: a density-only change also changes the hash (as it always did).
+    FFluidsState DenPerturbed = Snapshot;
+    DenPerturbed.Density[DenPerturbed.Density.Num() / 2] += 0.25f;
+    UTEST_TRUE("a density-only divergence changes the state hash", HashOf(DenPerturbed) != HBase);
+
+    return true;
+}

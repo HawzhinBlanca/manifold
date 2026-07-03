@@ -155,7 +155,13 @@ void UOrbitsKernel::DeserializeState(FArchive& Ar)
 
 uint64 UOrbitsKernel::ComputeStateHash() const
 {
-    // Compute simple deterministic bitwise hash of positions and velocities
+    // Deterministic bitwise hash of positions, velocities AND masses. Mass drives
+    // the next step's accelerations (ComputeAccelerations multiplies by Masses[j]/
+    // Masses[i]), so two states that share position/velocity but differ in mass are
+    // genuinely divergent and MUST hash differently — otherwise the divergence goes
+    // undetected (this hash is the determinism/divergence detector). Positions,
+    // Velocities and Masses are maintained same-length (AddBody/RemoveBody/SetState
+    // add and remove all three together), so the shared index is always valid.
     uint64 Hash = 0x123456789ABCDEF0ULL;
     for (int32 i = 0; i < Positions.Num(); ++i)
     {
@@ -166,6 +172,8 @@ uint64 UOrbitsKernel::ComputeStateHash() const
         Hash ^= ManifoldHashDoubleBits(Velocities[i].X) * 0x9E3779B97F4A7C15ULL;
         Hash ^= ManifoldHashDoubleBits(Velocities[i].Y) * 0xBF58476D1CE4E5B9ULL;
         Hash ^= ManifoldHashDoubleBits(Velocities[i].Z) * 0x456ULL;
+
+        Hash ^= ManifoldHashDoubleBits(Masses[i]) * 0xC2B2AE3D27D4EB4FULL;
     }
     return Hash;
 }
