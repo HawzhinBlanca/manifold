@@ -6,6 +6,19 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Hardening (Fluids kernel — adversarial audit)
+- A focused multi-agent audit of the previously un-audited kernel physics + mesh builders confirmed
+  two real Fluids-kernel defects (both fixed, locked by `MANIFOLD.Kernels.Fluids.RobustParamsAndUniqueVortexIds`):
+  - **Negative diffusion params → NaN → out-of-bounds.** `SetParameter("Viscosity"/"Diffusion", …)`
+    accepted negatives unchecked; a negative diffusion drove the Diffuse implicit-solve denominator
+    `1 + 4a` to zero → NaN, which bypassed Advect's range clamps (NaN compares false to both bounds)
+    and cast to an out-of-bounds array index (crash in shipping). Params are now clamped to `>= 0`,
+    and Advect snaps any non-finite advection coordinate back to its cell.
+  - **Vortex stable-id collision.** The id quantized position by a fixed 50 units — coarser than the
+    ~31.25-unit grid spacing (`1000/Size`) — so two *distinct* vortices in adjacent cells collapsed to
+    one `FGuid`, breaking the unique-structure-id contract. IDs are now quantized per grid cell.
+  **84/84 green.**
+
 ### Hardening (correspondence core — adversarial audit)
 - **Locked the load-bearing octave-decoy distinctness contract.** An adversarial audit of the
   matching core (`NormalizeRatio` / `DetectSharedStructureCorrespondences` / constellation
@@ -311,7 +324,7 @@ confirmed finding, with none deferred. E.g.:
   registration. AndroidFileServer plugin disabled (stops dev-token regeneration).
 
 ### Status
-- **83 / 83** automation tests green, headless. Repo is public and professional.
+- **84 / 84** automation tests green, headless. Repo is public and professional.
   Remaining phase (real art/VFX scenes, bound sound assets, bespoke UMG UI, human
   playtest) is human-owned and needs the editor + a display — see
   `Docs/IMPLEMENTATION_STATUS.md`.

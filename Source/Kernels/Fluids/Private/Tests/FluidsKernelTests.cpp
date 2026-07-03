@@ -81,3 +81,66 @@ bool FFluidsStructureQueryTest::RunTest(const FString& Parameters)
 
     return true;
 }
+
+// Regression for two Fluids-kernel defects found by adversarial audit:
+//  (1) A negative Viscosity/Diffusion (settable via SetParameter, previously unchecked) drove the
+//      Diffuse implicit-solve denominator (1 + 4a) to zero -> NaN, which bypassed Advect's range
+//      clamps (NaN compares false to both bounds) and cast to an out-of-bounds array index. Params
+//      are now clamped to >= 0 and Advect snaps any non-finite advection coord back to its cell.
+//  (2) The vortex stable-id quantized position by a fixed 50 units — coarser than the ~31.25-unit
+//      grid spacing (1000/Size) — so two DISTINCT vortices in adjacent cells collapsed to one FGuid,
+//      breaking the unique-structure-id contract. IDs are now quantized per grid cell.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFluidsRobustnessTest, "MANIFOLD.Kernels.Fluids.RobustParamsAndUniqueVortexIds", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FFluidsRobustnessTest::RunTest(const FString& Parameters)
+{
+    // --- (1) Negative diffusion params are clamped; the field stays finite (no NaN / OOB). ---
+    UFluidsKernel* K = NewObject<UFluidsKernel>();
+    K->Initialize(123ULL);
+    K->SetParameter(TEXT("Viscosity"), TEXT("-0.01526")); // the exact denominator-to-zero value
+    K->SetParameter(TEXT("Diffusion"), TEXT("-5.0"));
+    FString V, D;
+    K->GetParameter(TEXT("Viscosity"), V);
+    K->GetParameter(TEXT("Diffusion"), D);
+    UTEST_TRUE("negative viscosity clamped to >= 0", FCString::Atof(*V) >= 0.0f);
+    UTEST_TRUE("negative diffusion clamped to >= 0", FCString::Atof(*D) >= 0.0f);
+
+    K->AddVelocity(0.5f, 0.45f, 30.0f, 0.0f);
+    K->AddVelocity(0.5f, 0.55f, -30.0f, 0.0f);
+    for (int32 s = 0; s < 6; ++s) { K->Step(0.016f); } // old code: NaN here -> out-of-bounds index
+
+    const FFluidsState* FS = static_cast<const FFluidsState*>(K->GetState().Get());
+    bool bFinite = (FS != nullptr);
+    if (FS)
+    {
+        for (float u : FS->VelocityX) { if (!FMath::IsFinite(u)) { bFinite = false; break; } }
+        for (float u : FS->VelocityY) { if (!FMath::IsFinite(u)) { bFinite = false; break; } }
+    }
+    UTEST_TRUE("velocity field stays finite despite hostile diffusion params", bFinite);
+
+    // --- (2) Vortices at DIFFERENT positions must have DIFFERENT ids (the collision fix). ---
+    UFluidsKernel* K2 = NewObject<UFluidsKernel>();
+    K2->Initialize(456ULL);
+    K2->AddVelocity(0.44f, 0.5f, 0.0f, 45.0f);
+    K2->AddVelocity(0.56f, 0.5f, 0.0f, -45.0f);
+    K2->AddVelocity(0.5f, 0.44f, 45.0f, 0.0f);
+    K2->AddVelocity(0.5f, 0.56f, -45.0f, 0.0f);
+    for (int32 s = 0; s < 4; ++s) { K2->Step(0.016f); }
+
+    const TArray<FFluidVortex>& Vs = K2->GetActiveVortices();
+    bool bDistinctIds = true;
+    for (int32 a = 0; a < Vs.Num() && bDistinctIds; ++a)
+    {
+        for (int32 b = a + 1; b < Vs.Num(); ++b)
+        {
+            if (!Vs[a].Position.Equals(Vs[b].Position, 0.01f) && Vs[a].Id == Vs[b].Id)
+            {
+                bDistinctIds = false;
+                break;
+            }
+        }
+    }
+    UTEST_TRUE(FString::Printf(TEXT("distinct-position vortices have distinct ids (%d vortices)"), Vs.Num()), bDistinctIds);
+
+    return true;
+}

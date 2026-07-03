@@ -200,12 +200,15 @@ bool UFluidsKernel::SetParameter(FName Name, const FString& Value)
 {
     if (Name == TEXT("Viscosity"))
     {
-        Viscosity = FCString::Atof(*Value);
+        // Diffusion coefficients are physical and must be >= 0. A negative value drives the
+        // implicit-solve denominator (1 + 4a) in Diffuse to zero/negative -> Inf/NaN that
+        // propagates into Advect and casts to an out-of-bounds array index. Clamp, don't trust.
+        Viscosity = FMath::Max(0.0f, FCString::Atof(*Value));
         return true;
     }
     else if (Name == TEXT("Diffusion"))
     {
-        Diffusion = FCString::Atof(*Value);
+        Diffusion = FMath::Max(0.0f, FCString::Atof(*Value));
         return true;
     }
     else if (Name == TEXT("Decay"))
@@ -341,6 +344,11 @@ void UFluidsKernel::Advect(int32 b, TArray<float>& d_arr, const TArray<float>& d
         {
             float x_coord = i - dt0 * u_arr[IX(i, j)];
             float y_coord = j - dt0 * v_arr[IX(i, j)];
+
+            // A non-finite velocity would bypass the range clamps below (NaN compares false to
+            // both bounds) and cast to an out-of-bounds int index. Snap any NaN/Inf back to the cell.
+            if (!FMath::IsFinite(x_coord)) { x_coord = static_cast<float>(i); }
+            if (!FMath::IsFinite(y_coord)) { y_coord = static_cast<float>(j); }
 
             if (x_coord < 0.5f) x_coord = 0.5f;
             if (x_coord > Size + 0.5f) x_coord = Size + 0.5f;
@@ -523,12 +531,14 @@ void UFluidsKernel::DetectVortices()
         }
         if (!bMatched)
         {
-            // Deterministic identity from the realm + quantized grid position (was a
-            // random GUID), so the same vortex gets the same id across identical runs —
-            // the stable-structure-id contract the sibling realms uphold. Quantize to
-            // the ~50-unit matching threshold.
-            const uint32 QX = static_cast<uint32>(FMath::RoundToInt(NewVor.Position.X / 50.0f));
-            const uint32 QY = static_cast<uint32>(FMath::RoundToInt(NewVor.Position.Y / 50.0f));
+            // Deterministic identity from the realm + grid CELL, so the same vortex gets the same
+            // id across identical runs (the stable-structure-id contract the sibling realms uphold).
+            // Quantize by the actual cell spacing (1000/Size), NOT a fixed 50 units: cell spacing is
+            // ~31.25 for the default Size=32, finer than 50, so a 50-unit bucket collapsed two
+            // distinct vortices in neighbouring cells onto one id. Per-cell buckets are unique.
+            const float CellSpacing = 1000.0f / static_cast<float>(FMath::Max(1, Size));
+            const uint32 QX = static_cast<uint32>(FMath::RoundToInt(NewVor.Position.X / CellSpacing));
+            const uint32 QY = static_cast<uint32>(FMath::RoundToInt(NewVor.Position.Y / CellSpacing));
             NewVor.Id = FGuid(GetTypeHash(GetRealmId().ToString()), QX, QY, GetSimulationVersion());
         }
         StableVortices.Add(NewVor);
