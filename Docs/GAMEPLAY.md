@@ -9,8 +9,8 @@ the seam** where two realms correspond.
 ## The loop
 
 1. **Observe the realms.** Each realm displays the ratio it currently exhibits.
-2. **Find the correspondence.** Four realms secretly share the same hidden ratio; one
-   realm (the **decoy**) shows a different one. When the physics of two realms line up
+2. **Find the correspondence.** Six realms secretly share the same hidden ratio; a
+   **decoy** realm shows a different one. When the physics of two realms line up
    on the same ratio, a correspondence *ignites* at the seam.
 3. **Transport.** With a correspondence lit, press **`E`** to carry power across the
    seam (a vortex becomes a world; a resonance becomes a flow).
@@ -28,6 +28,7 @@ the seam** where two realms correspond.
 | `Space` | (Constellation) Lock your selected subset |
 | `V` | (Constellation) Pay points to reveal the next realm's membership |
 | `X` | Start a Constellation **Expedition** (a campaign of escalating puzzles) |
+| `H` | Toggle the controls / help overlay |
 | free-fly | Move the camera to observe the realms |
 
 The console commands mirror the keys: `ManifoldTransport` (`E`), `ManifoldRestart`
@@ -36,7 +37,7 @@ The console commands mirror the keys: `ManifoldTransport` (`E`), `ManifoldRestar
 
 ## Constellation Lock (the harder mode)
 
-Press **`C`** to switch to Constellation Lock. Now the puzzle inverts: instead of five
+Press **`C`** to switch to Constellation Lock. Now the puzzle inverts: instead of six
 realms sharing one obvious ratio and a single decoy, **every realm shows a *different*
 surface ratio**, and a hidden subset of them (the *constellation*) truly corresponds —
 but under a **rule** that isn't literal equality:
@@ -110,9 +111,10 @@ The **speed bonus** applies when you win under a step budget. Each session is gr
 ## Expedition
 
 Expedition mode strings sessions into a campaign: each level demands more discoveries
-than the last (2, 4, 6, …). A single session can surface at most **11** discoveries
-(one seam correspondence + ten cross-domain analogies among the five true realms), so
-the run has a natural difficulty wall — it ends the first time you can't clear a level.
+than the last (2, 4, 6, …). A single session can surface at most **16** discoveries
+(one seam correspondence + the C(6,2)=15 cross-domain analogies among the six true
+realms), so the run has a natural difficulty wall — it ends the first time you can't
+clear a level.
 Your expedition score is the sum of the levels you cleared.
 
 ## Running it
