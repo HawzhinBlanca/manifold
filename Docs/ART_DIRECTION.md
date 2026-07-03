@@ -4,8 +4,10 @@
 > The current build ships **procedural placeholder visuals** that are correct and readable but
 > deliberately un-bespoke. This document is the concrete plan to take them to a shipped look —
 > written so it can be executed by you, handed to an artist, or implemented by me against the
-> verified logic once a display + asset pipeline is available (this workstation is headless — see
-> the memory note on the RTX 3090 Ti). Nothing here changes gameplay; it is all presentation.
+> verified logic. Visual verification is **not** blocked here: offscreen GPU rendering works on this
+> workstation (the `-ManifoldAutoShot` / `-ManifoldAutoShotSequence` flags capture real frames — see
+> the memory note on the RTX 3090 Ti), so the remaining art work is gated on *art direction and
+> assets*, not on a display. Nothing here changes gameplay; it is all presentation.
 
 ## 0. North star
 
@@ -90,16 +92,17 @@ The HUD is functional (branded readout, mode card, help overlay). A bespoke pass
 
 ## 6. Asset pipeline (what I need from you)
 
-To execute §2–§5 against the verified logic I need, in priority order:
-1. **A display / GPU render path** for this box, or a machine where the editor can render (headless
-   blocks all visual verification — see the workstation memory note).
-2. **Target look references** — even a few mood images or a colour/finish direction per realm.
-3. **Any bespoke assets** you want used (Megascans, custom meshes, Niagara systems, fonts, SFX).
+To execute §2–§5 against the verified logic I need, in priority order (note: a display is **not**
+required — offscreen GPU rendering already lets me capture and verify frames headlessly via
+`-ManifoldAutoShot`, so I can iterate on the look against the verified logic):
+1. **Target look references** — even a few mood images or a colour/finish direction per realm.
+2. **Any bespoke assets** you want used (Megascans, custom meshes, Niagara systems, fonts, SFX).
    Absent those, I can build entirely from procedural + engine-content primitives to a "stylised
    minimal" look that ships.
 
-Give me any subset and I'll wire it; the logic, palette, and hooks (`PulseFactor`, transport events,
-per-realm colour) are already in place and tested.
+Give me any subset and I'll wire it; the logic, palette, hooks (`PulseFactor`, transport events,
+per-realm colour), **and the headless offscreen-render path for verifying the result** are already
+in place and tested.
 
 ## 7. What is already done in code
 
@@ -108,5 +111,9 @@ per-realm colour) are already in place and tested.
 - ✅ Discovery flash (`PulseFactor`), seam render, transport bloom hooks.
 - ✅ Starfield, key/fill lighting, bloom/vignette/fixed-exposure post.
 - ✅ Branded HUD, mode cards, help overlay, procedural emblem, title card.
+- ✅ **Headless visual verification** — offscreen GPU render (`-ManifoldAutoShot` /
+  `-ManifoldAutoShotSequence`) captures real frames, and even an animated loop, so any dressing pass
+  can be checked by eye without an interactive display.
 
-The remaining work in §2–§5 is **dressing**, gated on a display + your art direction.
+The remaining work in §2–§5 is **dressing**, gated on your art direction (the render path for
+verifying it is already in place).
