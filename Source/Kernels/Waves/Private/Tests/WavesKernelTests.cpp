@@ -39,3 +39,32 @@ bool FWavesRatioTest::RunTest(const FString& Parameters)
 
     return true;
 }
+
+// Regression (kernel audit): ComputeStateHash folded only the per-wave HarmonicNumber/Phase/Amplitude
+// and omitted WState->Fundamental — yet Step advances every wave by `HarmonicNumber * Fundamental`, so
+// two states identical except for Fundamental hashed IDENTICALLY while diverging on the very next step
+// (e.g. 220 Hz vs 440 Hz). Fundamental is serialized/restored and SetParameter-mutable, so those
+// states are reachable, and this hash is the determinism/replay divergence detector. Fundamental is
+// now folded. Same class as MANIFOLD.Kernels.Orbits.HashCoversMass.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FWavesHashCoversFundamentalTest, "MANIFOLD.Kernels.Waves.HashCoversFundamental", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FWavesHashCoversFundamentalTest::RunTest(const FString& Parameters)
+{
+    // Build identical wave sets (same harmonics/amplitudes, excited BEFORE overriding Fundamental so
+    // the Waves arrays are byte-identical), differing ONLY in the Fundamental frequency.
+    auto BuildHash = [](double Fund) -> uint64
+    {
+        UWavesKernel* K = NewObject<UWavesKernel>();
+        K->Initialize(4242ULL);
+        K->ExciteHarmonic(2, 1.0);
+        K->ExciteHarmonic(3, 0.7);
+        K->SetParameter(TEXT("Fundamental"), FString::Printf(TEXT("%f"), Fund));
+        return K->ComputeStateHash();
+    };
+
+    const uint64 HRef = BuildHash(220.0);
+    UTEST_TRUE("a Fundamental-only divergence must change the Waves state hash", HRef != BuildHash(440.0));
+    UTEST_TRUE("identical Fundamental hashes identically", HRef == BuildHash(220.0));
+
+    return true;
+}

@@ -93,6 +93,14 @@ void UWavesKernel::DeserializeState(FArchive& Ar)
 uint64 UWavesKernel::ComputeStateHash() const
 {
     uint64 Hash = 0x2B992DDFA23249D6ULL;
+    // Fold the Fundamental frequency: Step advances every wave's phase by
+    // `HarmonicNumber * WState->Fundamental` (the frequency is NOT stored per-wave, it is derived
+    // from Fundamental each step), so two states that share all waves but differ in Fundamental are
+    // genuinely divergent and MUST hash apart — the same class as the Orbits per-body Mass and the
+    // Fluids solver-config folds. Fundamental is serialized and restored in SetState (and mutable via
+    // SetParameter), so the divergent-but-equal-hash states are reachable across a save/load or a
+    // mid-session parameter change, where this hash IS the determinism/replay divergence detector.
+    Hash ^= ManifoldHashDoubleBits(WState->Fundamental) * 0xD6E8FEB86659FD93ULL;
     for (const FStandingWave& Wave : WState->Waves)
     {
         Hash ^= static_cast<uint64>(Wave.HarmonicNumber) * 0x9E3779B97F4A7C15ULL;
