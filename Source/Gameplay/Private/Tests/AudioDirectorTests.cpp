@@ -122,3 +122,42 @@ bool FToneSynthesisTest::RunTest(const FString& Parameters)
 
     return true;
 }
+
+// The four shipping realms get hand-tuned voices; every OTHER realm (Rhythm, Gears, Circuits — all
+// voiced live by the GameMode's ambient pad) falls to a deterministic hash voice. Existing tests
+// only cover the hand-tuned realms, so this locks the fallback contract: a valid, in-range, stable
+// ambient voice that genuinely varies by realm — so a change to the 48/24/7 constants or the hash
+// can't silently reassign every unnamed realm's sound with nothing failing.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAudioHashFallbackVoicesTest, "MANIFOLD.Audio.HashFallbackVoices", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FAudioHashFallbackVoicesTest::RunTest(const FString& Parameters)
+{
+    UManifoldAudioDirector* Dir = NewObject<UManifoldAudioDirector>();
+
+    // Circuits is not hand-tuned, so it exercises the hash fallback.
+    const FManifoldAudioCue Circuits = Dir->CueForRealmAmbient(TEXT("Circuits"));
+    UTEST_TRUE("fallback root sits in the intended C3..B4 span [48,71]",
+        Circuits.RootMidi >= 48 && Circuits.RootMidi <= 71);
+    UTEST_TRUE("fallback mode is one of the seven church modes [0,6]",
+        (int32)Circuits.Mode >= 0 && (int32)Circuits.Mode <= 6);
+    UTEST_EQUAL("fallback ambient is a tonic drone (no interval)", Circuits.IntervalSemitones, 0);
+    UTEST_EQUAL("fallback ambient intent is RealmAmbient",
+        (int32)Circuits.Intent, (int32)EManifoldCueIntent::RealmAmbient);
+    UTEST_EQUAL("fallback ambient sits at the ambient intensity", Circuits.Intensity, 0.5f);
+
+    // Deterministic within a run: the same realm always sounds the same.
+    const FManifoldAudioCue CircuitsAgain = Dir->CueForRealmAmbient(TEXT("Circuits"));
+    UTEST_EQUAL("fallback root is stable", CircuitsAgain.RootMidi, Circuits.RootMidi);
+    UTEST_EQUAL("fallback mode is stable", (int32)CircuitsAgain.Mode, (int32)Circuits.Mode);
+
+    // The hash actually differentiates realms: three unnamed realms don't all collapse to one voice
+    // (which is exactly what a broken or ignored hash would produce).
+    const FManifoldAudioCue Rhythm = Dir->CueForRealmAmbient(TEXT("Rhythm"));
+    const FManifoldAudioCue Gears  = Dir->CueForRealmAmbient(TEXT("Gears"));
+    const bool bAllSame =
+        Rhythm.RootMidi == Gears.RootMidi && Gears.RootMidi == Circuits.RootMidi &&
+        Rhythm.Mode == Gears.Mode && Gears.Mode == Circuits.Mode;
+    UTEST_FALSE("the hash fallback gives unnamed realms distinct voices (not all identical)", bAllSame);
+
+    return true;
+}

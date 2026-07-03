@@ -1450,6 +1450,118 @@ bool FExpeditionExitTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// The interactive Constellation Expedition (the campaign the player actually drives through the
+// GameMode) is a SEPARATE path from the static UManifoldSlice::RunConstellationExpedition covered by
+// FConstellationExpeditionTest — a different seed formula (8000+level), its own level ramp, the
+// expert-from-level-3 ramp, running-score accumulation, and the final bank into the profile's best.
+// This drives it end to end so the two paths can't silently diverge. (The GameMode writes the
+// profile to disk on completion, so we back up and restore the real file to stay hermetic.)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FInteractiveConstellationExpeditionTest, "MANIFOLD.Play.InteractiveConstellationExpedition", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FInteractiveConstellationExpeditionTest::RunTest(const FString& Parameters)
+{
+    // RAII guard: preserve the player's real profile across this test even on an early assert return.
+    struct FProfileGuard
+    {
+        FString Path;
+        TArray<uint8> Bytes;
+        bool bHad = false;
+        ~FProfileGuard()
+        {
+            if (bHad) { FFileHelper::SaveArrayToFile(Bytes, *Path); }
+            else { FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*Path); }
+        }
+    } Guard;
+    Guard.Path = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Manifold.manifoldprofile"));
+    Guard.bHad = FFileHelper::LoadFileToArray(Guard.Bytes, *Guard.Path);
+
+    AManifoldGameMode* GM = NewObject<AManifoldGameMode>();
+    const int32 Levels = GM->GetExpeditionLevels();
+
+    GM->ManifoldStartExpedition();
+    UTEST_TRUE("expedition is active from the start", GM->IsExpeditionActive());
+
+    int32 PrevScore = 0;
+    for (int32 Lvl = 0; Lvl < Levels; ++Lvl)
+    {
+        UTEST_EQUAL("current level advances one at a time", GM->GetExpeditionLevel(), Lvl);
+
+        UManifoldSlice* S = GM->Slice;
+        UTEST_TRUE("each level is a live constellation puzzle", S && S->IsConstellationMode());
+        UTEST_TRUE("the rule is hidden (expert) exactly from level 3 onward",
+            S->IsRelationHintHidden() == (Lvl >= 2));
+
+        // Solve it flawlessly: select exactly the hidden constellation, then lock.
+        const TArray<int32> Correct = S->GetConstellation();
+        for (int32 Idx : Correct) { GM->ConstellationToggleRealm(Idx); }
+        GM->ConstellationLock();
+
+        const int32 ScoreNow = GM->GetExpeditionScore();
+        UTEST_GREATER("clearing a level adds to the running score", ScoreNow, PrevScore);
+        PrevScore = ScoreNow;
+    }
+
+    const int32 Total = PrevScore;
+    UTEST_FALSE("the campaign ends after the last level", GM->IsExpeditionActive());
+    UTEST_EQUAL("the final total is banked as the expedition best",
+        GM->Profile.BestExpeditionScore, Total);
+
+    // A second, equal-scoring run must NOT lower an already-higher recorded best (the FMath::Max
+    // guard — a plain assignment would drop it to the lower value).
+    GM->Profile.BestExpeditionScore = Total + 1000;
+    GM->ManifoldStartExpedition();
+    for (int32 Lvl = 0; Lvl < Levels; ++Lvl)
+    {
+        UManifoldSlice* S = GM->Slice;
+        for (int32 Idx : S->GetConstellation()) { GM->ConstellationToggleRealm(Idx); }
+        GM->ConstellationLock();
+    }
+    UTEST_EQUAL("a lower/equal run never lowers the recorded best",
+        GM->Profile.BestExpeditionScore, Total + 1000);
+
+    return true;
+}
+
+// The [C] key cycles Classic -> Constellation -> Constellation(Expert) -> Classic and wraps,
+// clearing the expert flag on the return to Classic. FExpeditionExitTest only toggles once (to prove
+// it leaves an expedition); this locks the full cycle so a regression can't skip the expert stop or
+// leave Classic silently running the hidden-rule variant.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FModeToggleCycleTest, "MANIFOLD.Play.ModeToggleCycle", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FModeToggleCycleTest::RunTest(const FString& Parameters)
+{
+    AManifoldGameMode* GM = NewObject<AManifoldGameMode>();
+    UTEST_EQUAL("starts in Classic", (int32)GM->PlayMode, (int32)EManifoldPlayMode::Classic);
+
+    // Classic -> Constellation (rule shown).
+    GM->ManifoldToggleMode();
+    UTEST_EQUAL("toggles to Constellation", (int32)GM->PlayMode, (int32)EManifoldPlayMode::Constellation);
+    UTEST_FALSE("first Constellation stop is not expert", GM->bConstellationExpert);
+    UTEST_TRUE("the session is a constellation puzzle", GM->Slice && GM->Slice->IsConstellationMode());
+    UTEST_FALSE("the rule is shown at the first stop", GM->Slice->IsRelationHintHidden());
+
+    // Constellation -> Constellation (Expert, rule hidden).
+    GM->ManifoldToggleMode();
+    UTEST_EQUAL("stays in Constellation for the expert stop",
+        (int32)GM->PlayMode, (int32)EManifoldPlayMode::Constellation);
+    UTEST_TRUE("second stop is expert", GM->bConstellationExpert);
+    UTEST_TRUE("the rule is hidden at the expert stop", GM->Slice && GM->Slice->IsRelationHintHidden());
+
+    // Constellation(Expert) -> Classic (expert flag cleared).
+    GM->ManifoldToggleMode();
+    UTEST_EQUAL("returns to Classic", (int32)GM->PlayMode, (int32)EManifoldPlayMode::Classic);
+    UTEST_FALSE("the expert flag is cleared on the return to Classic", GM->bConstellationExpert);
+    UTEST_FALSE("the Classic session is not a constellation puzzle",
+        GM->Slice && GM->Slice->IsConstellationMode());
+
+    // Classic -> Constellation again (the cycle wraps).
+    GM->ManifoldToggleMode();
+    UTEST_EQUAL("the cycle wraps back to Constellation",
+        (int32)GM->PlayMode, (int32)EManifoldPlayMode::Constellation);
+
+    return true;
+}
+
 // Persistent profile: sessions fold into a profile (counts + best score), and the
 // profile round-trips through a versioned save file.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProfileRoundTripTest, "MANIFOLD.Play.ProfileRoundTrip", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)

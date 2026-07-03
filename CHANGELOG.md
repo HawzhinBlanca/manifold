@@ -6,6 +6,33 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Craft-quality pass (multi-lens review — coverage gaps + genuine simplifications)
+- A craft-lens review (a different lens than the correctness audits: test-coverage completeness and
+  code duplication, not bugs) surfaced four genuinely-untested behaviours and several verbatim
+  duplications; all addressed, **91/91 green** (up from 87):
+  - **Coverage — four untested behaviours now locked:**
+    - `MANIFOLD.Kernels.Rhythm.ApproxRatioSearch` — the approximate small-integer ratio search and its
+      MaxDeviation reject gate (every prior Rhythm test used integer tempos, so that whole branch was
+      untested): 2.5:1 resolves to 5:2, and a near-irrational ~√2:1 is correctly rejected.
+    - `MANIFOLD.Audio.HashFallbackVoices` — the deterministic hash voice every non-hand-tuned realm
+      (Rhythm/Gears/Circuits) relies on: in-range, stable within a run, and genuinely distinct per realm.
+    - `MANIFOLD.Play.InteractiveConstellationExpedition` — the GameMode-driven campaign end to end (level
+      ramp, expert-from-level-3, running-score accumulation, and the `FMath::Max` bank into the profile
+      best), a separate path from the already-covered static expedition so the two can't silently
+      diverge. Backs up/restores the on-disk profile to stay hermetic.
+    - `MANIFOLD.Play.ModeToggleCycle` — the `[C]` key's full Classic → Constellation → Expert → Classic
+      cycle, including clearing the expert flag on the return to Classic.
+  - **Simplifications (behaviour-identical, each pinned by an existing test):**
+    - Removed **seven** verbatim `StepMultiple` overrides across the kernels; they duplicated the
+      identical `IRealmKernel::StepMultiple` default, now simply inherited (pinned by
+      `MANIFOLD.Systems.KernelStepMultipleEquivalence`).
+    - Hoisted the copy-pasted `HashDouble` bit-cast lambda (six identical copies) into one shared
+      `ManifoldHashDoubleBits` in `RealmKernel.h` — bit-identical output, pinned by the state-hash
+      round-trip test.
+    - Extracted the three-times-duplicated realm-glow material block into
+      `AManifoldRealmVisualizer::ApplyGlow` (the starfield folds in too); verified pixel-identical via a
+      headless render.
+
 ### Hardening (input / mode / audio — adversarial audit; whole-codebase coverage complete)
 - The final un-audited surface (GameMode mode-switching/lifecycle, PlayerController input, HUD draw,
   ToneSynth audio) was adversarially audited — completing adversarial coverage of the entire codebase.
