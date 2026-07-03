@@ -54,6 +54,7 @@ public:
 protected:
     UPROPERTY() UStaticMesh* SphereMesh = nullptr;
     UPROPERTY() UMaterialInterface* BaseMaterial = nullptr;
+    UPROPERTY() UMaterialInterface* EmissiveMaterial = nullptr; // glowing realm orbs (unlit, blooms)
     UPROPERTY() USceneComponent* SceneRoot = nullptr;
     UPROPERTY() TArray<UStaticMeshComponent*> Pool;
 

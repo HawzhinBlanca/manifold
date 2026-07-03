@@ -61,6 +61,13 @@ AManifoldRealmVisualizer::AManifoldRealmVisualizer()
     {
         BaseMaterial = MatFinder.Object;
     }
+    // Unlit emissive material for the realm orbs — self-lit so they glow the palette colour and
+    // bloom via the post-process, rather than reading as shaded solid balls.
+    static ConstructorHelpers::FObjectFinder<UMaterialInterface> EmissiveFinder(TEXT("/Engine/EngineMaterials/EmissiveMeshMaterial.EmissiveMeshMaterial"));
+    if (EmissiveFinder.Succeeded())
+    {
+        EmissiveMaterial = EmissiveFinder.Object;
+    }
 }
 
 void AManifoldRealmVisualizer::BeginPlay()
@@ -118,7 +125,9 @@ void AManifoldRealmVisualizer::BeginPlay()
         Cog->SetupAttachment(SceneRoot);
         Cog->RegisterComponent();
         Cog->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-        if (BaseMaterial) { Cog->CreateDynamicMaterialInstance(0, BaseMaterial); }
+        // Emissive so the gear cogs / wave ribbons glow to match the realm orbs (fallback to lit).
+        UMaterialInterface* CogMat = EmissiveMaterial ? EmissiveMaterial : BaseMaterial;
+        if (CogMat) { Cog->CreateDynamicMaterialInstance(0, CogMat); }
         Cog->SetVisibility(false);
         return Cog;
     };
@@ -151,8 +160,11 @@ void AManifoldRealmVisualizer::UpdateWaveRibbon(UProceduralMeshComponent* Ribbon
     if (UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(Ribbon->GetMaterial(0)))
     {
         const FLinearColor Lit = Color * PulseFactor;
-        MID->SetVectorParameterValue(TEXT("Color"), Lit);
+        const FLinearColor Glow = Lit * 1.7f;
+        MID->SetVectorParameterValue(TEXT("Color"), Glow);
         MID->SetVectorParameterValue(TEXT("BaseColor"), Lit);
+        MID->SetVectorParameterValue(TEXT("EmissiveColor"), Glow);
+        MID->SetVectorParameterValue(TEXT("Emissive"), Glow);
     }
 }
 
@@ -183,8 +195,11 @@ void AManifoldRealmVisualizer::UpdateGearCog(UProceduralMeshComponent* Cog, int3
     if (UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(Cog->GetMaterial(0)))
     {
         const FLinearColor Lit = Color * PulseFactor;
-        MID->SetVectorParameterValue(TEXT("Color"), Lit);
+        const FLinearColor Glow = Lit * 1.7f;
+        MID->SetVectorParameterValue(TEXT("Color"), Glow);
         MID->SetVectorParameterValue(TEXT("BaseColor"), Lit);
+        MID->SetVectorParameterValue(TEXT("EmissiveColor"), Glow);
+        MID->SetVectorParameterValue(TEXT("Emissive"), Glow);
     }
 }
 
@@ -257,9 +272,10 @@ UStaticMeshComponent* AManifoldRealmVisualizer::AcquireSphere()
         Comp->RegisterComponent();
         Comp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
         if (SphereMesh) { Comp->SetStaticMesh(SphereMesh); }
-        if (BaseMaterial)
+        UMaterialInterface* SphereMat = EmissiveMaterial ? EmissiveMaterial : BaseMaterial;
+        if (SphereMat)
         {
-            Comp->SetMaterial(0, BaseMaterial);
+            Comp->SetMaterial(0, SphereMat);
             Comp->CreateAndSetMaterialInstanceDynamic(0); // per-instance color
         }
         Pool.Add(Comp);
@@ -279,12 +295,16 @@ void AManifoldRealmVisualizer::PlaceSphere(const FVector& WorldPos, float Diamet
     Comp->SetWorldScale3D(FVector(DiameterUnits / EngineSphereDiameter));
     if (UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(Comp->GetMaterial(0)))
     {
-        // Brighten by the discovery-flash factor (>1 blooms via the post-process).
+        // Brighten by the discovery-flash factor (>1 blooms via the post-process). The emissive
+        // material is unlit, so push above 1.0 for a self-lit glow that reads against the black.
         const FLinearColor Lit = Color * PulseFactor;
-        // Set the common param names so the color applies whatever the base material
-        // calls it (non-existent params are harmless no-ops).
-        MID->SetVectorParameterValue(TEXT("Color"), Lit);
+        const FLinearColor Glow = Lit * 1.7f;
+        // Set the common param names so the color applies whatever the material calls it
+        // (non-existent params are harmless no-ops): base-lit and unlit-emissive variants.
+        MID->SetVectorParameterValue(TEXT("Color"), Glow);
         MID->SetVectorParameterValue(TEXT("BaseColor"), Lit);
+        MID->SetVectorParameterValue(TEXT("EmissiveColor"), Glow);
+        MID->SetVectorParameterValue(TEXT("Emissive"), Glow);
     }
 }
 
