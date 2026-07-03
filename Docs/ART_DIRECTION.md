@@ -1,10 +1,11 @@
 # MANIFOLD — Art & VFX Direction
 
 > **Design pillar:** _the correspondence engine is the product; visuals are a layer._
-> The current build ships **procedural placeholder visuals** that are correct and readable but
-> deliberately un-bespoke. This document is the concrete plan to take them to a shipped look —
-> written so it can be executed by you, handed to an artist, or implemented by me against the
-> verified logic. Visual verification is **not** blocked here: offscreen GPU rendering works on this
+> The current build ships a **cinematic cosmic** look — authored energy-sphere materials, a
+> procedural nebula, volumetric lighting, and film-grade post (a real step past the original flat
+> placeholders). This document is the plan to push it further toward full photoreal — executable by
+> you, an artist, or me against the verified logic (turnkey guide: [ART_AAA_HANDOFF.md](ART_AAA_HANDOFF.md)).
+> Visual verification is **not** blocked here: offscreen GPU rendering works on this
 > workstation (the `-ManifoldAutoShot` / `-ManifoldAutoShotSequence` flags capture real frames — see
 > the memory note on the RTX 3090 Ti), so the remaining art work is gated on *art direction and
 > assets*, not on a display. Nothing here changes gameplay; it is all presentation.

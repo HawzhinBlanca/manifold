@@ -35,13 +35,16 @@ realms + decoy, scoring, and expedition mode.
 ## Status
 
 **Playable, deterministic, and fully code-complete** — no mocks or placeholders in
-code (verified by a codebase-wide adversarial audit). What remains is art direction.
+code (verified by a codebase-wide adversarial audit). Ships with a **cinematic cosmic**
+look — authored materials, a procedural nebula, volumetric lighting, and film-grade post;
+a turnkey path to full photoreal is in [Docs/ART_AAA_HANDOFF.md](Docs/ART_AAA_HANDOFF.md).
 
 ### Screenshots
 
 _Captured headless via offscreen GPU render (`-ManifoldAutoShot` / `-ManifoldAutoShotSequence`) from
-the current build. Realms are self-lit emissive orbs (the colorblind-safe Okabe-Ito palette); each
-realm is distinct in both shape and colour. See [Docs/ART_DIRECTION.md](Docs/ART_DIRECTION.md)._
+the current build — a procedural nebula, glowing fresnel energy-orbs (the colorblind-safe Okabe-Ito
+palette), a hot star, and film-grade post. See [Docs/ART_DIRECTION.md](Docs/ART_DIRECTION.md) ·
+[Docs/ART_AAA_HANDOFF.md](Docs/ART_AAA_HANDOFF.md)._
 
 **The living scene — the ratio-realms orbit and a discovered correspondence pulses across the seam
 (real-time capture):**
