@@ -107,6 +107,15 @@ void UOrbitsKernel::UpdateDerivedState()
 
 TSharedPtr<FRealmState> UOrbitsKernel::GetState() const
 {
+    // Mirror the live integrator config into the state so callers (save / replay round-trip)
+    // serialize the config the simulation is ACTUALLY using, not the struct defaults. Safe on a
+    // const method: OrbitState is a shared pointer, so mutating the pointee is not mutating `this`.
+    if (OrbitState.IsValid())
+    {
+        OrbitState->G = G;
+        OrbitState->Softening = Softening;
+        OrbitState->bFullNBody = bFullNBody;
+    }
     return OrbitState;
 }
 
@@ -118,6 +127,14 @@ void UOrbitsKernel::SetState(const FRealmState& NewState)
     OrbitState = MakeShared<FOrbitsState>(*CastedState);
     SimTime = OrbitState->SimulationTime;
     StepCount = OrbitState->StepCount;
+
+    // Restore the integrator config from the (untrusted) state, sanitizing non-finite values to
+    // their defaults: a corrupt or hostile snapshot must not inject a NaN/Inf G or Softening that
+    // would poison every subsequent acceleration. Finite values (including any a caller set via
+    // SetParameter) round-trip verbatim. bFullNBody is a bool — any byte is a valid bool.
+    G = FMath::IsFinite(OrbitState->G) ? OrbitState->G : 6.67430e-11;
+    Softening = FMath::IsFinite(OrbitState->Softening) ? OrbitState->Softening : 1000.0;
+    bFullNBody = OrbitState->bFullNBody;
 
     // Sync integration arrays
     Positions.Empty();
@@ -140,6 +157,7 @@ void UOrbitsKernel::SetState(const FRealmState& NewState)
 
 void UOrbitsKernel::SerializeState(FArchive& Ar)
 {
+    GetState(); // mirror the live config into OrbitState before writing (see GetState)
     if (OrbitState.IsValid())
     {
         Ar << *OrbitState;
@@ -175,6 +193,15 @@ uint64 UOrbitsKernel::ComputeStateHash() const
 
         Hash ^= ManifoldHashDoubleBits(Masses[i]) * 0xC2B2AE3D27D4EB4FULL;
     }
+
+    // Fold the integrator config: G / Softening / bFullNBody drive the next step's accelerations
+    // (ComputeAccelerations scales by G, softens by Softening, and branches on bFullNBody), so two
+    // states that share bodies but differ in config are genuinely divergent and MUST hash apart —
+    // the same reasoning that put Mass in the hash. Config that isn't carried through serialize is
+    // restored to defaults on load, so folding it here also gives the round-trip test teeth.
+    Hash ^= ManifoldHashDoubleBits(G) * 0x2545F4914F6CDD1DULL;
+    Hash ^= ManifoldHashDoubleBits(Softening) * 0x27D4EB2F165667C5ULL;
+    Hash ^= static_cast<uint64>(bFullNBody) * 0x9E3779B97F4A7C15ULL;
     return Hash;
 }
 

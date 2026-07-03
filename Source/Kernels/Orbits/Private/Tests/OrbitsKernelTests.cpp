@@ -2,6 +2,8 @@
 
 #include "Misc/AutomationTest.h"
 #include "OrbitsKernel.h"
+#include "Serialization/MemoryWriter.h"
+#include "Serialization/MemoryReader.h"
 
 // Realm template step 1 (Build Plan §9): the kernel is deterministic — the same seed
 // + bodies advanced identically must produce bitwise-identical state. (Orbits was the
@@ -309,6 +311,70 @@ bool FOrbitsHashCoversMassTest::RunTest(const FString& Parameters)
     const uint64 HRef = BuildHash(1.989e30);
     UTEST_TRUE("a mass-only divergence must change the Orbits state hash", HRef != BuildHash(1.989e31));
     UTEST_TRUE("identical bodies hash identically", HRef == BuildHash(1.989e30));
+
+    return true;
+}
+
+// Regression (kernel audit): the integrator config (G / Softening / bFullNBody) drives the orbit
+// every step, but was NOT carried through serialize/deserialize — a save taken after a config change
+// reverted to defaults on load, silently diverging the reproduced simulation. Config is now mirrored
+// into FOrbitsState (round-tripped) and folded into the divergence hash. This test proves (a) config
+// survives a serialize round-trip and the recomputed hash matches, and (b) a config-only divergence
+// changes the hash (the detector has teeth), including the bFullNBody bool.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FOrbitsConfigRoundTripTest, "MANIFOLD.Kernels.Orbits.ConfigRoundTrips", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FOrbitsConfigRoundTripTest::RunTest(const FString& Parameters)
+{
+    // (a) Non-default config survives serialize -> deserialize into a fresh kernel.
+    UOrbitsKernel* A = NewObject<UOrbitsKernel>();
+    A->Initialize(7ULL);
+    A->SetParameter(TEXT("G"), TEXT("7.0e-11"));      // != default 6.6743e-11
+    A->SetParameter(TEXT("Softening"), TEXT("5000")); // != default 1000
+    A->SetParameter(TEXT("bFullNBody"), TEXT("false"));// != default true
+
+    FOrbitsBodyDef Star; Star.Mass = 1.989e30; Star.bIsCentral = true; A->AddBody(Star);
+    FOrbitsBodyDef P; P.Mass = 1e24; P.Position = FVector(1.496e11, 0.0, 0.0);
+    P.Velocity = FVector(0.0, 30000.0, 0.0); A->AddBody(P);
+    A->Step(0.1f);
+
+    TArray<uint8> Bytes;
+    FMemoryWriter W(Bytes, /*bIsPersistent*/ true);
+    A->SerializeState(W);
+
+    UOrbitsKernel* B = NewObject<UOrbitsKernel>();
+    B->Initialize(999ULL); // different seed: only the loaded state should determine B
+    FMemoryReader R(Bytes, /*bIsPersistent*/ true);
+    B->DeserializeState(R);
+
+    // Doubles/bools round-trip bit-exact through FArchive, so the formatted parameter strings match
+    // exactly when config was carried through (and would differ if B silently reverted to defaults).
+    FString AG, AS, AN, BG, BS, BN;
+    A->GetParameter(TEXT("G"), AG); A->GetParameter(TEXT("Softening"), AS); A->GetParameter(TEXT("bFullNBody"), AN);
+    B->GetParameter(TEXT("G"), BG); B->GetParameter(TEXT("Softening"), BS); B->GetParameter(TEXT("bFullNBody"), BN);
+    UTEST_EQUAL("G survives round-trip", BG, AG);
+    UTEST_EQUAL("Softening survives round-trip", BS, AS);
+    UTEST_EQUAL("bFullNBody survives round-trip", BN, AN);
+    UTEST_TRUE("bFullNBody actually restored to the non-default 'false'", BN == TEXT("false"));
+    UTEST_TRUE("round-trip recomputed hash matches (config carried)", A->ComputeStateHash() == B->ComputeStateHash());
+
+    // (b) A config-only divergence must change the hash. Same bodies, no Step (so positions /
+    //     velocities / masses are byte-identical); only a config member differs.
+    auto BuildHash = [](double GVal, double Soft, bool bFull) -> uint64
+    {
+        UOrbitsKernel* K = NewObject<UOrbitsKernel>();
+        K->Initialize(321ULL);
+        K->SetParameter(TEXT("G"), FString::Printf(TEXT("%e"), GVal));
+        K->SetParameter(TEXT("Softening"), FString::Printf(TEXT("%f"), Soft));
+        K->SetParameter(TEXT("bFullNBody"), bFull ? TEXT("true") : TEXT("false"));
+        FOrbitsBodyDef S; S.Mass = 1.989e30; S.bIsCentral = true; K->AddBody(S);
+        FOrbitsBodyDef Pl; Pl.Mass = 1e24; Pl.Position = FVector(1.496e11, 0.0, 0.0);
+        Pl.Velocity = FVector(0.0, 30000.0, 0.0); K->AddBody(Pl);
+        return K->ComputeStateHash();
+    };
+    const uint64 Ref = BuildHash(6.6743e-11, 1000.0, true);
+    UTEST_TRUE("a Softening-only divergence changes the hash", Ref != BuildHash(6.6743e-11, 5000.0, true));
+    UTEST_TRUE("a bFullNBody-only divergence changes the hash", Ref != BuildHash(6.6743e-11, 1000.0, false));
+    UTEST_TRUE("identical config hashes identically", Ref == BuildHash(6.6743e-11, 1000.0, true));
 
     return true;
 }

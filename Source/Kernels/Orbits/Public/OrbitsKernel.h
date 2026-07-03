@@ -206,6 +206,21 @@ struct MANIFOLDKERNELSORBITS_API FOrbitsState : public FRealmState
     UPROPERTY()
     double SystemTotalAngularMomentum = 0.0;
 
+    // --- Kernel configuration, mirrored into the serialized state so save / replay round-trips it.
+    //     These are the live UOrbitsKernel config members; they drive the integrator every step
+    //     (G/Softening scale the accelerations, bFullNBody selects the force model), so a state that
+    //     restores default config after loading a non-default-config save would diverge on the next
+    //     step. Populated from the kernel at GetState()/SerializeState() and restored (sanitized)
+    //     at SetState(); folded into ComputeStateHash for the same reason Mass is. ---
+    UPROPERTY()
+    double G = 6.67430e-11;
+
+    UPROPERTY()
+    double Softening = 1000.0;
+
+    UPROPERTY()
+    bool bFullNBody = true;
+
     FOrbitsState() : FRealmState(TEXT("Orbits"), 1, 0) {}
 
     friend FArchive& operator<<(FArchive& Ar, FOrbitsState& StateObj)
@@ -222,6 +237,12 @@ struct MANIFOLDKERNELSORBITS_API FOrbitsState : public FRealmState
         Ar << StateObj.ActiveResonances;
         Ar << StateObj.SystemTotalEnergy;
         Ar << StateObj.SystemTotalAngularMomentum;
+        // Appended after the pre-existing fields (append-only, matching the project's forward-migration
+        // convention). No persisted MANIFOLD saves/replays embed realm state, so this format change
+        // only affects the in-memory round-trip path.
+        Ar << StateObj.G;
+        Ar << StateObj.Softening;
+        Ar << StateObj.bFullNBody;
         return Ar;
     }
 };

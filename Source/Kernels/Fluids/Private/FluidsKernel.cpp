@@ -85,6 +85,15 @@ void UFluidsKernel::Step(float DeltaTime)
 
 TSharedPtr<FRealmState> UFluidsKernel::GetState() const
 {
+    // Mirror the live solver config into the state so callers (save / replay round-trip) serialize
+    // the config the simulation is ACTUALLY using, not the struct defaults. Safe on a const method:
+    // FluidsState is a shared pointer, so mutating the pointee is not mutating `this`.
+    if (FluidsState.IsValid())
+    {
+        FluidsState->Viscosity = Viscosity;
+        FluidsState->Diffusion = Diffusion;
+        FluidsState->Decay = Decay;
+    }
     return FluidsState;
 }
 
@@ -114,6 +123,19 @@ void UFluidsKernel::SetState(const FRealmState& NewState)
     StepCount = FluidsState->StepCount;
     Size = ClampedSize;
 
+    // Restore solver config from the (untrusted) state. Clamp the diffusion coefficients to >= 0:
+    // a negative Viscosity/Diffusion drives the implicit-diffuse denominator (1 + 4a) to zero or
+    // negative -> Inf/NaN that propagates into Advect and casts to an out-of-bounds array index
+    // (the same hazard SetParameter already guards). Sanitize any non-finite config to its default.
+    // Write the sanitized values back into the stored state so GetState / re-serialization stays
+    // self-consistent, mirroring the grid repair below.
+    Viscosity = FMath::IsFinite(CastedState->Viscosity) ? FMath::Max(0.0f, CastedState->Viscosity) : 0.0001f;
+    Diffusion = FMath::IsFinite(CastedState->Diffusion) ? FMath::Max(0.0f, CastedState->Diffusion) : 0.0001f;
+    Decay = FMath::IsFinite(CastedState->Decay) ? CastedState->Decay : 0.995f;
+    FluidsState->Viscosity = Viscosity;
+    FluidsState->Diffusion = Diffusion;
+    FluidsState->Decay = Decay;
+
     const int32 ArraySize = static_cast<int32>(ExpectedLen); // safe: ClampedSize <= MaxGridSize
     if (bConsistent)
     {
@@ -140,6 +162,7 @@ void UFluidsKernel::SetState(const FRealmState& NewState)
 
 void UFluidsKernel::SerializeState(FArchive& Ar)
 {
+    GetState(); // mirror the live config into FluidsState before writing (see GetState)
     if (FluidsState.IsValid())
     {
         Ar << *FluidsState;
@@ -177,6 +200,21 @@ uint64 UFluidsKernel::ComputeStateHash() const
     FoldGrid(d, 0x9E3779B97F4A7C15ULL, 0xBF58476D1CE4E5B9ULL); // density (unchanged constants)
     FoldGrid(u, 0xC2B2AE3D27D4EB4FULL, 0x165667B19E3779F9ULL); // velocity X
     FoldGrid(v, 0xD6E8FEB86659FD93ULL, 0xCB92BA72B4C7E9FBULL); // velocity Y
+
+    // Fold the solver config: Viscosity/Diffusion set the implicit-diffuse coefficients and Decay
+    // scales density every step, so two states that share grids but differ in config are genuinely
+    // divergent and MUST hash apart — the same reasoning that put the velocity grids in the hash.
+    // Config that isn't carried through serialize is restored to defaults on load, so folding it
+    // here also gives the round-trip test teeth.
+    auto FoldFloat = [&Hash](float Val, uint64 Mul)
+    {
+        uint32 Bits;
+        FMemory::Memcpy(&Bits, &Val, sizeof(float));
+        Hash ^= static_cast<uint64>(Bits) * Mul;
+    };
+    FoldFloat(Viscosity, 0x2545F4914F6CDD1DULL);
+    FoldFloat(Diffusion, 0x27D4EB2F165667C5ULL);
+    FoldFloat(Decay,     0x3C6EF372FE94F82BULL);
     return Hash;
 }
 

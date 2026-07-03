@@ -2,6 +2,8 @@
 
 #include "Misc/AutomationTest.h"
 #include "FluidsKernel.h"
+#include "Serialization/MemoryWriter.h"
+#include "Serialization/MemoryReader.h"
 
 // The detected vortex's StructureId must be DETERMINISTIC across identical runs (it was
 // FGuid::NewGuid(), violating the stable-id contract the other realms uphold). Two
@@ -251,6 +253,89 @@ bool FFluidsSetStateUntrustedTest::RunTest(const FString& Parameters)
     Dst->SetState(Good);
     UTEST_TRUE("valid state adopted with matching hash (happy path preserved)",
         Dst->ComputeStateHash() == Src->ComputeStateHash());
+
+    return true;
+}
+
+// Regression (kernel audit): the solver config (Viscosity / Diffusion / Decay) drives the fluid
+// every step, but was NOT carried through serialize/deserialize — a save taken after a config change
+// reverted to defaults on load, silently diverging the reproduced simulation. Config is now mirrored
+// into FFluidsState (round-tripped) and folded into the divergence hash. This test proves (a) config
+// survives a serialize round-trip and the recomputed hash matches, (b) a config-only divergence
+// changes the hash (the detector has teeth), and (c) hostile config from an untrusted snapshot is
+// sanitized in SetState so the next Step can't NaN -> out-of-bounds.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFluidsConfigRoundTripTest, "MANIFOLD.Kernels.Fluids.ConfigRoundTrips", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FFluidsConfigRoundTripTest::RunTest(const FString& Parameters)
+{
+    // (a) Non-default config survives serialize -> deserialize into a fresh kernel.
+    UFluidsKernel* A = NewObject<UFluidsKernel>();
+    A->Initialize(7ULL);
+    A->SetParameter(TEXT("Viscosity"), TEXT("0.05"));
+    A->SetParameter(TEXT("Diffusion"), TEXT("0.03"));
+    A->SetParameter(TEXT("Decay"),     TEXT("0.9"));
+    A->AddVelocity(0.5f, 0.45f, 20.0f, 0.0f);
+    A->AddVelocity(0.55f, 0.5f, 0.0f, 20.0f);
+    A->Step(0.016f);
+
+    TArray<uint8> Bytes;
+    FMemoryWriter W(Bytes, /*bIsPersistent*/ true);
+    A->SerializeState(W);
+
+    UFluidsKernel* B = NewObject<UFluidsKernel>();
+    B->Initialize(999ULL); // different seed: only the loaded state should determine B
+    FMemoryReader R(Bytes, /*bIsPersistent*/ true);
+    B->DeserializeState(R);
+
+    FString AV, AD, ADe, BV, BD, BDe;
+    A->GetParameter(TEXT("Viscosity"), AV); A->GetParameter(TEXT("Diffusion"), AD); A->GetParameter(TEXT("Decay"), ADe);
+    B->GetParameter(TEXT("Viscosity"), BV); B->GetParameter(TEXT("Diffusion"), BD); B->GetParameter(TEXT("Decay"), BDe);
+    UTEST_TRUE("viscosity survives round-trip", FMath::IsNearlyEqual(FCString::Atof(*AV), FCString::Atof(*BV), 1e-5f));
+    UTEST_TRUE("diffusion survives round-trip", FMath::IsNearlyEqual(FCString::Atof(*AD), FCString::Atof(*BD), 1e-5f));
+    UTEST_TRUE("decay survives round-trip",     FMath::IsNearlyEqual(FCString::Atof(*ADe), FCString::Atof(*BDe), 1e-5f));
+    UTEST_TRUE("round-trip recomputed hash matches (config carried)", A->ComputeStateHash() == B->ComputeStateHash());
+
+    // (b) A config-only divergence must change the hash. Two same-seed kernels have byte-identical
+    //     seeded grids; changing only Viscosity must make them hash apart, else the detector is blind.
+    auto HashWithViscosity = [](float Visc) -> uint64
+    {
+        UFluidsKernel* K = NewObject<UFluidsKernel>();
+        K->Initialize(321ULL);
+        K->SetParameter(TEXT("Viscosity"), FString::SanitizeFloat(Visc));
+        return K->ComputeStateHash();
+    };
+    const uint64 HRef = HashWithViscosity(0.0001f);
+    UTEST_TRUE("a viscosity-only divergence changes the hash", HRef != HashWithViscosity(0.05f));
+    UTEST_TRUE("identical config hashes identically", HRef == HashWithViscosity(0.0001f));
+
+    // (c) Hostile config on an otherwise VALID grid: negative diffusion coefficients (the NaN->OOB
+    //     hazard) and a non-finite decay must be sanitized in SetState so the next Step stays finite.
+    UFluidsKernel* SrcC = NewObject<UFluidsKernel>();
+    SrcC->Initialize(44ULL);
+    SrcC->AddVelocity(0.5f, 0.5f, 15.0f, 0.0f);
+    for (int32 s = 0; s < 3; ++s) { SrcC->Step(0.016f); }
+    FFluidsState Hostile = *static_cast<const FFluidsState*>(SrcC->GetState().Get()); // grid is self-consistent
+    Hostile.Viscosity = -5.0f;
+    Hostile.Diffusion = -3.0f;
+    float NanF; const uint32 NanBits = 0x7FC00000u; FMemory::Memcpy(&NanF, &NanBits, sizeof(float)); // quiet NaN
+    Hostile.Decay = NanF;
+
+    UFluidsKernel* KC = NewObject<UFluidsKernel>();
+    KC->Initialize(44ULL);
+    KC->SetState(Hostile);
+
+    FString HV, HD, HDe;
+    KC->GetParameter(TEXT("Viscosity"), HV); KC->GetParameter(TEXT("Diffusion"), HD); KC->GetParameter(TEXT("Decay"), HDe);
+    UTEST_TRUE("hostile negative viscosity clamped to >= 0", FCString::Atof(*HV) >= 0.0f);
+    UTEST_TRUE("hostile negative diffusion clamped to >= 0", FCString::Atof(*HD) >= 0.0f);
+    UTEST_TRUE("hostile non-finite decay sanitized to a finite value", FMath::IsFinite(FCString::Atof(*HDe)));
+
+    for (int32 s = 0; s < 6; ++s) { KC->Step(0.016f); } // pre-fix: negative diffusion -> NaN -> OOB index
+    const FFluidsState* SC = static_cast<const FFluidsState*>(KC->GetState().Get());
+    bool bFinite = true;
+    for (float x : SC->VelocityX) { if (!FMath::IsFinite(x)) { bFinite = false; break; } }
+    for (float x : SC->Density)   { if (!FMath::IsFinite(x)) { bFinite = false; break; } }
+    UTEST_TRUE("field stays finite after stepping sanitized hostile config", bFinite);
 
     return true;
 }

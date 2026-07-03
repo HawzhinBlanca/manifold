@@ -63,6 +63,22 @@ struct MANIFOLDKERNELSFLUIDS_API FFluidsState : public FRealmState
     UPROPERTY()
     TArray<FFluidVortex> ActiveVortices;
 
+    // --- Solver configuration, mirrored into the serialized state so save / replay round-trips it.
+    //     These are the live UFluidsKernel config members; they drive the solver every step
+    //     (Viscosity/Diffusion set the implicit-diffuse coefficients, Decay scales density), so a
+    //     state that reverts to default config after loading a non-default-config save would diverge
+    //     on the next step. Populated from the kernel at GetState()/SerializeState() and restored
+    //     (sanitized — negative diffusion coefficients are the documented NaN->OOB hazard) at
+    //     SetState(); folded into ComputeStateHash for the same reason the velocity grids are. ---
+    UPROPERTY()
+    float Viscosity = 0.0001f;
+
+    UPROPERTY()
+    float Diffusion = 0.0001f;
+
+    UPROPERTY()
+    float Decay = 0.995f;
+
     FFluidsState() : FRealmState(TEXT("Fluids"), 1, 0) {}
 
     friend FArchive& operator<<(FArchive& Ar, FFluidsState& StateObj)
@@ -79,6 +95,11 @@ struct MANIFOLDKERNELSFLUIDS_API FFluidsState : public FRealmState
         Ar << StateObj.VelocityX;
         Ar << StateObj.VelocityY;
         Ar << StateObj.ActiveVortices;
+        // Appended after the pre-existing fields (append-only). No persisted MANIFOLD saves/replays
+        // embed realm state, so this format change only affects the in-memory round-trip path.
+        Ar << StateObj.Viscosity;
+        Ar << StateObj.Diffusion;
+        Ar << StateObj.Decay;
         return Ar;
     }
 };
