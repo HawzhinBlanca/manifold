@@ -84,7 +84,7 @@ protected:
                           const FVector& Pos, const FLinearColor& Color);
 
     /** Number of stars in the backdrop shell. */
-    UPROPERTY(EditAnywhere, Category = "MANIFOLD") int32 StarCount = 320;
+    UPROPERTY(EditAnywhere, Category = "MANIFOLD") int32 StarCount = 640;
 
     void SpawnStarfield();
 

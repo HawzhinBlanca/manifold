@@ -229,13 +229,19 @@ void AManifoldRealmVisualizer::SpawnStarfield()
         Star->RegisterComponent();
         Star->SetCollisionEnabled(ECollisionEnabled::NoCollision);
         Star->SetStaticMesh(SphereMesh);
-        if (BaseMaterial)
+        // Stars GLOW (emissive) instead of being dim lit dots that depend on the scene lights —
+        // brighter ones bloom via the post-process, giving the backdrop real depth.
+        UMaterialInterface* StarMat = EmissiveMaterial ? EmissiveMaterial : BaseMaterial;
+        if (StarMat)
         {
-            Star->SetMaterial(0, BaseMaterial);
+            Star->SetMaterial(0, StarMat);
             if (UMaterialInstanceDynamic* MID = Star->CreateAndSetMaterialInstanceDynamic(0))
             {
-                MID->SetVectorParameterValue(TEXT("Color"), Col);
+                const FLinearColor Glow = Col * 1.3f;
+                MID->SetVectorParameterValue(TEXT("Color"), Glow);
                 MID->SetVectorParameterValue(TEXT("BaseColor"), Col);
+                MID->SetVectorParameterValue(TEXT("EmissiveColor"), Glow);
+                MID->SetVectorParameterValue(TEXT("Emissive"), Glow);
             }
         }
         Star->SetWorldLocation(Center + Dir * Radius);
