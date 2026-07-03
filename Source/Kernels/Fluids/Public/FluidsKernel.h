@@ -162,6 +162,11 @@ public:
     /** Size of grid (width/height) */
     int32 Size = 32;
 
+    /** Upper bound on a deserialized GridSize. GridSize and the grid arrays are serialized
+     *  independently, so SetState validates/clamps an untrusted GridSize to this range — a hostile
+     *  or corrupt value must not drive out-of-bounds indexing or overflow the int32 (Size+2)^2. */
+    static constexpr int32 MaxGridSize = 512;
+
 protected:
     // =====================================================================
     // INTERNAL STATE

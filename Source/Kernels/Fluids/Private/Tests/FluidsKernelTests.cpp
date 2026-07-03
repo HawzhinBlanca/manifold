@@ -186,3 +186,71 @@ bool FFluidsHashCoversVelocityTest::RunTest(const FString& Parameters)
 
     return true;
 }
+
+// Regression (adversarial audit): FFluidsState serializes GridSize and the three grid arrays
+// (Density/VelocityX/VelocityY) INDEPENDENTLY, so a corrupted/hostile snapshot can carry a
+// GridSize inconsistent with the array lengths, or a huge GridSize whose (Size+2)^2 overflows
+// int32. SetState previously adopted GridSize verbatim; the next Step then indexed the short
+// arrays out to (Size+2)^2 -> out-of-bounds read/write (crash/UB). SetState now validates the
+// untrusted state and falls back to a clean zeroed grid at a clamped size on any mismatch.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFluidsSetStateUntrustedTest, "MANIFOLD.Kernels.Fluids.SetStateRejectsMalformedGrid", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FFluidsSetStateUntrustedTest::RunTest(const FString& Parameters)
+{
+    // (1) GridSize (claims 64 -> area 66*66=4356) inconsistent with the array lengths (a Size=8
+    //     grid, 100 floats). Pre-fix the next Step's AddSource loop indexed u[0..4355] on a
+    //     100-element array. SetState must repair the grid to self-consistency and Step safely.
+    FFluidsState Bad;
+    Bad.GridSize = 64;
+    const int32 ShortLen = (8 + 2) * (8 + 2); // 100
+    Bad.Density.Init(0.25f, ShortLen);
+    Bad.VelocityX.Init(1.0f, ShortLen);
+    Bad.VelocityY.Init(-1.0f, ShortLen);
+
+    UFluidsKernel* K = NewObject<UFluidsKernel>();
+    K->Initialize(11ULL);
+    K->SetState(Bad);
+
+    const FFluidsState* S = static_cast<const FFluidsState*>(K->GetState().Get());
+    UTEST_TRUE("state valid after malformed load", S != nullptr);
+    const int32 N = S->GridSize;
+    const int32 Expected = (N + 2) * (N + 2);
+    UTEST_TRUE("grid arrays are self-consistent after malformed load",
+        S->Density.Num() == Expected && S->VelocityX.Num() == Expected && S->VelocityY.Num() == Expected);
+
+    for (int32 s = 0; s < 4; ++s) { K->Step(0.016f); } // pre-fix: out-of-bounds here
+    const FFluidsState* S2 = static_cast<const FFluidsState*>(K->GetState().Get());
+    bool bFinite = true;
+    for (float x : S2->VelocityX) { if (!FMath::IsFinite(x)) { bFinite = false; break; } }
+    for (float x : S2->Density)   { if (!FMath::IsFinite(x)) { bFinite = false; break; } }
+    UTEST_TRUE("field stays finite after stepping a repaired grid", bFinite);
+
+    // (2) Oversized GridSize whose int32 (Size+2)^2 overflows must be clamped, not honored.
+    FFluidsState Huge;
+    Huge.GridSize = 65535; // (65537)^2 overflows int32
+    Huge.Density.Init(0.0f, 4);
+    Huge.VelocityX.Init(0.0f, 4);
+    Huge.VelocityY.Init(0.0f, 4);
+    UFluidsKernel* K2 = NewObject<UFluidsKernel>();
+    K2->Initialize(22ULL);
+    K2->SetState(Huge);
+    const FFluidsState* S3 = static_cast<const FFluidsState*>(K2->GetState().Get());
+    UTEST_TRUE("oversized GridSize clamped into [1, MaxGridSize]", S3->GridSize >= 1 && S3->GridSize <= 512);
+    UTEST_TRUE("clamped grid arrays are self-consistent",
+        S3->Density.Num() == (S3->GridSize + 2) * (S3->GridSize + 2));
+    K2->Step(0.016f); // must not overflow/crash
+
+    // (3) A VALID self-consistent state is still adopted verbatim (happy path unchanged).
+    UFluidsKernel* Src = NewObject<UFluidsKernel>();
+    Src->Initialize(33ULL);
+    Src->AddVelocity(0.5f, 0.5f, 15.0f, 0.0f);
+    for (int32 s = 0; s < 3; ++s) { Src->Step(0.016f); }
+    const FFluidsState Good = *static_cast<const FFluidsState*>(Src->GetState().Get());
+    UFluidsKernel* Dst = NewObject<UFluidsKernel>();
+    Dst->Initialize(33ULL);
+    Dst->SetState(Good);
+    UTEST_TRUE("valid state adopted with matching hash (happy path preserved)",
+        Dst->ComputeStateHash() == Src->ComputeStateHash());
+
+    return true;
+}

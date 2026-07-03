@@ -93,16 +93,46 @@ void UFluidsKernel::SetState(const FRealmState& NewState)
     const FFluidsState* CastedState = static_cast<const FFluidsState*>(&NewState);
     if (!CastedState) return;
 
+    // GridSize and the three grid arrays (Density/VelocityX/VelocityY) are serialized
+    // independently, so a corrupted or hostile snapshot can carry a GridSize that is
+    // inconsistent with the array lengths, or a huge GridSize whose (Size+2)^2 overflows int32.
+    // Either would drive out-of-bounds indexing on the very next Step (IX runs to (Size+2)^2).
+    // Treat the incoming state as UNTRUSTED: adopt its grids only when GridSize is in range AND
+    // all three arrays are exactly (GridSize+2)^2 long; otherwise fall back to a clean zeroed
+    // field at the clamped size so the kernel stays valid and deterministic. (Legit self-consistent
+    // states — the round-trip path — clamp to themselves and are copied verbatim, unchanged.)
+    const int32 ClampedSize = FMath::Clamp(CastedState->GridSize, 1, MaxGridSize);
+    const int64 ExpectedLen = static_cast<int64>(ClampedSize + 2) * static_cast<int64>(ClampedSize + 2);
+    const bool bConsistent =
+        CastedState->GridSize == ClampedSize &&
+        static_cast<int64>(CastedState->Density.Num())   == ExpectedLen &&
+        static_cast<int64>(CastedState->VelocityX.Num()) == ExpectedLen &&
+        static_cast<int64>(CastedState->VelocityY.Num()) == ExpectedLen;
+
     FluidsState = MakeShared<FFluidsState>(*CastedState);
-    Size = FluidsState->GridSize;
     SimTime = FluidsState->SimulationTime;
     StepCount = FluidsState->StepCount;
+    Size = ClampedSize;
 
-    d = FluidsState->Density;
-    u = FluidsState->VelocityX;
-    v = FluidsState->VelocityY;
-
-    int32 ArraySize = (Size + 2) * (Size + 2);
+    const int32 ArraySize = static_cast<int32>(ExpectedLen); // safe: ClampedSize <= MaxGridSize
+    if (bConsistent)
+    {
+        d = FluidsState->Density;
+        u = FluidsState->VelocityX;
+        v = FluidsState->VelocityY;
+    }
+    else
+    {
+        // Malformed/hostile state: reset to a safe zeroed field and repair the stored state so
+        // GetState / re-serialization stays self-consistent.
+        d.Init(0.0f, ArraySize);
+        u.Init(0.0f, ArraySize);
+        v.Init(0.0f, ArraySize);
+        FluidsState->GridSize = ClampedSize;
+        FluidsState->Density = d;
+        FluidsState->VelocityX = u;
+        FluidsState->VelocityY = v;
+    }
     u_prev.Init(0.0f, ArraySize);
     v_prev.Init(0.0f, ArraySize);
     d_prev.Init(0.0f, ArraySize);

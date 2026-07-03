@@ -10,7 +10,8 @@ work-package milestones rather than semantic versions until first playable.
 - A 4-lens adversarial audit (determinism / detection / serialization / numerical) of the seven
   physics kernels + deterministic core, whose verifiers were told to *refute* every finding against
   the real code, confirmed **8** real defects. The two highest-leverage — blind spots in the
-  divergence detector itself — are fixed here, **93/93 green** (up from 91):
+  divergence detector itself, plus an untrusted-input hardening — are fixed here, **94/94 green**
+  (up from 91):
   - **`UFluidsKernel::ComputeStateHash` folded only the density grid `d`**, omitting the velocity
     fields `u`/`v` that drive advection and vortex detection every step. Two states differing *only*
     in velocity (byte-identical density) hashed identically, so a real simulation divergence slipped
@@ -19,10 +20,16 @@ work-package milestones rather than semantic versions until first playable.
   - **`UOrbitsKernel::ComputeStateHash` omitted per-body `Mass`**, yet mass drives the next step's
     accelerations (`Masses[j]/Masses[i]`). Two states with identical positions/velocities but a
     different mass hashed identically. Now folds `Mass`. Locked by `MANIFOLD.Kernels.Orbits.HashCoversMass`.
+  - **`UFluidsKernel::SetState` trusted an untrusted `GridSize`.** `GridSize` and the grid arrays are
+    serialized independently, so a corrupt/hostile snapshot could carry a `GridSize` inconsistent with
+    the array lengths (next `Step` indexes out to `(Size+2)^2` → out-of-bounds read/write) or a huge
+    `GridSize` whose int32 `(Size+2)^2` overflows. `SetState` now clamps `GridSize` to `[1, MaxGridSize]`
+    and adopts the grids only when all three arrays are exactly `(GridSize+2)^2`; otherwise it falls
+    back to a clean zeroed field at the clamped size. Valid self-consistent states are copied verbatim.
+    Locked by `MANIFOLD.Kernels.Fluids.SetStateRejectsMalformedGrid`.
   - Remaining confirmed findings queued for follow-up iterations: kernel config fields (Orbits
     `G`/`Softening`/`bFullNBody`, Fluids `Viscosity`/`Diffusion`/`Decay`) not carried through
-    serialize/deserialize; `UFluidsKernel::SetState` not validating an untrusted `GridSize` against
-    the grid-array lengths; and an unclamped `Acos` in the Orbits argument-of-periapsis that can
+    serialize/deserialize; and an unclamped `Acos` in the Orbits argument-of-periapsis that can
     return NaN.
 
 ### Craft-quality pass (multi-lens review — coverage gaps + genuine simplifications)
