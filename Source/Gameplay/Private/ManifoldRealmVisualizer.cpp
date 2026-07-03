@@ -137,6 +137,21 @@ void AManifoldRealmVisualizer::BeginPlay()
     WaveRibbonQ = MakeCog(TEXT("WaveRibbonQ"));
 }
 
+void AManifoldRealmVisualizer::ApplyGlow(UMaterialInstanceDynamic* MID, const FLinearColor& Color,
+    float Pulse, float GlowMultiplier)
+{
+    if (!MID) return;
+    // The emissive material is unlit, so push the emissive above 1.0 for a self-lit glow that reads
+    // (and blooms) against the black; BaseColor carries the lit variant, and the four common param
+    // names cover whatever the bound material calls them (missing params are harmless no-ops).
+    const FLinearColor Lit = Color * Pulse;
+    const FLinearColor Glow = Lit * GlowMultiplier;
+    MID->SetVectorParameterValue(TEXT("Color"), Glow);
+    MID->SetVectorParameterValue(TEXT("BaseColor"), Lit);
+    MID->SetVectorParameterValue(TEXT("EmissiveColor"), Glow);
+    MID->SetVectorParameterValue(TEXT("Emissive"), Glow);
+}
+
 void AManifoldRealmVisualizer::UpdateWaveRibbon(UProceduralMeshComponent* Ribbon, int32 Harmonic,
     int32& LastHarmonic, const FVector& Pos, const FLinearColor& Color)
 {
@@ -159,12 +174,7 @@ void AManifoldRealmVisualizer::UpdateWaveRibbon(UProceduralMeshComponent* Ribbon
 
     if (UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(Ribbon->GetMaterial(0)))
     {
-        const FLinearColor Lit = Color * PulseFactor;
-        const FLinearColor Glow = Lit * 1.7f;
-        MID->SetVectorParameterValue(TEXT("Color"), Glow);
-        MID->SetVectorParameterValue(TEXT("BaseColor"), Lit);
-        MID->SetVectorParameterValue(TEXT("EmissiveColor"), Glow);
-        MID->SetVectorParameterValue(TEXT("Emissive"), Glow);
+        ApplyGlow(MID, Color, PulseFactor);
     }
 }
 
@@ -194,12 +204,7 @@ void AManifoldRealmVisualizer::UpdateGearCog(UProceduralMeshComponent* Cog, int3
 
     if (UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(Cog->GetMaterial(0)))
     {
-        const FLinearColor Lit = Color * PulseFactor;
-        const FLinearColor Glow = Lit * 1.7f;
-        MID->SetVectorParameterValue(TEXT("Color"), Glow);
-        MID->SetVectorParameterValue(TEXT("BaseColor"), Lit);
-        MID->SetVectorParameterValue(TEXT("EmissiveColor"), Glow);
-        MID->SetVectorParameterValue(TEXT("Emissive"), Glow);
+        ApplyGlow(MID, Color, PulseFactor);
     }
 }
 
@@ -237,11 +242,8 @@ void AManifoldRealmVisualizer::SpawnStarfield()
             Star->SetMaterial(0, StarMat);
             if (UMaterialInstanceDynamic* MID = Star->CreateAndSetMaterialInstanceDynamic(0))
             {
-                const FLinearColor Glow = Col * 1.3f;
-                MID->SetVectorParameterValue(TEXT("Color"), Glow);
-                MID->SetVectorParameterValue(TEXT("BaseColor"), Col);
-                MID->SetVectorParameterValue(TEXT("EmissiveColor"), Glow);
-                MID->SetVectorParameterValue(TEXT("Emissive"), Glow);
+                // Stars don't pulse; a fixed 1.3x emissive gives the brighter ones their bloom.
+                ApplyGlow(MID, Col, 1.0f, 1.3f);
             }
         }
         Star->SetWorldLocation(Center + Dir * Radius);
@@ -301,16 +303,7 @@ void AManifoldRealmVisualizer::PlaceSphere(const FVector& WorldPos, float Diamet
     Comp->SetWorldScale3D(FVector(DiameterUnits / EngineSphereDiameter));
     if (UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(Comp->GetMaterial(0)))
     {
-        // Brighten by the discovery-flash factor (>1 blooms via the post-process). The emissive
-        // material is unlit, so push above 1.0 for a self-lit glow that reads against the black.
-        const FLinearColor Lit = Color * PulseFactor;
-        const FLinearColor Glow = Lit * 1.7f;
-        // Set the common param names so the color applies whatever the material calls it
-        // (non-existent params are harmless no-ops): base-lit and unlit-emissive variants.
-        MID->SetVectorParameterValue(TEXT("Color"), Glow);
-        MID->SetVectorParameterValue(TEXT("BaseColor"), Lit);
-        MID->SetVectorParameterValue(TEXT("EmissiveColor"), Glow);
-        MID->SetVectorParameterValue(TEXT("Emissive"), Glow);
+        ApplyGlow(MID, Color, PulseFactor);
     }
 }
 

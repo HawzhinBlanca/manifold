@@ -8,6 +8,7 @@
 
 class UStaticMesh;
 class UMaterialInterface;
+class UMaterialInstanceDynamic;
 class UStaticMeshComponent;
 class UProceduralMeshComponent;
 
@@ -104,6 +105,11 @@ protected:
     void EndFrame();
     UStaticMeshComponent* AcquireSphere();
     void PlaceSphere(const FVector& WorldPos, float DiameterUnits, const FLinearColor& Color);
+
+    /** Apply the shared realm-glow look to a dynamic material: a pulse-scaled lit colour and a
+     *  brighter emissive that blooms via the post-process. Writes the four common param names so it
+     *  works for both the lit and unlit-emissive material variants (missing params are no-ops). */
+    void ApplyGlow(UMaterialInstanceDynamic* MID, const FLinearColor& Color, float Pulse, float GlowMultiplier = 1.7f);
 
     /** Draw a ratio realm as two beads sized p and q, side by side. */
     void PlaceRatioRealm(const FVector& Center, int32 P, int32 Q, const FLinearColor& Color);
