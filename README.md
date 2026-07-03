@@ -39,9 +39,13 @@ code (verified by a codebase-wide adversarial audit). What remains is art direct
 
 ### Screenshots
 
-_Captured headless via offscreen GPU render (`-ManifoldAutoShot`) from the current build. The
-visuals are intentional procedural placeholders — the realm palette is the colorblind-safe
-Okabe-Ito set; see [Docs/ART_DIRECTION.md](Docs/ART_DIRECTION.md)._
+_Captured headless via offscreen GPU render (`-ManifoldAutoShot`) from the current build. Realms
+are self-lit emissive orbs (the colorblind-safe Okabe-Ito palette); each realm is distinct in both
+shape and colour. See [Docs/ART_DIRECTION.md](Docs/ART_DIRECTION.md)._
+
+**The seam — a correspondence ignites and arcs across:**
+
+![Seam](Docs/media/seam.png)
 
 | Title card | In-game readout | The realms |
 |:---:|:---:|:---:|

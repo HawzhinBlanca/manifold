@@ -448,14 +448,21 @@ void AManifoldRealmVisualizer::Tick(float DeltaSeconds)
         PlaceRatioRealm(DecoyCenter, R.X, R.Y, DecoyGrey);
     }
 
-    // --- Seam: a bright bead-bridge from Orbits to Fluids when a correspondence is lit ---
+    // --- Seam: the "carry it across the seam" money shot. A glowing golden ARC from Orbits to
+    //     Fluids when a correspondence is lit, with a pulse of light travelling across it. ---
     if (S->IsCorrespondenceAvailable())
     {
-        const int32 Beads = 10;
+        const int32 Beads = 24;
+        const float ArcHeight = 220.0f;
+        const float PulsePhase = FMath::Frac(SpinAngle * 0.35f); // 0..1 sweep along the seam
         for (int32 b = 0; b <= Beads; ++b)
         {
             const float T = static_cast<float>(b) / Beads;
-            PlaceSphere(FMath::Lerp(OrbitsCenter, FluidsCenter, T), 12.0f, SeamGold);
+            FVector P = FMath::Lerp(OrbitsCenter, FluidsCenter, T);
+            P.Z += ArcHeight * FMath::Sin(T * PI); // bow the bridge upward into an arc
+            // A travelling brightness pulse: beads near the phase flare (bloom via post).
+            const float Pulse = FMath::Max(0.0f, 1.0f - FMath::Abs(T - PulsePhase) * 6.0f);
+            PlaceSphere(P, 9.0f + 11.0f * Pulse, SeamGold * (1.0f + 1.6f * Pulse));
         }
     }
 
