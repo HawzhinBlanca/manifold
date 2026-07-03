@@ -124,6 +124,15 @@ public:
     explicit FFixedStepSimulation(const FFixedStepConfig& InConfig = FFixedStepConfig())
         : Config(InConfig) {}
 
+    // Defensive floors for this public (MANIFOLDCORE_API) type, which accepts caller-provided config
+    // and snapshot values. A non-positive FixedDeltaTime would make Tick's substep loop infinite and
+    // InterpAlpha divide by zero; a degenerate replay interval would drive the VerifyReplay loop
+    // unbounded (and its length subtraction can overflow int64). These bound both against ANY caller
+    // — the same discipline as the near-INT32_MAX StepBudget guard in the gameplay layer. The editor
+    // ClampMin metas on the config only constrain the Details panel, not direct C++/deserialized values.
+    static constexpr float MinFixedDeltaTime = 0.0001f;       // matches FixedDeltaTime's editor ClampMin
+    static constexpr int64 MaxReplayVerifySteps = 100000000;  // 100M: far above any real snapshot interval
+
     // =====================================================================
     // CONTROL
     // =====================================================================
@@ -151,17 +160,21 @@ public:
     {
         check(bInitialized);
 
+        // A non-positive configured timestep would make the loop below infinite and the InterpAlpha
+        // divide by zero; clamp to a positive floor so the driver is safe for any caller's config.
+        const float FixedDt = FMath::Max(Config.FixedDeltaTime, MinFixedDeltaTime);
+
         Accumulator += DeltaTime;
         Accumulator = FMath::Min(Accumulator, Config.MaxAccumulatedTime);
 
-        while (Accumulator >= Config.FixedDeltaTime)
+        while (Accumulator >= FixedDt)
         {
             StepInternal();
-            Accumulator -= Config.FixedDeltaTime;
+            Accumulator -= FixedDt;
         }
 
         // Interpolation alpha for rendering (0..1 between last and next fixed step)
-        InterpAlpha = Accumulator / Config.FixedDeltaTime;
+        InterpAlpha = Accumulator / FixedDt;
     }
 
     /** Force a single fixed step (for headless/testing) */
@@ -253,7 +266,11 @@ public:
      */
     bool VerifyReplay(const FSimulationSnapshot& StartSnapshot, int64 TargetStep, uint64 ExpectedHash) const
     {
-        if (TargetStep < StartSnapshot.StepCount) return false;
+        // Validate the interval before using it as a loop bound: a negative snapshot step or a target
+        // before it is invalid, and an interval beyond the verification cap must not drive an unbounded
+        // loop. Past these guards both operands are non-negative, so the subtraction cannot overflow.
+        if (StartSnapshot.StepCount < 0 || TargetStep < StartSnapshot.StepCount) return false;
+        if (TargetStep - StartSnapshot.StepCount > MaxReplayVerifySteps) return false;
 
         FDeterministicRNG Rng = StartSnapshot.RNGState; // resume from the snapshot
         uint64 Hash = StartSnapshot.StateHash;
@@ -270,14 +287,27 @@ public:
     {
         FReplayVerificationResult Result;
         Result.ExpectedHash = ExpectedHash;
-        Result.StepsVerified = TargetStep - StartSnapshot.StepCount;
 
-        if (TargetStep < StartSnapshot.StepCount)
+        // Validate BEFORE computing the interval: `TargetStep - StepCount` is the reported
+        // StepsVerified AND the loop bound, so a target before the snapshot (or a negative snapshot
+        // step) would overflow int64 (UB) and an over-cap interval would drive an unbounded loop.
+        // Subtract only once both operands are known non-negative.
+        if (StartSnapshot.StepCount < 0 || TargetStep < StartSnapshot.StepCount)
         {
             Result.bPassed = false;
+            Result.StepsVerified = 0;
             Result.ErrorMessage = TEXT("TargetStep precedes the snapshot step");
             return Result;
         }
+        if (TargetStep - StartSnapshot.StepCount > MaxReplayVerifySteps)
+        {
+            Result.bPassed = false;
+            Result.StepsVerified = 0;
+            Result.ErrorMessage = TEXT("Replay interval exceeds the verification bound");
+            return Result;
+        }
+
+        Result.StepsVerified = TargetStep - StartSnapshot.StepCount;
 
         FDeterministicRNG Rng = StartSnapshot.RNGState;
         uint64 Hash = StartSnapshot.StateHash;

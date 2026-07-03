@@ -188,6 +188,67 @@ bool FSimulationReplayTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// Regression (core audit — defensive hardening of the public FFixedStepSimulation type): FixedDeltaTime
+// and the replay interval are caller-supplied on a MANIFOLDCORE_API type, and the editor ClampMin metas
+// do NOT constrain direct C++/deserialized values. A non-positive FixedDeltaTime made Tick's substep
+// loop infinite (and InterpAlpha divide by zero); a degenerate replay interval drove VerifyReplay's loop
+// unbounded (with an int64 length underflow in VerifyReplayDetailed's pre-guard subtraction). All are now
+// clamped/validated. Reaching each assertion proves the guard holds — the pre-fix code would hang or hit
+// UB before it. (Same discipline as the near-INT32_MAX StepBudget guard in the gameplay layer.)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFixedStepDegenerateConfigTest, "MANIFOLD.Systems.DeterministicCore.DegenerateConfigGuarded", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FFixedStepDegenerateConfigTest::RunTest(const FString& Parameters)
+{
+    // (1) A zero FixedDeltaTime must NOT hang Tick (pre-fix: `while (Acc >= 0)` with `Acc -= 0` is
+    //     infinite) and must leave a finite interpolation alpha (pre-fix: Acc / 0 = Inf/NaN).
+    {
+        FFixedStepConfig Config;
+        Config.FixedDeltaTime = 0.0f;
+        Config.MaxAccumulatedTime = 0.05f;
+        FFixedStepSimulation Sim(Config);
+        Sim.Initialize(1ULL);
+        Sim.Tick(0.05f); // reaching the next line at all proves this terminated
+        UTEST_TRUE("zero FixedDeltaTime: Tick terminates, steps a bounded amount",
+            Sim.GetStepCount() > 0 && Sim.GetStepCount() < 100000);
+        UTEST_TRUE("zero FixedDeltaTime: interpolation alpha stays finite",
+            FMath::IsFinite(Sim.GetInterpolationAlpha()));
+    }
+    // (2) A negative FixedDeltaTime is likewise clamped (pre-fix: Accumulator grows, loop never ends).
+    {
+        FFixedStepConfig Config;
+        Config.FixedDeltaTime = -1.0f;
+        Config.MaxAccumulatedTime = 0.05f;
+        FFixedStepSimulation Sim(Config);
+        Sim.Initialize(2ULL);
+        Sim.Tick(0.05f);
+        UTEST_TRUE("negative FixedDeltaTime: Tick terminates",
+            Sim.GetStepCount() >= 0 && Sim.GetStepCount() < 100000);
+    }
+    // (3) A degenerate replay interval must be rejected WITHOUT driving an unbounded loop or underflowing.
+    {
+        FFixedStepConfig Config;
+        FFixedStepSimulation Sim(Config);
+        Sim.Initialize(3ULL);
+
+        FSimulationSnapshot Snap; // StepCount defaults to 0
+        // A near-INT64_MAX target would be ~9.2e18 iterations pre-fix; the cap rejects it immediately.
+        UTEST_FALSE("huge replay interval is rejected (no unbounded loop)",
+            Sim.VerifyReplay(Snap, MAX_int64, 0ULL));
+
+        // A target BEFORE the snapshot: rejected, and no int64 underflow in the detailed report's
+        // StepsVerified (pre-fix it was computed as TargetStep - StepCount before the guard).
+        FSimulationSnapshot Snap5; Snap5.StepCount = 5;
+        const FReplayVerificationResult R = Sim.VerifyReplayDetailed(Snap5, 0, 0ULL);
+        UTEST_FALSE("target before snapshot is rejected", R.bPassed);
+        UTEST_EQUAL("rejected detailed report reports zero steps (no underflow)", R.StepsVerified, 0LL);
+
+        // The over-cap interval is likewise rejected via the detailed report.
+        const FReplayVerificationResult R2 = Sim.VerifyReplayDetailed(Snap, MAX_int64, 0ULL);
+        UTEST_FALSE("over-cap interval is rejected in the detailed report", R2.bPassed);
+    }
+    return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLazyRealizationDeterministicDetailTest, "MANIFOLD.LazyRealization.DeterministicDetail", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 
 bool FLazyRealizationDeterministicDetailTest::RunTest(const FString& Parameters)
