@@ -113,6 +113,9 @@ public:
     bool bAutoShotTaken = false;
     int32 AutoShotFrames = 0;
 
+    /** Frame counter for the -ManifoldAutoShotSequence burst capture (source frames for a README GIF). */
+    int32 SeqShotFrames = 0;
+
     /** One-shot guard: place the camera to frame the realm grid on the first tick it's available. */
     bool bCameraFramed = false;
 

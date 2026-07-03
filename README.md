@@ -39,11 +39,16 @@ code (verified by a codebase-wide adversarial audit). What remains is art direct
 
 ### Screenshots
 
-_Captured headless via offscreen GPU render (`-ManifoldAutoShot`) from the current build. Realms
-are self-lit emissive orbs (the colorblind-safe Okabe-Ito palette); each realm is distinct in both
-shape and colour. See [Docs/ART_DIRECTION.md](Docs/ART_DIRECTION.md)._
+_Captured headless via offscreen GPU render (`-ManifoldAutoShot` / `-ManifoldAutoShotSequence`) from
+the current build. Realms are self-lit emissive orbs (the colorblind-safe Okabe-Ito palette); each
+realm is distinct in both shape and colour. See [Docs/ART_DIRECTION.md](Docs/ART_DIRECTION.md)._
 
-**The seam — a correspondence ignites and arcs across:**
+**The living scene — the ratio-realms orbit and a discovered correspondence pulses across the seam
+(real-time capture):**
+
+![MANIFOLD — the living scene](Docs/media/scene-loop.gif)
+
+**The seam, held still — a correspondence ignites and arcs across:**
 
 ![Seam](Docs/media/seam.png)
 

@@ -192,6 +192,32 @@ void AManifoldGameMode::Tick(float DeltaSeconds)
         }
     }
 
+    // Dev affordance: `-ManifoldAutoShotSequence` captures a HUD-off burst of frames as the scene
+    // animates (the ratio pairs orbit, the seam pulse travels across the arc) so a short looping GIF
+    // can be assembled from them for the README hero. Shots are spaced several ticks apart so each
+    // async HighResShot completes before the next is queued. Completely inert without the flag.
+    if (FParse::Param(FCommandLine::Get(), TEXT("ManifoldAutoShotSequence")))
+    {
+        bTitleShown = false;
+        ++SeqShotFrames;
+        if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
+        {
+            if (SeqShotFrames == 55)
+            {
+                if (AHUD* HUD = PC->GetHUD()) { HUD->bShowHUD = false; } // pure 3D scene, no readout
+            }
+            // A warm scene by frame 70; then 18 frames, one every 10 ticks (frames 70..240).
+            const int32 SeqStart = 70, SeqInterval = 10, SeqCount = 18;
+            const int32 Rel = SeqShotFrames - SeqStart;
+            if (Rel >= 0 && Rel <= SeqInterval * (SeqCount - 1) && (Rel % SeqInterval) == 0)
+            {
+                UE_LOG(LogTemp, Display, TEXT("[MANIFOLD] AutoShotSequence frame %d (shot %d/%d)"),
+                    SeqShotFrames, Rel / SeqInterval + 1, SeqCount);
+                PC->ConsoleCommand(TEXT("HighResShot 1280x720"), /*bWriteToLog*/ true);
+            }
+        }
+    }
+
     // Classic mode advances the live simulation; Constellation is a static reasoning
     // puzzle resolved by locking a subset, so it isn't ticked.
     if (PlayMode == EManifoldPlayMode::Classic)
