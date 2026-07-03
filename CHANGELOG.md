@@ -6,6 +6,23 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Hardening (input / mode / audio — adversarial audit; whole-codebase coverage complete)
+- The final un-audited surface (GameMode mode-switching/lifecycle, PlayerController input, HUD draw,
+  ToneSynth audio) was adversarially audited — completing adversarial coverage of the entire codebase.
+  Four defects confirmed (eight weaker claims refuted); all fixed, the expedition state leak locked by
+  `MANIFOLD.Play.ExpeditionExit`:
+  - **Restart `[R]` during a Constellation Expedition left a corrupt half-state** (high). `ManifoldRestart`
+    only called `StartSession`, which re-generated the *current* level with the accumulated running
+    total still banked, the banner still up, and no way out. Restart now leaves the expedition cleanly.
+  - **Mode-toggle `[C]` didn't exit an active expedition** (medium): the flag/score leaked into Classic
+    and silently resumed the old campaign on a later switch back. Toggle now leaves the expedition too.
+    (Both fixed via a shared `ExitExpedition()` the generic reset verbs call.)
+  - **ToneSynth `CachedSampleRate` data race** (low): written on the audio thread, read on the game
+    thread outside the lock — now `std::atomic<int32>`.
+  - **`[X]` restarting a campaign mid-run discards banked score** (low) — retained as the documented
+    intent of the campaign-start verb (the clean exits are `[R]`/`[C]`).
+  **87/87 green.**
+
 ### Hardening (gameplay glue — adversarial audit)
 - An adversarial audit of `UManifoldSlice` (scoring / profile / constellation / transport) + Telemetry
   confirmed four defects (verifiers refuted eight weaker claims); all fixed, the two medium ones
@@ -341,7 +358,7 @@ confirmed finding, with none deferred. E.g.:
   registration. AndroidFileServer plugin disabled (stops dev-token regeneration).
 
 ### Status
-- **86 / 86** automation tests green, headless. Repo is public and professional.
+- **87 / 87** automation tests green, headless. Repo is public and professional.
   Remaining phase (real art/VFX scenes, bound sound assets, bespoke UMG UI, human
   playtest) is human-owned and needs the editor + a display — see
   `Docs/IMPLEMENTATION_STATUS.md`.

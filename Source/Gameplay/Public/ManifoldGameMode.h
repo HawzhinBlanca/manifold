@@ -153,6 +153,11 @@ protected:
     /** Build a fresh interactive session (slice + objective) and the realm view. */
     void StartSession();
 
+    /** Leave any active expedition campaign to a clean state (clears the flag, level, and running
+     *  score). Called by the generic restart / mode-toggle verbs so they don't strand the player
+     *  mid-campaign with an inflated, unresettable running total. */
+    void ExitExpedition();
+
     /** Send any newly-emitted audio cues to the synth. */
     void PlayNewAudioCues();
 };

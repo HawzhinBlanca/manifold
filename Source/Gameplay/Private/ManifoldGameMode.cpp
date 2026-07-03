@@ -107,8 +107,19 @@ void AManifoldGameMode::StartSession()
     }
 }
 
+void AManifoldGameMode::ExitExpedition()
+{
+    bExpeditionActive = false;
+    ExpeditionLevel = 0;
+    ExpeditionScore = 0;
+}
+
 void AManifoldGameMode::ManifoldRestart()
 {
+    // [R] means "restart from scratch" (see header contract). Leave any active expedition campaign
+    // entirely — otherwise StartSession sees bExpeditionActive and re-generates the CURRENT level
+    // with the accumulated running total still banked and the banner still up, with no way out.
+    ExitExpedition();
     StartSession();
     UE_LOG(LogTemp, Display, TEXT("[MANIFOLD] Session restarted"));
 }
@@ -244,6 +255,11 @@ void AManifoldGameMode::ManifoldTransport()
 
 void AManifoldGameMode::ManifoldToggleMode()
 {
+    // Switching mode leaves any active expedition — otherwise its flag/score leak into the new mode
+    // (swallowing the toggle while bExpeditionActive is still true, and silently resuming the old
+    // campaign on a later switch back).
+    ExitExpedition();
+
     // Cycle: Classic -> Constellation -> Constellation (Expert, rule hidden) -> Classic.
     if (PlayMode == EManifoldPlayMode::Classic)
     {

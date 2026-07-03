@@ -17,6 +17,7 @@
 #include "ManifoldGearMesh.h"
 #include "ManifoldWaveMesh.h"
 #include "ManifoldPalette.h"
+#include "ManifoldGameMode.h"
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
 #include "Serialization/MemoryWriter.h"
@@ -1420,6 +1421,32 @@ bool FLostDoesNotSetBestTest::RunTest(const FString& Parameters)
     FManifoldSessionSummary CLost; CLost.State = EManifoldSessionState::Lost; CLost.Score = 9000; CLost.bConstellation = true;
     UTEST_FALSE("a constellation loss is not a new best", UManifoldSlice::RecordSessionInProfile(P, CLost));
     UTEST_EQUAL("constellation best unchanged by the loss", P.BestConstellationScore, 5000);
+    return true;
+}
+
+// Regression (audit): [R] restart and [C] mode-toggle must LEAVE an active Constellation Expedition
+// to a clean state. They were leaving bExpeditionActive/level/score set, so restarting re-generated
+// the CURRENT level with the accumulated running total still banked (unresettable, banner stale) and
+// toggling silently resumed the old campaign on a later switch back.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FExpeditionExitTest, "MANIFOLD.Play.ExpeditionExit", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FExpeditionExitTest::RunTest(const FString& Parameters)
+{
+    AManifoldGameMode* GM = NewObject<AManifoldGameMode>();
+
+    GM->ManifoldStartExpedition();
+    UTEST_TRUE("[X] starts an expedition", GM->IsExpeditionActive());
+
+    GM->ManifoldRestart();
+    UTEST_FALSE("[R] restart exits the expedition", GM->IsExpeditionActive());
+    UTEST_EQUAL("[R] resets the running total", GM->GetExpeditionScore(), 0);
+    UTEST_EQUAL("[R] resets the level", GM->GetExpeditionLevel(), 0);
+
+    GM->ManifoldStartExpedition();
+    UTEST_TRUE("expedition re-armed", GM->IsExpeditionActive());
+    GM->ManifoldToggleMode();
+    UTEST_FALSE("[C] mode-toggle exits the expedition", GM->IsExpeditionActive());
+
     return true;
 }
 

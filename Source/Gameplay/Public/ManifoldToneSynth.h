@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/SynthComponent.h"
 #include "ManifoldAudioDirector.h"
+#include <atomic>
 #include "ManifoldToneSynth.generated.h"
 
 /** MIDI note number -> frequency in Hz (A4 = MIDI 69 = 440 Hz). */
@@ -74,6 +75,8 @@ private:
     static constexpr int32 MaxVoices = 16;
     FManifoldToneVoice Voices[MaxVoices];
     int32 NextVoice = 0;
-    int32 CachedSampleRate = 48000;
+    // Atomic: written by Init() on the audio render thread and read by PlayCue() on the game thread
+    // (outside VoiceLock). A plain int32 there is a formal data race / UB on a device re-init.
+    std::atomic<int32> CachedSampleRate{ 48000 };
     FCriticalSection VoiceLock; // OnGenerateAudio runs on the audio render thread
 };
