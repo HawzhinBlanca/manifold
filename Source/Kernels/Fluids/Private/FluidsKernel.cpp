@@ -83,14 +83,6 @@ void UFluidsKernel::Step(float DeltaTime)
     FluidsState->StateHash = ComputeStateHash();
 }
 
-void UFluidsKernel::StepMultiple(float DeltaTime, int32 NumSteps)
-{
-    for (int32 i = 0; i < NumSteps; ++i)
-    {
-        Step(DeltaTime);
-    }
-}
-
 TSharedPtr<FRealmState> UFluidsKernel::GetState() const
 {
     return FluidsState;

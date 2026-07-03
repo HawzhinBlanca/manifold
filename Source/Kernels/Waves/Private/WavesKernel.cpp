@@ -53,14 +53,6 @@ void UWavesKernel::Step(float DeltaTime)
     UpdateDerivedState();
 }
 
-void UWavesKernel::StepMultiple(float DeltaTime, int32 NumSteps)
-{
-    for (int32 i = 0; i < NumSteps; ++i)
-    {
-        Step(DeltaTime);
-    }
-}
-
 void UWavesKernel::UpdateDerivedState()
 {
     DetectWaveRatios();
@@ -101,18 +93,11 @@ void UWavesKernel::DeserializeState(FArchive& Ar)
 uint64 UWavesKernel::ComputeStateHash() const
 {
     uint64 Hash = 0x2B992DDFA23249D6ULL;
-    auto HashDouble = [](double Val) -> uint64
-    {
-        uint64 Bits;
-        FMemory::Memcpy(&Bits, &Val, sizeof(double));
-        return Bits;
-    };
-
     for (const FStandingWave& Wave : WState->Waves)
     {
         Hash ^= static_cast<uint64>(Wave.HarmonicNumber) * 0x9E3779B97F4A7C15ULL;
-        Hash ^= HashDouble(Wave.Phase) * 0xBF58476D1CE4E5B9ULL;
-        Hash ^= HashDouble(Wave.Amplitude) * 0x2545F4914F6CDD1DULL;
+        Hash ^= ManifoldHashDoubleBits(Wave.Phase) * 0xBF58476D1CE4E5B9ULL;
+        Hash ^= ManifoldHashDoubleBits(Wave.Amplitude) * 0x2545F4914F6CDD1DULL;
     }
     return Hash;
 }

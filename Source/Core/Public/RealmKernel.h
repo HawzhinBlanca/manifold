@@ -18,6 +18,18 @@ struct FRealmQuery;
 struct FRealmQueryResult;
 
 /**
+ * Deterministic bit-reinterpret of a double to its raw 64-bit pattern. Every realm
+ * kernel folds its doubles into ComputeStateHash through this exact primitive, so it
+ * lives here as the single shared definition (was an identical per-kernel lambda).
+ */
+FORCEINLINE uint64 ManifoldHashDoubleBits(double Value)
+{
+    uint64 Bits;
+    FMemory::Memcpy(&Bits, &Value, sizeof(double));
+    return Bits;
+}
+
+/**
  * RealmKernel Interface (WP S1)
  * 
  * Every realm simulation (Orbits, Fluids, etc.) implements this interface.

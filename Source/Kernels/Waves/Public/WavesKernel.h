@@ -113,7 +113,6 @@ public:
     virtual void Shutdown() override;
 
     virtual void Step(float DeltaTime) override;
-    virtual void StepMultiple(float DeltaTime, int32 NumSteps) override;
 
     virtual float GetSimulationTime() const override { return static_cast<float>(SimTime); }
     virtual int64 GetStepCount() const override { return StepCount; }

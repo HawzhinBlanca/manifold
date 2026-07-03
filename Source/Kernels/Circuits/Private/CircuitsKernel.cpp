@@ -55,14 +55,6 @@ void UCircuitsKernel::Step(float DeltaTime)
     UpdateDerivedState();
 }
 
-void UCircuitsKernel::StepMultiple(float DeltaTime, int32 NumSteps)
-{
-    for (int32 i = 0; i < NumSteps; ++i)
-    {
-        Step(DeltaTime);
-    }
-}
-
 void UCircuitsKernel::UpdateDerivedState()
 {
     DetectCircuitRatios();
@@ -102,17 +94,10 @@ void UCircuitsKernel::DeserializeState(FArchive& Ar)
 uint64 UCircuitsKernel::ComputeStateHash() const
 {
     uint64 Hash = 0x1F83D9ABFB41BD6BULL;
-    auto HashDouble = [](double Val) -> uint64
-    {
-        uint64 Bits;
-        FMemory::Memcpy(&Bits, &Val, sizeof(double));
-        return Bits;
-    };
-
     for (const FResonantTank& Tank : CState->Tanks)
     {
-        Hash ^= HashDouble(Tank.Frequency) * 0x9E3779B97F4A7C15ULL;
-        Hash ^= HashDouble(Tank.Phase) * 0xBF58476D1CE4E5B9ULL;
+        Hash ^= ManifoldHashDoubleBits(Tank.Frequency) * 0x9E3779B97F4A7C15ULL;
+        Hash ^= ManifoldHashDoubleBits(Tank.Phase) * 0xBF58476D1CE4E5B9ULL;
     }
     return Hash;
 }

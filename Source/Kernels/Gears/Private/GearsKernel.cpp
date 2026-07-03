@@ -56,14 +56,6 @@ void UGearsKernel::Step(float DeltaTime)
     UpdateDerivedState();
 }
 
-void UGearsKernel::StepMultiple(float DeltaTime, int32 NumSteps)
-{
-    for (int32 i = 0; i < NumSteps; ++i)
-    {
-        Step(DeltaTime);
-    }
-}
-
 void UGearsKernel::UpdateDerivedState()
 {
     DetectGearRatios();
@@ -103,17 +95,10 @@ void UGearsKernel::DeserializeState(FArchive& Ar)
 uint64 UGearsKernel::ComputeStateHash() const
 {
     uint64 Hash = 0x1F83D9ABFB41BD6BULL;
-    auto HashDouble = [](double Val) -> uint64
-    {
-        uint64 Bits;
-        FMemory::Memcpy(&Bits, &Val, sizeof(double));
-        return Bits;
-    };
-
     for (const FGear& Gear : GState->Gears)
     {
         Hash ^= static_cast<uint64>(Gear.Teeth) * 0x9E3779B97F4A7C15ULL;
-        Hash ^= HashDouble(Gear.Angle) * 0xBF58476D1CE4E5B9ULL;
+        Hash ^= ManifoldHashDoubleBits(Gear.Angle) * 0xBF58476D1CE4E5B9ULL;
     }
     return Hash;
 }

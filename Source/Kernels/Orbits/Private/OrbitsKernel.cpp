@@ -105,14 +105,6 @@ void UOrbitsKernel::UpdateDerivedState()
     OrbitState->StateHash = ComputeStateHash();
 }
 
-void UOrbitsKernel::StepMultiple(float DeltaTime, int32 NumSteps)
-{
-    for (int32 i = 0; i < NumSteps; ++i)
-    {
-        Step(DeltaTime);
-    }
-}
-
 TSharedPtr<FRealmState> UOrbitsKernel::GetState() const
 {
     return OrbitState;
@@ -167,19 +159,13 @@ uint64 UOrbitsKernel::ComputeStateHash() const
     uint64 Hash = 0x123456789ABCDEF0ULL;
     for (int32 i = 0; i < Positions.Num(); ++i)
     {
-        auto HashDouble = [](double Val) -> uint64 {
-            uint64 Bits;
-            FMemory::Memcpy(&Bits, &Val, sizeof(double));
-            return Bits;
-        };
+        Hash ^= ManifoldHashDoubleBits(Positions[i].X) * 0x9E3779B97F4A7C15ULL;
+        Hash ^= ManifoldHashDoubleBits(Positions[i].Y) * 0xBF58476D1CE4E5B9ULL;
+        Hash ^= ManifoldHashDoubleBits(Positions[i].Z) * 0x123ULL;
 
-        Hash ^= HashDouble(Positions[i].X) * 0x9E3779B97F4A7C15ULL;
-        Hash ^= HashDouble(Positions[i].Y) * 0xBF58476D1CE4E5B9ULL;
-        Hash ^= HashDouble(Positions[i].Z) * 0x123ULL;
-
-        Hash ^= HashDouble(Velocities[i].X) * 0x9E3779B97F4A7C15ULL;
-        Hash ^= HashDouble(Velocities[i].Y) * 0xBF58476D1CE4E5B9ULL;
-        Hash ^= HashDouble(Velocities[i].Z) * 0x456ULL;
+        Hash ^= ManifoldHashDoubleBits(Velocities[i].X) * 0x9E3779B97F4A7C15ULL;
+        Hash ^= ManifoldHashDoubleBits(Velocities[i].Y) * 0xBF58476D1CE4E5B9ULL;
+        Hash ^= ManifoldHashDoubleBits(Velocities[i].Z) * 0x456ULL;
     }
     return Hash;
 }

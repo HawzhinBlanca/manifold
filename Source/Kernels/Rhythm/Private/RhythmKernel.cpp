@@ -55,14 +55,6 @@ void URhythmKernel::Step(float DeltaTime)
     UpdateDerivedState();
 }
 
-void URhythmKernel::StepMultiple(float DeltaTime, int32 NumSteps)
-{
-    for (int32 i = 0; i < NumSteps; ++i)
-    {
-        Step(DeltaTime);
-    }
-}
-
 void URhythmKernel::UpdateDerivedState()
 {
     DetectRhythmRatios();
@@ -102,17 +94,10 @@ void URhythmKernel::DeserializeState(FArchive& Ar)
 uint64 URhythmKernel::ComputeStateHash() const
 {
     uint64 Hash = 0x27D4EB2F165667C5ULL;
-    auto HashDouble = [](double Val) -> uint64
-    {
-        uint64 Bits;
-        FMemory::Memcpy(&Bits, &Val, sizeof(double));
-        return Bits;
-    };
-
     for (const FRhythmVoice& Voice : RState->Voices)
     {
-        Hash ^= HashDouble(Voice.Tempo) * 0x9E3779B97F4A7C15ULL;
-        Hash ^= HashDouble(Voice.Phase) * 0xBF58476D1CE4E5B9ULL;
+        Hash ^= ManifoldHashDoubleBits(Voice.Tempo) * 0x9E3779B97F4A7C15ULL;
+        Hash ^= ManifoldHashDoubleBits(Voice.Phase) * 0xBF58476D1CE4E5B9ULL;
     }
     return Hash;
 }

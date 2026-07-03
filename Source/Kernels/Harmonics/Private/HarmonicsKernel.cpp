@@ -55,14 +55,6 @@ void UHarmonicsKernel::Step(float DeltaTime)
     UpdateDerivedState();
 }
 
-void UHarmonicsKernel::StepMultiple(float DeltaTime, int32 NumSteps)
-{
-    for (int32 i = 0; i < NumSteps; ++i)
-    {
-        Step(DeltaTime);
-    }
-}
-
 void UHarmonicsKernel::UpdateDerivedState()
 {
     DetectHarmonicRatios();
@@ -102,18 +94,11 @@ void UHarmonicsKernel::DeserializeState(FArchive& Ar)
 uint64 UHarmonicsKernel::ComputeStateHash() const
 {
     uint64 Hash = 0x51ED270B2E5A6C1DULL;
-    auto HashDouble = [](double Val) -> uint64
-    {
-        uint64 Bits;
-        FMemory::Memcpy(&Bits, &Val, sizeof(double));
-        return Bits;
-    };
-
     for (const FHarmonicMode& Mode : HState->Modes)
     {
-        Hash ^= HashDouble(Mode.Frequency) * 0x9E3779B97F4A7C15ULL;
-        Hash ^= HashDouble(Mode.Phase) * 0xBF58476D1CE4E5B9ULL;
-        Hash ^= HashDouble(Mode.Amplitude) * 0x2545F4914F6CDD1DULL;
+        Hash ^= ManifoldHashDoubleBits(Mode.Frequency) * 0x9E3779B97F4A7C15ULL;
+        Hash ^= ManifoldHashDoubleBits(Mode.Phase) * 0xBF58476D1CE4E5B9ULL;
+        Hash ^= ManifoldHashDoubleBits(Mode.Amplitude) * 0x2545F4914F6CDD1DULL;
     }
     return Hash;
 }
