@@ -6,6 +6,23 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Correctness — solver config carried through serialize/replay (kernel audit follow-up, final)
+- **Per-realm solver config was not part of the serialized state.** Orbits `G`/`Softening`/`bFullNBody`
+  and Fluids `Viscosity`/`Diffusion`/`Decay` drive their kernel every step and are mutable via the
+  `IRealmKernel::SetParameter` contract, yet `FOrbitsState`/`FFluidsState` didn't serialize them — a
+  state saved after a config change reverted to defaults on load and silently diverged the reproduced
+  simulation. Config is now mirrored into the state (append-only serialized fields; no persisted
+  save/replay embeds realm state, so the format change only touches the in-memory round-trip path),
+  synced live↔state at `GetState()`/`SerializeState()`/`SetState()`, and folded into
+  `ComputeStateHash` (a config-only divergence is a real divergence the detector must expose — same
+  reasoning as the Mass / velocity-grid hash fixes). `SetState` treats the incoming config as
+  **untrusted**: Fluids clamps negative `Viscosity`/`Diffusion` to ≥ 0 (the documented NaN →
+  out-of-bounds hazard) and sanitizes non-finite `Decay`; Orbits sanitizes non-finite `G`/`Softening`.
+  Locked by `MANIFOLD.Kernels.Orbits.ConfigRoundTrips` and `MANIFOLD.Kernels.Fluids.ConfigRoundTrips`
+  (round-trip carries config + hash matches; a config-only divergence changes the hash; hostile config
+  is sanitized so the next step stays finite). **97/97 green** (up from 95). This closes the last
+  queued finding from the adversarial kernel/core audit — **all 8 confirmed defects are now fixed.**
+
 ### Correctness — orbital-element NaN guard (kernel audit follow-up)
 - **`UOrbitsKernel::ComputeOrbitalElements` fed unclamped cosines into `FMath::Acos`** for the
   inclination, ascending-node, and argument-of-periapsis angles. A perfectly equatorial orbit has
@@ -38,10 +55,9 @@ work-package milestones rather than semantic versions until first playable.
     and adopts the grids only when all three arrays are exactly `(GridSize+2)^2`; otherwise it falls
     back to a clean zeroed field at the clamped size. Valid self-consistent states are copied verbatim.
     Locked by `MANIFOLD.Kernels.Fluids.SetStateRejectsMalformedGrid`.
-  - The unclamped `Acos` finding is now fixed (see *orbital-element NaN guard* above). Remaining
-    confirmed finding queued for a follow-up iteration: kernel config fields (Orbits
-    `G`/`Softening`/`bFullNBody`, Fluids `Viscosity`/`Diffusion`/`Decay`) not carried through
-    serialize/deserialize.
+  - Both remaining findings are now fixed: the unclamped `Acos` (see *orbital-element NaN guard*
+    above) and the config-serialization gap (see *solver config carried through serialize/replay*
+    above). **Every confirmed finding from this audit is remediated.**
 
 ### Craft-quality pass (multi-lens review — coverage gaps + genuine simplifications)
 - A craft-lens review (a different lens than the correctness audits: test-coverage completeness and
