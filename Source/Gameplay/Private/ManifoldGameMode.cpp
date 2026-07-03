@@ -153,6 +153,25 @@ void AManifoldGameMode::Tick(float DeltaSeconds)
         if (TitleTimer >= 6.0f) { bTitleShown = false; }
     }
 
+    // Dev affordance: `-ManifoldAutoShotTitle` HOLDS the intro title card up and captures it over the
+    // cosmic backdrop (the normal -ManifoldAutoShot skips the title). For the README title still.
+    // Inert without the flag.
+    if (!bAutoShotTaken && FParse::Param(FCommandLine::Get(), TEXT("ManifoldAutoShotTitle")))
+    {
+        bTitleShown = true; // keep the card up for the shot
+        ++AutoShotFrames;
+        if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
+        {
+            if (AutoShotFrames >= 45)
+            {
+                bAutoShotTaken = true;
+                UE_LOG(LogTemp, Display, TEXT("[MANIFOLD] AutoShot firing TITLE shot at frame %d"), AutoShotFrames);
+                PC->ConsoleCommand(TEXT("HighResShot 1280x720"), /*bWriteToLog*/ true);
+            }
+        }
+        return; // hold on the title; skip the sim/normal-AutoShot path this run
+    }
+
     // Dev/CI affordance: `-ManifoldAutoShot` reveals the realm scene immediately and captures two
     // frame-counted HighResShots (frame-counted, not world-time — robust to the PSO/shader hitches
     // that make world-time crawl on a cold offscreen run) for headless visual verification and
