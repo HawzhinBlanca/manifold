@@ -1,7 +1,7 @@
 blank_issues_enabled: false
 contact_links:
   - name: Build plan & work packages
-    url: https://github.com/hawzhinblanca/manifold/blob/main/MANIFOLD_Build_Plan.md
+    url: https://github.com/hawzhinblanca/manifold/blob/main/Docs/BUILD_PLAN.md
     about: The end-to-end plan — check the work-package tables before filing.
   - name: Implementation status & handoff
     url: https://github.com/hawzhinblanca/manifold/blob/main/Docs/IMPLEMENTATION_STATUS.md

@@ -12,10 +12,10 @@ that must pass in CI before it merges. No exceptions.
 1. **Branch** off `main`: `feat/<area>-<short-desc>`, `fix/<...>`, or `docs/<...>`.
 2. **Own your folder.** An owner edits only their folder(s); cross-folder needs go
    through an interface (a header, a DataAsset schema, an event) — never a reach-in.
-   See the ownership map in `MANIFOLD_Build_Plan.md §7`.
+   See the ownership map in `Docs/BUILD_PLAN.md §7`.
 3. **Write the acceptance test** for your work package (see `Tools/CI/run_tests.ps1`
    for the WP→test map). Determinism-critical code must be bitwise-reproducible.
-4. **Build + run the full suite locally** (see below) — expect `20 Success, 0 Fail`
+4. **Build + run the full suite locally** (see below) — expect `91 Success, 0 Fail`
    plus your new test.
 5. **Open a PR** using the template; link the work package; confirm the acceptance
    test is green.
