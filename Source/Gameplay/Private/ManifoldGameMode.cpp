@@ -163,7 +163,17 @@ void AManifoldGameMode::Tick(float DeltaSeconds)
     {
         bTitleShown = false; // skip the intro card so the realms are on screen for the shot
         ++AutoShotFrames;
-        if (AutoShotFrames == 1) { UE_LOG(LogTemp, Display, TEXT("[MANIFOLD] AutoShot armed")); }
+        if (AutoShotFrames == 1)
+        {
+            UE_LOG(LogTemp, Display, TEXT("[MANIFOLD] AutoShot armed"));
+            // Optionally capture Constellation Lock instead of Classic (the default start mode), so
+            // both play modes can be visually verified headless.
+            if (PlayMode == EManifoldPlayMode::Classic && FParse::Param(FCommandLine::Get(), TEXT("ManifoldAutoShotConstellation")))
+            {
+                ManifoldToggleMode(); // Classic -> Constellation
+                bTitleShown = false;
+            }
+        }
         APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
         if (PC)
         {

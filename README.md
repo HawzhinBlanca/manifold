@@ -47,9 +47,9 @@ shape and colour. See [Docs/ART_DIRECTION.md](Docs/ART_DIRECTION.md)._
 
 ![Seam](Docs/media/seam.png)
 
-| Title card | In-game readout | The realms |
-|:---:|:---:|:---:|
-| ![Title](Docs/media/title.png) | ![Gameplay HUD](Docs/media/gameplay-hud.png) | ![Realms](Docs/media/realms.png) |
+| Title card | Classic readout | Constellation Lock | The realms |
+|:---:|:---:|:---:|:---:|
+| ![Title](Docs/media/title.png) | ![Gameplay HUD](Docs/media/gameplay-hud.png) | ![Constellation](Docs/media/constellation.png) | ![Realms](Docs/media/realms.png) |
 
 - ✅ **87 / 87** automation tests pass, headless, 0 failures
 - ✅ Deterministic fixed-step simulation (bitwise-reproducible; real replay verification)
