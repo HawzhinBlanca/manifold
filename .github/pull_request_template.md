@@ -10,7 +10,7 @@
 ## Acceptance test
 
 - [ ] A mechanically verifiable acceptance test exists for this change
-- [ ] `Tools\CI\run_tests.ps1` is green locally (`20 Success, 0 Fail` + new test)
+- [ ] `Tools\CI\run_tests.ps1` is green locally (`91 Success, 0 Fail` + new test)
 - [ ] Determinism preserved where required (bitwise-reproducible)
 - [ ] No cross-folder reach-ins (changes go through interfaces)
 
