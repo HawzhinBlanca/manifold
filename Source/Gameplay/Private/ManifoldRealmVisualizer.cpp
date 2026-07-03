@@ -15,9 +15,13 @@
 #include "ProceduralMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/DirectionalLightComponent.h"
+#include "Components/PointLightComponent.h"
+#include "Components/ExponentialHeightFogComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/DirectionalLight.h"
+#include "Engine/PointLight.h"
+#include "Engine/ExponentialHeightFog.h"
 #include "Engine/PostProcessVolume.h"
 #include "Engine/World.h"
 #include "DeterministicRNG.h"
@@ -77,42 +81,96 @@ void AManifoldRealmVisualizer::BeginPlay()
     UWorld* World = GetWorld();
     if (World)
     {
-        // Key + fill directional lighting so the mesh geometry is clearly visible
-        // regardless of what (if any) lighting the startup map ships with.
-        auto SpawnLight = [&](const FRotator& Rot, float Intensity, const FLinearColor& Col)
+        // ---------------- Cinematic cosmic lighting & atmosphere ----------------
+        // A dramatic directional key + cool back-rim (both feeding the volumetric fog so the
+        // haze catches light), a deep nebula fog the realms glow INTO for real depth, and a
+        // coloured point light at each realm so every world casts its palette hue through the mist.
+
+        auto SpawnDir = [&](const FRotator& Rot, float Intensity, const FLinearColor& Col, float VolScatter)
         {
-            ADirectionalLight* Light = World->SpawnActor<ADirectionalLight>(
-                ADirectionalLight::StaticClass(), FVector::ZeroVector, Rot);
-            if (Light)
+            if (ADirectionalLight* Light = World->SpawnActor<ADirectionalLight>(
+                    ADirectionalLight::StaticClass(), FVector::ZeroVector, Rot))
             {
                 if (UDirectionalLightComponent* LC = Cast<UDirectionalLightComponent>(Light->GetLightComponent()))
                 {
                     LC->SetMobility(EComponentMobility::Movable);
                     LC->SetIntensity(Intensity);
                     LC->SetLightColor(Col);
+                    LC->SetVolumetricScatteringIntensity(VolScatter);
                 }
             }
         };
-        // Multi-angle rig so the realm spheres read as fully-lit coloured orbs rather than
-        // half-shadowed crescents (no HDRI/skylight on this code-only, headless-cooked scene, so
-        // we fake ambient with fills from several directions). Camera looks +Y at the grid.
-        SpawnLight(FRotator(-40.0f, -30.0f, 0.0f), 5.0f, FLinearColor(1.0f, 0.97f, 0.9f));  // warm key
-        SpawnLight(FRotator(10.0f, 150.0f, 0.0f), 3.0f, FLinearColor(0.55f, 0.68f, 1.0f));  // cool fill (opposite)
-        SpawnLight(FRotator(-20.0f, -110.0f, 0.0f), 2.5f, FLinearColor(0.8f, 0.85f, 1.0f)); // camera-side fill
-        SpawnLight(FRotator(35.0f, 60.0f, 0.0f), 2.0f, FLinearColor(0.9f, 0.9f, 0.95f));    // top-back fill
-        SpawnLight(FRotator(-55.0f, 40.0f, 0.0f), 1.8f, FLinearColor(0.7f, 0.8f, 1.0f));    // low fill (lifts undersides)
+        SpawnDir(FRotator(-32.0f, -35.0f, 0.0f), 3.5f, FLinearColor(1.00f, 0.95f, 0.86f), 2.0f); // warm key
+        SpawnDir(FRotator(-14.0f, 152.0f, 0.0f), 2.2f, FLinearColor(0.42f, 0.58f, 1.00f), 2.6f); // cool back-rim
+        SpawnDir(FRotator(-60.0f,  55.0f, 0.0f), 1.1f, FLinearColor(0.70f, 0.80f, 1.00f), 1.0f); // soft top fill
 
-        // Cinematic post: bloom so the gold correspondences / seam / stars glow, a soft
-        // vignette, and fixed exposure so the scene doesn't auto-brighten/flicker.
+        // Deep nebula haze — a volumetric fog the realms and their coloured lights glow into.
+        if (AExponentialHeightFog* Fog = World->SpawnActor<AExponentialHeightFog>(
+                AExponentialHeightFog::StaticClass(), FVector(0.0, 0.0, -600.0), FRotator::ZeroRotator))
+        {
+            if (UExponentialHeightFogComponent* FC = Fog->GetComponent())
+            {
+                FC->SetMobility(EComponentMobility::Movable);
+                FC->SetFogDensity(0.004f);                                // thin — keep the void dark
+                FC->SetFogHeightFalloff(0.02f);
+                FC->SetFogInscatteringColor(FLinearColor(0.006f, 0.012f, 0.030f)); // near-black blue (no wash)
+                FC->SetStartDistance(450.0f);
+                FC->SetVolumetricFog(true);
+                FC->SetVolumetricFogScatteringDistribution(0.2f);
+                FC->SetVolumetricFogAlbedo(FColor(140, 160, 230));
+                FC->SetVolumetricFogExtinctionScale(3.0f);                // dense volumetric glow near lights only
+                FC->SetVolumetricFogDistance(7000.0f);
+            }
+        }
+
+        // Per-realm coloured point lights: each world casts its palette colour into the fog.
+        auto SpawnRealmLight = [&](const FVector& Pos, const FLinearColor& Col, float Intensity)
+        {
+            if (APointLight* PL = World->SpawnActor<APointLight>(
+                    APointLight::StaticClass(), Pos, FRotator::ZeroRotator))
+            {
+                if (UPointLightComponent* PC = Cast<UPointLightComponent>(PL->GetLightComponent()))
+                {
+                    PC->SetMobility(EComponentMobility::Movable);
+                    PC->SetLightColor(Col);
+                    PC->SetIntensity(Intensity);
+                    PC->SetAttenuationRadius(650.0f);
+                    PC->SetSourceRadius(24.0f);
+                    PC->SetVolumetricScatteringIntensity(6.5f); // glow through the fog
+                }
+            }
+        };
+        SpawnRealmLight(OrbitsCenter,    StarGold,        12000.0f); // the star anchors the cluster
+        SpawnRealmLight(FluidsCenter,    FluidsCyan,       7000.0f);
+        SpawnRealmLight(HarmonicsCenter, HarmonicsViolet,  7000.0f);
+        SpawnRealmLight(WavesCenter,     WavesTeal,        7000.0f);
+        SpawnRealmLight(RhythmCenter,    RhythmAmber,      7000.0f);
+        SpawnRealmLight(GearsCenter,     GearsSteel,       7000.0f);
+        SpawnRealmLight(CircuitsCenter,  CircuitsColor,    7000.0f);
+
+        // Film-grade post: cinematic depth of field on the realm cluster, generous bloom for the
+        // emissive orbs + gold seam, a cool colour grade, a touch of grain + chromatic aberration,
+        // and fixed exposure so the scene never flickers.
         if (APostProcessVolume* PP = World->SpawnActor<APostProcessVolume>())
         {
             PP->bUnbound = true;
             FPostProcessSettings& S = PP->Settings;
-            S.bOverride_BloomIntensity = true;             S.BloomIntensity = 1.2f;
-            S.bOverride_BloomThreshold = true;             S.BloomThreshold = 0.6f;
-            S.bOverride_VignetteIntensity = true;          S.VignetteIntensity = 0.5f;
+            S.bOverride_BloomIntensity = true;             S.BloomIntensity = 1.6f;
+            S.bOverride_BloomThreshold = true;             S.BloomThreshold = 0.35f;
             S.bOverride_AutoExposureMinBrightness = true;  S.AutoExposureMinBrightness = 1.0f;
             S.bOverride_AutoExposureMaxBrightness = true;  S.AutoExposureMaxBrightness = 1.0f; // fixed exposure
+            // Depth of field — realms sharp (~1200uu ahead), the far starfield softly out of focus.
+            S.bOverride_DepthOfFieldFocalDistance = true;  S.DepthOfFieldFocalDistance = 1200.0f;
+            S.bOverride_DepthOfFieldFstop = true;          S.DepthOfFieldFstop = 4.0f;
+            // Colour grade — gently lifted saturation, cool bias, filmic.
+            S.bOverride_ColorSaturation = true;            S.ColorSaturation = FVector4(1.12f, 1.12f, 1.20f, 1.0f);
+            S.bOverride_ColorContrast = true;              S.ColorContrast = FVector4(1.05f, 1.05f, 1.10f, 1.0f);
+            S.bOverride_WhiteTemp = true;                  S.WhiteTemp = 5400.0f; // slightly cool
+            S.bOverride_SceneColorTint = true;             S.SceneColorTint = FLinearColor(0.93f, 0.96f, 1.06f);
+            // Filmic texture.
+            S.bOverride_FilmGrainIntensity = true;         S.FilmGrainIntensity = 0.16f;
+            S.bOverride_SceneFringeIntensity = true;       S.SceneFringeIntensity = 0.5f;
+            S.bOverride_VignetteIntensity = true;          S.VignetteIntensity = 0.42f;
         }
     }
 
