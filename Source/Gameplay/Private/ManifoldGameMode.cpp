@@ -142,25 +142,30 @@ void AManifoldGameMode::Tick(float DeltaSeconds)
         if (TitleTimer >= 6.0f) { bTitleShown = false; }
     }
 
-    // Dev/CI affordance: `-ManifoldAutoShot` reveals the realm scene immediately and captures one
-    // HUD-inclusive HighResShot a set number of FRAMES later (frame-counted, not world-time — robust
-    // to the PSO/shader hitches that make world-time crawl on a cold offscreen run) for headless
-    // visual verification and marketing stills. Completely inert without the flag.
+    // Dev/CI affordance: `-ManifoldAutoShot` reveals the realm scene immediately and captures two
+    // frame-counted HighResShots (frame-counted, not world-time — robust to the PSO/shader hitches
+    // that make world-time crawl on a cold offscreen run) for headless visual verification and
+    // marketing stills: first WITH the HUD (the in-game readout), then with the HUD hidden (the pure
+    // 3D realm scene). Console commands route through the player controller so they reach the game
+    // viewport's HighResShot handler (GEngine->Exec silently no-ops). Completely inert without the flag.
     if (!bAutoShotTaken && FParse::Param(FCommandLine::Get(), TEXT("ManifoldAutoShot")))
     {
         bTitleShown = false; // skip the intro card so the realms are on screen for the shot
-        if (++AutoShotFrames == 1) { UE_LOG(LogTemp, Display, TEXT("[MANIFOLD] AutoShot armed")); }
-        if (AutoShotFrames >= 60)
+        ++AutoShotFrames;
+        if (AutoShotFrames == 1) { UE_LOG(LogTemp, Display, TEXT("[MANIFOLD] AutoShot armed")); }
+        APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
+        if (PC)
         {
-            // Route through the player controller's console so the command reaches the game
-            // viewport's HighResShot handler (GEngine->Exec does not, so it silently no-ops).
-            if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
+            if (AutoShotFrames == 50)
+            {
+                UE_LOG(LogTemp, Display, TEXT("[MANIFOLD] AutoShot firing HUD shot at frame %d"), AutoShotFrames);
+                PC->ConsoleCommand(TEXT("HighResShot 1280x720"), /*bWriteToLog*/ true);
+            }
+            else if (AutoShotFrames >= 100)
             {
                 bAutoShotTaken = true;
-                // Hide the HUD so this capture shows the pure 3D realm scene (the palette on the
-                // realms) — HUD-inclusive stills are captured separately.
                 if (AHUD* HUD = PC->GetHUD()) { HUD->bShowHUD = false; }
-                UE_LOG(LogTemp, Display, TEXT("[MANIFOLD] AutoShot firing HighResShot via PC at frame %d"), AutoShotFrames);
+                UE_LOG(LogTemp, Display, TEXT("[MANIFOLD] AutoShot firing beauty (HUD-off) shot at frame %d"), AutoShotFrames);
                 PC->ConsoleCommand(TEXT("HighResShot 1280x720"), /*bWriteToLog*/ true);
             }
         }
