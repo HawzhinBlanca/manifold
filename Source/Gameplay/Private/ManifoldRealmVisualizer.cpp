@@ -86,8 +86,14 @@ void AManifoldRealmVisualizer::BeginPlay()
                 }
             }
         };
-        SpawnLight(FRotator(-45.0f, -30.0f, 0.0f), 4.0f, FLinearColor(1.0f, 0.97f, 0.9f)); // warm key
-        SpawnLight(FRotator(15.0f, 150.0f, 0.0f), 2.0f, FLinearColor(0.55f, 0.68f, 1.0f)); // cool fill
+        // Multi-angle rig so the realm spheres read as fully-lit coloured orbs rather than
+        // half-shadowed crescents (no HDRI/skylight on this code-only, headless-cooked scene, so
+        // we fake ambient with fills from several directions). Camera looks +Y at the grid.
+        SpawnLight(FRotator(-40.0f, -30.0f, 0.0f), 5.0f, FLinearColor(1.0f, 0.97f, 0.9f));  // warm key
+        SpawnLight(FRotator(10.0f, 150.0f, 0.0f), 3.0f, FLinearColor(0.55f, 0.68f, 1.0f));  // cool fill (opposite)
+        SpawnLight(FRotator(-20.0f, -110.0f, 0.0f), 2.5f, FLinearColor(0.8f, 0.85f, 1.0f)); // camera-side fill
+        SpawnLight(FRotator(35.0f, 60.0f, 0.0f), 2.0f, FLinearColor(0.9f, 0.9f, 0.95f));    // top-back fill
+        SpawnLight(FRotator(-55.0f, 40.0f, 0.0f), 1.8f, FLinearColor(0.7f, 0.8f, 1.0f));    // low fill (lifts undersides)
 
         // Cinematic post: bloom so the gold correspondences / seam / stars glow, a soft
         // vignette, and fixed exposure so the scene doesn't auto-brighten/flicker.
@@ -288,8 +294,8 @@ void AManifoldRealmVisualizer::PlaceRatioRealm(const FVector& Center, int32 P, i
 
     // Two beads sized in proportion to the ratio (the shape IS the ratio), gently
     // orbiting each other in the plane facing the camera so the pairing feels alive.
-    const float Unit = 14.0f;
-    const float Sep = 55.0f;
+    const float Unit = 22.0f;
+    const float Sep = 75.0f;
     const FVector Off(0.0, Sep * FMath::Cos(SpinAngle), Sep * FMath::Sin(SpinAngle));
     PlaceSphere(Center + Off, Unit * P, Color);
     PlaceSphere(Center - Off, Unit * Q, Color);
