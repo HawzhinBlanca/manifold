@@ -6,6 +6,17 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Correctness — orbital-element NaN guard (kernel audit follow-up)
+- **`UOrbitsKernel::ComputeOrbitalElements` fed unclamped cosines into `FMath::Acos`** for the
+  inclination, ascending-node, and argument-of-periapsis angles. A perfectly equatorial orbit has
+  its angular-momentum vector aligned with +Z, so `hVec.Z/h` is `1.0` in exact arithmetic — but float
+  rounding can nudge it a hair past ±1, and `Acos` of that is `NaN`, which then poisons the element,
+  the period / mean-motion built on it, and the resonance math downstream. All three cosines are now
+  clamped to `[-1,1]`, matching the already-clamped true-anomaly path in the same function. Locked by
+  `MANIFOLD.Kernels.Orbits.OrbitalElementsFinite`, which asserts every orbital element stays finite
+  across the edge cases that drive the cosines to their ±1 extremes (planar prograde/retrograde,
+  near-circular, eccentric+inclined), at t=0 and after 20 steps. **95/95 green** (up from 94).
+
 ### Correctness — determinism-hash coverage (adversarial kernel/core audit)
 - A 4-lens adversarial audit (determinism / detection / serialization / numerical) of the seven
   physics kernels + deterministic core, whose verifiers were told to *refute* every finding against
@@ -27,10 +38,10 @@ work-package milestones rather than semantic versions until first playable.
     and adopts the grids only when all three arrays are exactly `(GridSize+2)^2`; otherwise it falls
     back to a clean zeroed field at the clamped size. Valid self-consistent states are copied verbatim.
     Locked by `MANIFOLD.Kernels.Fluids.SetStateRejectsMalformedGrid`.
-  - Remaining confirmed findings queued for follow-up iterations: kernel config fields (Orbits
+  - The unclamped `Acos` finding is now fixed (see *orbital-element NaN guard* above). Remaining
+    confirmed finding queued for a follow-up iteration: kernel config fields (Orbits
     `G`/`Softening`/`bFullNBody`, Fluids `Viscosity`/`Diffusion`/`Decay`) not carried through
-    serialize/deserialize; and an unclamped `Acos` in the Orbits argument-of-periapsis that can
-    return NaN.
+    serialize/deserialize.
 
 ### Craft-quality pass (multi-lens review — coverage gaps + genuine simplifications)
 - A craft-lens review (a different lens than the correctness audits: test-coverage completeness and
