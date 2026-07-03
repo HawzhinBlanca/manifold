@@ -6,6 +6,20 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Robustness — public core determinism type hardened (final audit sweep)
+- A final adversarial sweep of the last un-audited surfaces — the **FixedStepSimulation / replay
+  core**, **DeterministicRNG**, **Telemetry**, and **AudioDirector** — found **zero live defects** (7
+  candidates, all refuted as unreachable / dead-code / unobserved), confirming the correctness surface
+  has converged (audit confirmed-rate across the session: 8 → 2 → 1 → 0). The verifiers each
+  independently recommended one hardening, now applied to `FFixedStepSimulation` (a public
+  `MANIFOLDCORE_API` type whose editor `ClampMin` metas don't constrain direct C++/deserialized values):
+  - `Tick()` clamps `FixedDeltaTime` to a positive floor — a non-positive value made the substep loop
+    infinite and `InterpAlpha` divide by zero.
+  - `VerifyReplay`/`VerifyReplayDetailed` validate the interval before use — reject a target before the
+    snapshot or an interval over a 100M cap (no unbounded loop), and compute `StepsVerified` only after
+    the guards (removing an `int64` underflow/UB). Locked by
+    `MANIFOLD.Systems.DeterministicCore.DegenerateConfigGuarded`. **101/101 green** (up from 100).
+
 ### Correctness — Waves hash coverage (all-kernels hash-blind-spot sweep, final)
 - After the Orbits (per-body `Mass`) and Fluids (velocity grids + config) hash blind spots, a
   systematic adversarial audit of the **five remaining kernels** (Harmonics, Waves, Rhythm, Gears,
