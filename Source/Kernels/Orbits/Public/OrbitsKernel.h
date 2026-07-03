@@ -148,7 +148,7 @@ struct MANIFOLDKERNELSORBITS_API FResonanceMatch
 
     /** Resonance ratio (p:q where p*PeriodA ≈ q*PeriodB) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    FIntPoint Ratio; // X = p, Y = q
+    FIntPoint Ratio = FIntPoint(1, 1); // X = p, Y = q
 
     /** Actual period ratio */
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
