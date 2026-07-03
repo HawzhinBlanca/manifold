@@ -58,6 +58,8 @@ protected:
     UPROPERTY() UMaterialInterface* EmissiveMaterial = nullptr; // glowing realm orbs (unlit, blooms)
     UPROPERTY() UMaterialInterface* NebulaMaterial = nullptr;   // procedural nebula backdrop
     UPROPERTY() UStaticMeshComponent* Backdrop = nullptr;       // giant inside-out nebula shell
+    UPROPERTY() UMaterialInterface* StarMaterial = nullptr;     // hot star material (M_Star)
+    UPROPERTY() UStaticMeshComponent* StarComp = nullptr;       // the Orbits-centre sun
     UPROPERTY() USceneComponent* SceneRoot = nullptr;
     UPROPERTY() TArray<UStaticMeshComponent*> Pool;
 
@@ -107,6 +109,9 @@ protected:
     void EndFrame();
     UStaticMeshComponent* AcquireSphere();
     void PlaceSphere(const FVector& WorldPos, float DiameterUnits, const FLinearColor& Color);
+
+    /** Position + light the dedicated Orbits sun (its own hotter M_Star material). */
+    void UpdateStar(const FVector& Pos, float DiameterUnits);
 
     /** Apply the shared realm-glow look to a dynamic material: a pulse-scaled lit colour and a
      *  brighter emissive that blooms via the post-process. Writes the four common param names so it

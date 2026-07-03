@@ -84,6 +84,12 @@ AManifoldRealmVisualizer::AManifoldRealmVisualizer()
     {
         NebulaMaterial = NebulaFinder.Object;
     }
+    // Hot star material for the Orbits centre (brighter core/rim than a realm orb).
+    static ConstructorHelpers::FObjectFinder<UMaterialInterface> StarFinder(TEXT("/Game/Materials/M_Star.M_Star"));
+    if (StarFinder.Succeeded())
+    {
+        StarMaterial = StarFinder.Object;
+    }
 }
 
 void AManifoldRealmVisualizer::BeginPlay()
@@ -198,6 +204,19 @@ void AManifoldRealmVisualizer::BeginPlay()
         Backdrop->SetCastShadow(false);
         Backdrop->SetWorldLocation(FVector(0.0, 0.0, 300.0));
         Backdrop->SetWorldScale3D(FVector(220.0f)); // ~11000uu radius shell around the whole scene
+    }
+
+    // Dedicated hot sun for the Orbits centre (its own brighter M_Star material).
+    if (SphereMesh)
+    {
+        StarComp = NewObject<UStaticMeshComponent>(this, TEXT("OrbitsStar"));
+        StarComp->SetupAttachment(SceneRoot);
+        StarComp->RegisterComponent();
+        StarComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        StarComp->SetStaticMesh(SphereMesh);
+        UMaterialInterface* SM = StarMaterial ? StarMaterial : EmissiveMaterial;
+        if (SM) { StarComp->SetMaterial(0, SM); StarComp->CreateAndSetMaterialInstanceDynamic(0); }
+        StarComp->SetVisibility(false);
     }
 
     SpawnStarfield();
@@ -391,6 +410,18 @@ void AManifoldRealmVisualizer::PlaceSphere(const FVector& WorldPos, float Diamet
     }
 }
 
+void AManifoldRealmVisualizer::UpdateStar(const FVector& Pos, float DiameterUnits)
+{
+    if (!StarComp) return;
+    StarComp->SetVisibility(true);
+    StarComp->SetWorldLocation(Pos);
+    StarComp->SetWorldScale3D(FVector(DiameterUnits / EngineSphereDiameter));
+    if (UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(StarComp->GetMaterial(0)))
+    {
+        ApplyGlow(MID, StarGold, PulseFactor, 1.9f); // hotter glow than a ratio orb
+    }
+}
+
 void AManifoldRealmVisualizer::PlaceRatioRealm(const FVector& Center, int32 P, int32 Q, const FLinearColor& Color)
 {
     if (P <= 0 || Q <= 0) return;
@@ -436,7 +467,8 @@ void AManifoldRealmVisualizer::Tick(float DeltaSeconds)
             {
                 const FVector P = OrbitsCenter
                     + FVector(Body.Position.X, Body.Position.Y, 0.0) / AstronomicalUnit * OrbitsScale;
-                PlaceSphere(P, Body.bIsCentral ? 70.0f : 28.0f, Body.bIsCentral ? StarGold : PlanetBlue);
+                if (Body.bIsCentral) { UpdateStar(P, 84.0f); }
+                else { PlaceSphere(P, 28.0f, PlanetBlue); }
 
                 // Trace each planet's orbital PATH as a faint ring — the orbit (the
                 // periodic structure the resonance lives in) made visible.
