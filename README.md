@@ -145,6 +145,7 @@ interface, not a reach-in.
 
 - [`Docs/IMPLEMENTATION_STATUS.md`](Docs/IMPLEMENTATION_STATUS.md) — authoritative status & handoff
 - [`Docs/PLAYTEST.md`](Docs/PLAYTEST.md) — how to playtest for feel + what to report (feedback → tuning knobs)
+- [`Docs/ART_DIRECTION.md`](Docs/ART_DIRECTION.md) · [`Docs/ART_AAA_HANDOFF.md`](Docs/ART_AAA_HANDOFF.md) — the visual plan + a turnkey guide to photoreal (`Tools/Art/` authors materials headless)
 - [`Docs/BUILD_PLAN.md`](Docs/BUILD_PLAN.md) — the end-to-end, work-package build plan
 - [`Docs/TOOLING_BIBLE.md`](Docs/TOOLING_BIBLE.md) — tool stack
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — workflow, conventions, verification gate
