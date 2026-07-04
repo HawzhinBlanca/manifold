@@ -4,11 +4,39 @@
 #include "ManifoldGameMode.h"
 #include "ManifoldSlice.h"
 #include "ManifoldEmblem.h"
+#include "ManifoldPalette.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "Engine/Font.h"
 #include "Engine/Texture2D.h"
 #include "Engine/World.h"
+
+namespace
+{
+    const TCHAR* RankLetterOf(EManifoldRank R)
+    {
+        switch (R)
+        {
+        case EManifoldRank::S: return TEXT("S");
+        case EManifoldRank::A: return TEXT("A");
+        case EManifoldRank::B: return TEXT("B");
+        case EManifoldRank::C: return TEXT("C");
+        default:               return TEXT("D");
+        }
+    }
+    // A tiered rank colour so the reveal reads at a glance (S gold .. D grey).
+    FLinearColor RankColorOf(EManifoldRank R)
+    {
+        switch (R)
+        {
+        case EManifoldRank::S: return FLinearColor(1.00f, 0.85f, 0.20f); // gold
+        case EManifoldRank::A: return FLinearColor(0.35f, 0.85f, 1.00f); // cyan
+        case EManifoldRank::B: return FLinearColor(0.35f, 0.95f, 0.55f); // green
+        case EManifoldRank::C: return FLinearColor(1.00f, 0.70f, 0.35f); // amber
+        default:               return FLinearColor(0.70f, 0.72f, 0.78f); // grey
+        }
+    }
+}
 
 void AManifoldHUD::DrawPanel(float X, float Y, float W, float H, const FLinearColor& Color)
 {
@@ -125,22 +153,25 @@ void AManifoldHUD::DrawHUD()
         DrawText(Text, Color, X, Y, Font);
         Y += 24.0f;
     };
+    // A realm row: a solid palette-colour CHIP (the realm's identity colour, matching its scene orb —
+    // §1 palette contract) + a brightened, still-colour-coded label. Ties the readout to the 3D scene.
+    auto Brighten = [](const FLinearColor& C) { return C + (FLinearColor::White - C) * 0.4f; };
+    auto RealmRow = [&](const FLinearColor& Pal, const FString& Text)
+    {
+        DrawRect(Pal, X, Y + 3.0f, 14.0f, 14.0f);
+        DrawText(Text, Brighten(Pal), X + 24.0f, Y, Font);
+        Y += 24.0f;
+    };
 
     Line(FString::Printf(TEXT("Step %lld"), S->GetStepCount()), Dim);
-    Line(FString::Printf(TEXT("Orbits     |  resonance %s"), *S->GetOrbitsRatio()),
-        S->HasResonance() ? Gold : Dim);
-    Line(FString::Printf(TEXT("Fluids     |  vortex %s"), S->HasVortex() ? TEXT("present") : TEXT("-")),
-        S->HasVortex() ? Cyan : Dim);
-    Line(FString::Printf(TEXT("Harmonics  |  ratio %s"), *S->GetHarmonicsRatio()), Violet);
-    Line(FString::Printf(TEXT("Waves      |  harmonic %s"), *S->GetWavesRatio()),
-        FLinearColor(0.3f, 0.9f, 0.8f));
-    Line(FString::Printf(TEXT("Rhythm     |  polyrhythm %s"), *S->GetRhythmRatio()), Amber);
-    Line(FString::Printf(TEXT("Gears      |  gear ratio %s"), *S->GetGearsRatio()),
-        FLinearColor(0.7f, 0.75f, 0.8f));
-    Line(FString::Printf(TEXT("Circuits   |  resonance %s"), *S->GetCircuitsRatio()),
-        FLinearColor(0.4f, 0.85f, 0.7f));
-    Line(FString::Printf(TEXT("Decoy      |  ratio %s   (red herring - rule it out)"), *S->GetDecoyRatio()),
-        FLinearColor(0.5f, 0.5f, 0.55f));
+    RealmRow(ManifoldPalette::Orbits,    FString::Printf(TEXT("Orbits     |  resonance %s"), *S->GetOrbitsRatio()));
+    RealmRow(ManifoldPalette::Fluids,    FString::Printf(TEXT("Fluids     |  vortex %s"), S->HasVortex() ? TEXT("present") : TEXT("-")));
+    RealmRow(ManifoldPalette::Harmonics, FString::Printf(TEXT("Harmonics  |  ratio %s"), *S->GetHarmonicsRatio()));
+    RealmRow(ManifoldPalette::Waves,     FString::Printf(TEXT("Waves      |  harmonic %s"), *S->GetWavesRatio()));
+    RealmRow(ManifoldPalette::Rhythm,    FString::Printf(TEXT("Rhythm     |  polyrhythm %s"), *S->GetRhythmRatio()));
+    RealmRow(ManifoldPalette::Gears,     FString::Printf(TEXT("Gears      |  gear ratio %s"), *S->GetGearsRatio()));
+    RealmRow(ManifoldPalette::Circuits,  FString::Printf(TEXT("Circuits   |  resonance %s"), *S->GetCircuitsRatio()));
+    RealmRow(ManifoldPalette::Decoy,     FString::Printf(TEXT("Decoy      |  ratio %s   (red herring - rule it out)"), *S->GetDecoyRatio()));
     Line(FString::Printf(TEXT("Analogies found: %d   (the hidden ratio, across domains)"),
         S->GetSharedDiscoveries()), S->GetSharedDiscoveries() > 0 ? Gold : Dim);
     Line(FString::Printf(TEXT("Correspondences lit %d   transported %d"),
@@ -195,14 +226,10 @@ void AManifoldHUD::DrawHUD()
             DrawText(Title, TitleCol, BX - 230.0f, CY + 44.0f, Big, 1.25f);
         }
         // Big rank grade.
-        const TCHAR* RankLetter =
-            Sum.Rank == EManifoldRank::S ? TEXT("S") :
-            Sum.Rank == EManifoldRank::A ? TEXT("A") :
-            Sum.Rank == EManifoldRank::B ? TEXT("B") :
-            Sum.Rank == EManifoldRank::C ? TEXT("C") : TEXT("D");
+        // Big rank grade, tier-coloured (S gold .. D grey) for a clear reveal.
         if (Big)
         {
-            DrawText(FString::Printf(TEXT("RANK %s"), RankLetter), Gold, BX + 150.0f, CY + 40.0f, Big, 1.8f);
+            DrawText(FString::Printf(TEXT("RANK %s"), RankLetterOf(Sum.Rank)), RankColorOf(Sum.Rank), BX + 150.0f, CY + 40.0f, Big, 1.8f);
         }
         DrawText(FString::Printf(TEXT("Score %d  (best %d)    %d discoveries    [R] play again"),
             Sum.Score, GM->Profile.BestScore, Sum.Discoveries), Dim, BX - 230.0f, CY + 72.0f, Font);
@@ -305,16 +332,23 @@ void AManifoldHUD::DrawConstellationReadout(UManifoldSlice* S, AManifoldGameMode
             *S->GetActiveRelationName()), Cyan);
     }
 
+    // Constellation "tray": a palette-colour chip per realm (identity, matching its scene orb), a
+    // bright outline on picked chips (clear selected state), and text colour encoding reveal/pick state.
+    static const FLinearColor ConChip[6] = { ManifoldPalette::Orbits, ManifoldPalette::Harmonics,
+        ManifoldPalette::Waves, ManifoldPalette::Rhythm, ManifoldPalette::Gears, ManifoldPalette::Circuits };
     const TArray<int32>& Pick = GM->GetPendingSelection();
     for (int32 i = 0; i < S->GetConstellationRealmCount(); ++i)
     {
         const bool bSel = Pick.Contains(i);
         const int32 Rev = S->GetRevealedMembership(i); // 1 in, 0 out, -1 unknown
         const TCHAR* RevTag = Rev == 1 ? TEXT("  [IN]") : Rev == 0 ? TEXT("  [out]") : TEXT("");
-        Line(FString::Printf(TEXT("[%d] %s   ratio %s   %s%s"),
+        if (bSel) { DrawRect(FLinearColor::White, X - 2.0f, Y + 1.0f, 18.0f, 18.0f); } // selected outline
+        DrawRect(ConChip[i % 6], X, Y + 3.0f, 14.0f, 14.0f);
+        DrawText(FString::Printf(TEXT("[%d] %s   ratio %s   %s%s"),
             i + 1, *S->GetRealmName(i), *S->GetRealmSurfaceRatio(i),
             bSel ? TEXT("<< picked") : TEXT(""), RevTag),
-            Rev == 1 ? Cyan : (bSel ? Gold : Dim));
+            Rev == 1 ? Cyan : (bSel ? Gold : Dim), X + 24.0f, Y, Font);
+        Y += 24.0f;
     }
 
     const FManifoldSessionSummary Sum = S->GetSessionSummary();
@@ -349,14 +383,10 @@ void AManifoldHUD::DrawConstellationReadout(UManifoldSlice* S, AManifoldGameMode
         {
             DrawText(TEXT("CONSTELLATION LOCKED"), Gold, BX - 230.0f, CY + 44.0f, Big, 1.25f);
         }
-        const TCHAR* RankLetter =
-            Sum.Rank == EManifoldRank::S ? TEXT("S") :
-            Sum.Rank == EManifoldRank::A ? TEXT("A") :
-            Sum.Rank == EManifoldRank::B ? TEXT("B") :
-            Sum.Rank == EManifoldRank::C ? TEXT("C") : TEXT("D");
+        // Big rank grade, tier-coloured (S gold .. D grey) for a clear reveal.
         if (Big)
         {
-            DrawText(FString::Printf(TEXT("RANK %s"), RankLetter), Gold, BX + 150.0f, CY + 40.0f, Big, 1.8f);
+            DrawText(FString::Printf(TEXT("RANK %s"), RankLetterOf(Sum.Rank)), RankColorOf(Sum.Rank), BX + 150.0f, CY + 40.0f, Big, 1.8f);
         }
         DrawText(FString::Printf(TEXT("Score %d  (best %d)    %d probes wasted    [R] new puzzle"),
             Sum.Score, GM->Profile.BestConstellationScore, S->GetFailedProbes()), Dim, BX - 230.0f, CY + 72.0f, Font);

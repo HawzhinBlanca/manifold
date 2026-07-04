@@ -6,6 +6,15 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Visual — bespoke HUD pass: palette chips + tiered rank (ART_DIRECTION §5, render-verified)
+- Reskinned the HUD (`AManifoldHUD`, C++ canvas — no gameplay change): every realm row in both the
+  Classic readout and the Constellation tray now leads with a solid **palette-colour chip** (the
+  realm's identity colour from `ManifoldPalette`, matching its 3D scene orb — the §1 accessibility
+  contract), with the label brightened but still colour-coded. Picked Constellation chips get a bright
+  selected-outline (clear "tray" state), and the S/A/B/C/D rank reveal is now **tier-coloured**
+  (S gold → D grey) instead of always gold. Reskin only — every string the code already surfaces is
+  kept. Render-verified (Classic + Constellation shots); 104/104.
+
 ### Visual — energy-VFX particle system (render-verified)
 - Added a lightweight, code-driven particle system to `AManifoldRealmVisualizer` (real Niagara needs
   the editor GUI, so this was written in code, drawn through the existing pooled glowing beads;
