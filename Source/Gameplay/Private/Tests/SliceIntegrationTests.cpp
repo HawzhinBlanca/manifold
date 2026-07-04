@@ -2075,12 +2075,43 @@ bool FBalanceSweepTest::RunTest(const FString& Parameters)
         N, Solvable, N, *RelStr, CMinScore, CMaxScore, static_cast<double>(CSumScore) / N,
         CRankHist[0], CRankHist[1], CRankHist[2], CRankHist[3], CRankHist[4]);
 
+    // ===== Expert Constellation: the SAME puzzles with the rule HIDDEN must still all be solvable =====
+    // Expert only hides the active relation; the correct subset is unchanged, so a correct lock must
+    // win on every seed. This extends the solvability floor to the hardest single-puzzle mode — which
+    // the sweep previously never exercised (only a single-seed spot test did).
+    int32 ExpertSolvable = 0;
+    for (int32 s = 0; s < N; ++s)
+    {
+        UManifoldSlice* Slice = NewObject<UManifoldSlice>();
+        Slice->SetupConstellation(static_cast<int64>(s + 1), 3, /*bExpert*/ true);
+        if (Slice->PlayerLockConstellation(Slice->GetConstellation())) { ExpertSolvable++; }
+    }
+    UE_LOG(LogTemp, Display, TEXT("[BALANCE][Expert] N=%d | solvable=%d/%d (rule hidden)"), N, ExpertSolvable, N);
+
+    // ===== Expedition campaign: a perfect run must clear EVERY level across the seed space =====
+    // Each expedition level is a generated constellation puzzle; the ramp must never produce an
+    // unwinnable level. Sweep a spread of base seeds and require full clears + positive cumulative
+    // score (the sweep previously never exercised the campaign; only a single-seed spot test did).
+    const int32 ExpeditionSeeds = 32;
+    const int32 ExpeditionLevels = 5;
+    int32 FullClears = 0; int32 ExpMinScore = INT32_MAX, ExpMaxScore = 0;
+    for (int32 s = 0; s < ExpeditionSeeds; ++s)
+    {
+        const FManifoldExpeditionResult R = UManifoldSlice::RunConstellationExpedition(static_cast<int64>(s * 37 + 5), ExpeditionLevels);
+        if (R.bCompleted && R.LevelsCleared == ExpeditionLevels && R.TotalScore > 0) { FullClears++; }
+        ExpMinScore = FMath::Min(ExpMinScore, R.TotalScore); ExpMaxScore = FMath::Max(ExpMaxScore, R.TotalScore);
+    }
+    UE_LOG(LogTemp, Display, TEXT("[BALANCE][Expedition] seeds=%d levels=%d | fullClears=%d/%d | score min=%d max=%d"),
+        ExpeditionSeeds, ExpeditionLevels, FullClears, ExpeditionSeeds, ExpMinScore, ExpMaxScore);
+
     // ===== Invariants a shipping build must ALWAYS hold (objective, not feel) =====
     UTEST_EQUAL("Classic: decoy never collides with the hidden ratio", DecoyCollisions, 0);
     UTEST_EQUAL("Classic: no degenerate (zero-discovery) seed", Degenerate, 0);
     UTEST_EQUAL("Classic: score stays discovery-dominated (transport term capped)", NotDiscDominated, 0);
     UTEST_EQUAL("Constellation: every seed is solvable by the correct lock", Solvable, N);
     UTEST_TRUE("Constellation: both relations occur (rule inference isn't degenerate to one)", RelationHist.Num() >= 2);
+    UTEST_EQUAL("Constellation: expert (rule hidden) is solvable on every seed", ExpertSolvable, N);
+    UTEST_EQUAL("Expedition: a perfect run clears every level on every swept base seed", FullClears, ExpeditionSeeds);
 
     return true;
 }
