@@ -448,6 +448,49 @@ void AManifoldRealmVisualizer::PlaceRatioRealm(const FVector& Center, int32 P, i
     PlaceSphere(Center - Off, Unit * Q, Color);
 }
 
+void AManifoldRealmVisualizer::SpawnVfxBurst(const FVector& Center, int32 Count, float Speed,
+    float Life, float Size, const FLinearColor& Color)
+{
+    // Hard cap so a long-lived correspondence can't grow the particle set without bound.
+    if (VfxParticles.Num() > 600) { return; }
+    for (int32 k = 0; k < Count; ++k)
+    {
+        // Even spherical spray via the golden angle (deterministic — no RNG, so renders reproduce).
+        const float Frac = (static_cast<float>(k) + 0.5f) / static_cast<float>(FMath::Max(1, Count));
+        const float Phi = FMath::Acos(1.0f - 2.0f * Frac);       // polar 0..pi
+        const float Theta = 2.399963f * static_cast<float>(k);   // golden angle
+        const float SinPhi = FMath::Sin(Phi);
+        const FVector Dir(SinPhi * FMath::Cos(Theta), SinPhi * FMath::Sin(Theta), FMath::Cos(Phi));
+        FManifoldVfxParticle P;
+        P.Pos = Center;
+        P.Vel = Dir * Speed * (0.55f + 0.45f * Frac);
+        P.Age = 0.0f;
+        P.Life = Life;
+        P.Size = Size;
+        P.Color = Color;
+        VfxParticles.Add(P);
+    }
+}
+
+void AManifoldRealmVisualizer::UpdateAndDrawVfx(float DeltaSeconds)
+{
+    for (int32 i = VfxParticles.Num() - 1; i >= 0; --i)
+    {
+        FManifoldVfxParticle& P = VfxParticles[i];
+        P.Age += DeltaSeconds;
+        if (P.Age >= P.Life)
+        {
+            VfxParticles.RemoveAtSwap(i);
+            continue;
+        }
+        P.Pos += P.Vel * DeltaSeconds;
+        P.Vel *= 0.94f; // gentle drag so sparks decelerate as they fade
+        const float T = 1.0f - (P.Age / P.Life); // 1 -> 0
+        // Shrink + dim over life; the bright young sparks bloom via the post-process.
+        PlaceSphere(P.Pos, P.Size * (0.35f + 0.65f * T), P.Color * (0.25f + 1.5f * T));
+    }
+}
+
 void AManifoldRealmVisualizer::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
@@ -464,7 +507,13 @@ void AManifoldRealmVisualizer::Tick(float DeltaSeconds)
     // Discovery flash: when the total discoveries tick up, brighten the scene briefly
     // (the bloom post makes it read as a pulse of insight).
     const int32 DiscoveriesNow = S->GetTotalDiscoveries();
-    if (DiscoveriesNow > LastDiscoveryCount) { PulseTimer = 0.5f; }
+    if (DiscoveriesNow > LastDiscoveryCount)
+    {
+        PulseTimer = 0.5f;
+        // Energy burst: a spray of golden sparks radiating from the Orbits hub as the
+        // correspondence surfaces — the insight lands as a visible pop, not just a brightening.
+        SpawnVfxBurst(OrbitsCenter, 28, 330.0f, 1.1f, 8.0f, SeamGold);
+    }
     LastDiscoveryCount = DiscoveriesNow;
     PulseTimer = FMath::Max(0.0f, PulseTimer - DeltaSeconds);
     PulseFactor = 1.0f + 1.3f * (PulseTimer / 0.5f);
@@ -593,7 +642,24 @@ void AManifoldRealmVisualizer::Tick(float DeltaSeconds)
             const float Pulse = FMath::Max(0.0f, 1.0f - FMath::Abs(T - PulsePhase) * 4.0f); // wider packet
             PlaceSphere(P, 8.0f + 18.0f * Pulse, SeamGold * (1.15f + 2.6f * Pulse)); // brighter beam + hot packet
         }
+
+        // Sparks crackle off the travelling energy packet — hot embers that fly UP/OUT clearly away
+        // from the beam (so they read as sparks, not more beam beads) and fade over ~1s.
+        FVector Pp = FMath::Lerp(OrbitsCenter, FluidsCenter, PulsePhase);
+        Pp.Z += ArcHeight * FMath::Sin(PulsePhase * PI);
+        for (int32 s = 0; s < 3; ++s)
+        {
+            const float a = SpinAngle * 3.1f + static_cast<float>(VfxSpawnCounter) * 0.7f;
+            const FVector V(FMath::Cos(a) * 95.0f, FMath::Sin(a) * 48.0f, 120.0f + 65.0f * FMath::Sin(a * 1.7f));
+            FManifoldVfxParticle Sp;
+            Sp.Pos = Pp; Sp.Vel = V; Sp.Life = 0.95f; Sp.Size = 6.0f;
+            Sp.Color = FLinearColor(1.0f, 0.86f, 0.5f) * 1.8f; // hot white-gold ember (contrasts the beam)
+            VfxParticles.Add(Sp);
+            ++VfxSpawnCounter;
+        }
     }
 
+    // Advance + draw the energy-VFX particles (bursts + seam sparks) as fading glowing beads.
+    UpdateAndDrawVfx(DeltaSeconds);
     EndFrame();
 }

@@ -6,6 +6,17 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Visual — energy-VFX particle system (render-verified)
+- Added a lightweight, code-driven particle system to `AManifoldRealmVisualizer` (real Niagara needs
+  the editor GUI, so this was written in code, drawn through the existing pooled glowing beads;
+  presentation-only, not part of the deterministic sim). Two effects: a **discovery burst** — a spray
+  of golden sparks radiating from the Orbits hub whenever a new correspondence surfaces (the insight
+  lands as a visible pop, not just a brightening) — and **seam sparks** — hot white-gold embers that
+  crackle up and off the transport arc's travelling energy packet and fade over ~1s. Particle count is
+  capped; spawn directions use a deterministic golden-angle spray (no RNG, so renders reproduce).
+  Render-verified in the animated capture: the embers read as distinct sparks flying off the beam,
+  energetic without clutter. `MANIFOLD.*` tests unchanged (104/104).
+
 ### Presentation — showcase media captured at 1080p (render-verified)
 - Bumped the built-in `-ManifoldAutoShot*` capture resolution 1280x720 -> 1920x1080 (the hardcoded
   `HighResShot` calls in `AManifoldGameMode`) and regenerated all six `Docs/media` assets at 1080p, so

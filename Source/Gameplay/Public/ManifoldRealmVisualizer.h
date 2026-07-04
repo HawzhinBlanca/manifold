@@ -12,6 +12,17 @@ class UMaterialInstanceDynamic;
 class UStaticMeshComponent;
 class UProceduralMeshComponent;
 
+/** One transient energy-VFX particle (presentation only; drawn via the pooled glowing beads). */
+struct FManifoldVfxParticle
+{
+    FVector Pos = FVector::ZeroVector;
+    FVector Vel = FVector::ZeroVector;
+    float Age = 0.0f;
+    float Life = 1.0f;
+    float Size = 6.0f;
+    FLinearColor Color = FLinearColor::White;
+};
+
 /**
  * AManifoldRealmVisualizer — a REAL 3D view of the live realms, built from spawned
  * static-mesh geometry (not debug lines), so the correspondence is visible as solid
@@ -121,4 +132,14 @@ protected:
 
     /** Draw a ratio realm as two beads sized p and q, side by side. */
     void PlaceRatioRealm(const FVector& Center, int32 P, int32 Q, const FLinearColor& Color);
+
+    // --- Energy VFX: a tiny code-driven particle system (presentation only; not part of the
+    //     deterministic sim). Discovery "bursts" pop when a correspondence surfaces; sparks
+    //     crackle off the transport seam. Drawn through the same pooled glowing beads. ---
+    TArray<FManifoldVfxParticle> VfxParticles;
+    uint32 VfxSpawnCounter = 0;
+    /** Radial spray of Count glowing particles from Center (even golden-angle distribution). */
+    void SpawnVfxBurst(const FVector& Center, int32 Count, float Speed, float Life, float Size, const FLinearColor& Color);
+    /** Advance particles, cull the dead, and draw the living as fading glowing beads. */
+    void UpdateAndDrawVfx(float DeltaSeconds);
 };
