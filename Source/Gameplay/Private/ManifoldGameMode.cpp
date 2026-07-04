@@ -186,7 +186,7 @@ void AManifoldGameMode::Tick(float DeltaSeconds)
             {
                 bAutoShotTaken = true;
                 UE_LOG(LogTemp, Display, TEXT("[MANIFOLD] AutoShot firing TITLE shot at frame %d"), AutoShotFrames);
-                PC->ConsoleCommand(TEXT("HighResShot 1280x720"), /*bWriteToLog*/ true);
+                PC->ConsoleCommand(TEXT("HighResShot 1920x1080"), /*bWriteToLog*/ true);
             }
         }
         return; // hold on the title; skip the sim/normal-AutoShot path this run
@@ -219,14 +219,14 @@ void AManifoldGameMode::Tick(float DeltaSeconds)
             if (AutoShotFrames == 50)
             {
                 UE_LOG(LogTemp, Display, TEXT("[MANIFOLD] AutoShot firing HUD shot at frame %d"), AutoShotFrames);
-                PC->ConsoleCommand(TEXT("HighResShot 1280x720"), /*bWriteToLog*/ true);
+                PC->ConsoleCommand(TEXT("HighResShot 1920x1080"), /*bWriteToLog*/ true);
             }
             else if (AutoShotFrames >= 100)
             {
                 bAutoShotTaken = true;
                 if (AHUD* HUD = PC->GetHUD()) { HUD->bShowHUD = false; }
                 UE_LOG(LogTemp, Display, TEXT("[MANIFOLD] AutoShot firing beauty (HUD-off) shot at frame %d"), AutoShotFrames);
-                PC->ConsoleCommand(TEXT("HighResShot 1280x720"), /*bWriteToLog*/ true);
+                PC->ConsoleCommand(TEXT("HighResShot 1920x1080"), /*bWriteToLog*/ true);
             }
         }
     }
@@ -252,7 +252,7 @@ void AManifoldGameMode::Tick(float DeltaSeconds)
             {
                 UE_LOG(LogTemp, Display, TEXT("[MANIFOLD] AutoShotSequence frame %d (shot %d/%d)"),
                     SeqShotFrames, Rel / SeqInterval + 1, SeqCount);
-                PC->ConsoleCommand(TEXT("HighResShot 1280x720"), /*bWriteToLog*/ true);
+                PC->ConsoleCommand(TEXT("HighResShot 1920x1080"), /*bWriteToLog*/ true);
             }
         }
     }

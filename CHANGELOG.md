@@ -6,6 +6,12 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Presentation — showcase media captured at 1080p (render-verified)
+- Bumped the built-in `-ManifoldAutoShot*` capture resolution 1280x720 -> 1920x1080 (the hardcoded
+  `HighResShot` calls in `AManifoldGameMode`) and regenerated all six `Docs/media` assets at 1080p, so
+  the showcase is crisper/more premium and reflects the current cinematic build (HDRI sky + the
+  brighter energy seam). GIF re-encoded at 1000px width to keep it lean (~4 MB). Tests 104/104.
+
 ### Visual — dramatic transport-seam money shot (render-verified)
 - The "carry it across the seam" arc read as sparse gold dots. Rebuilt it as a brighter, denser
   golden energy beam (beads 24→52) with a wide, hot energy "packet" racing across (falloff 6→4,
