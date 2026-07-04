@@ -72,6 +72,7 @@ protected:
     UPROPERTY() UStaticMeshComponent* Backdrop = nullptr;       // giant inside-out sky shell
     UPROPERTY() UMaterialInterface* StarMaterial = nullptr;     // hot star material (M_Star)
     UPROPERTY() UMaterialInterface* MetalMaterial = nullptr;    // lit brass PBR for the gear cogs (M_Metal)
+    UPROPERTY() UMaterialInterface* WaveMaterial = nullptr;     // scrolling standing-wave ribbon (M_Wave)
     UPROPERTY() UStaticMeshComponent* StarComp = nullptr;       // the Orbits-centre sun
     UPROPERTY() USceneComponent* SceneRoot = nullptr;
     UPROPERTY() TArray<UStaticMeshComponent*> Pool;

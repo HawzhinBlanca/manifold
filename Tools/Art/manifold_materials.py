@@ -139,6 +139,32 @@ def make_metal(roughness=0.35, glow=0.40):
     finish(m)
     return m
 
+def make_wave(base=0.35, band=0.65, freq=5.0, speed=0.12):
+    """Unlit standing-wave ribbon material: a bright emissive band scrolls along the ribbon's LENGTH
+    (U, via a Panner) over a dim base, so the wave reads as energy flowing (ART_DIRECTION §2). The
+    ribbon geometry already encodes the harmonic (hump count); this adds the flow. 'Color' tints it."""
+    m = new_material("M_Wave")
+    m.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
+    m.set_editor_property("two_sided", True)
+    col = vparam(m, "Color", unreal.LinearColor(1, 1, 1, 1), -1000, -60)
+    pan = _mel.create_material_expression(m, unreal.MaterialExpressionPanner, -900, 220)
+    pan.set_editor_property("speed_x", speed)
+    pan.set_editor_property("speed_y", 0.0)
+    umask = _mel.create_material_expression(m, unreal.MaterialExpressionComponentMask, -740, 220)
+    umask.set_editor_property("r", True)
+    umask.set_editor_property("g", False)
+    umask.set_editor_property("b", False)
+    umask.set_editor_property("a", False)
+    _mel.connect_material_expressions(pan, "", umask, "")
+    sine = _mel.create_material_expression(m, unreal.MaterialExpressionSine, -520, 220)
+    _mel.connect_material_expressions(mul(m, umask, const(m, freq, -620, 340), -600, 260), "", sine, "")
+    # sine (-1..1) -> 0..1 -> *band + base : brightness scrolls base..base+band along the ribbon length.
+    n01 = add(m, mul(m, sine, const(m, 0.5, -420, 340), -380, 270), const(m, 0.5, -420, 170), -300, 240)
+    bright = add(m, mul(m, n01, const(m, band, -240, 340), -200, 270), const(m, base, -240, 170), -120, 240)
+    _mel.connect_material_property(mul(m, col, bright, -20, 20), "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    finish(m)
+    return m
+
 
 def import_texture(name, rel_src, pkg="/Game/Sky", srgb=True):
     """Import a source image (repo-relative to the .uproject dir) as a Texture2D asset.
@@ -188,7 +214,7 @@ def make_skydome(brightness=0.85):
 
 
 def build_all():
-    made = [make_realm_orb(), make_nebula(), make_star(), make_metal()]
+    made = [make_realm_orb(), make_nebula(), make_star(), make_metal(), make_wave()]
     sky = make_skydome()
     if sky:
         made.append(sky)

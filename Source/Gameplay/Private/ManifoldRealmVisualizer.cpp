@@ -105,6 +105,12 @@ AManifoldRealmVisualizer::AManifoldRealmVisualizer()
     {
         MetalMaterial = MetalFinder.Object;
     }
+    // Scrolling standing-wave ribbon material (M_Wave) — energy flows along the wave's length.
+    static ConstructorHelpers::FObjectFinder<UMaterialInterface> WaveFinder(TEXT("/Game/Materials/M_Wave.M_Wave"));
+    if (WaveFinder.Succeeded())
+    {
+        WaveMaterial = WaveFinder.Object;
+    }
 }
 
 void AManifoldRealmVisualizer::BeginPlay()
@@ -254,8 +260,9 @@ void AManifoldRealmVisualizer::BeginPlay()
     UMaterialInterface* const CogMat = MetalMaterial ? MetalMaterial : EmissiveMaterial;
     GearCogP = MakeCog(TEXT("GearCogP"), CogMat);
     GearCogQ = MakeCog(TEXT("GearCogQ"), CogMat);
-    WaveRibbonP = MakeCog(TEXT("WaveRibbonP"), EmissiveMaterial); // same procedural-mesh setup, different geometry
-    WaveRibbonQ = MakeCog(TEXT("WaveRibbonQ"), EmissiveMaterial);
+    UMaterialInterface* const RibbonMat = WaveMaterial ? WaveMaterial : EmissiveMaterial;
+    WaveRibbonP = MakeCog(TEXT("WaveRibbonP"), RibbonMat); // same procedural-mesh setup, different geometry
+    WaveRibbonQ = MakeCog(TEXT("WaveRibbonQ"), RibbonMat);
 }
 
 void AManifoldRealmVisualizer::ApplyGlow(UMaterialInstanceDynamic* MID, const FLinearColor& Color,
@@ -286,11 +293,14 @@ void AManifoldRealmVisualizer::UpdateWaveRibbon(UProceduralMeshComponent* Ribbon
         LastHarmonic = Harmonic;
         TArray<FVector> V; TArray<int32> Tris;
         ManifoldWaveMesh::Build(Harmonic, 150.0f, 34.0f, 4.0f, V, Tris);
+        // UVs so the M_Wave panner scrolls its emissive band along the ribbon's LENGTH: U=0..1 from X
+        // (the ribbon spans X = -75..+75 for Length 150). Unlit material -> no normals needed.
+        TArray<FVector2D> UV; UV.Reserve(V.Num());
+        for (const FVector& Vtx : V) { UV.Add(FVector2D((Vtx.X + 75.0f) / 150.0f, 0.0f)); }
         const TArray<FVector> NoNormals;
-        const TArray<FVector2D> NoUV;
         const TArray<FLinearColor> NoColors;
         const TArray<FProcMeshTangent> NoTangents;
-        Ribbon->CreateMeshSection_LinearColor(0, V, Tris, NoNormals, NoUV, NoColors, NoTangents, false);
+        Ribbon->CreateMeshSection_LinearColor(0, V, Tris, NoNormals, UV, NoColors, NoTangents, false);
     }
 
     if (UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(Ribbon->GetMaterial(0)))

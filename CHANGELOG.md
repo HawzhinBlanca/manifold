@@ -6,6 +6,15 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Visual — waves ribbon scrolls energy along its length (ART_DIRECTION §2, render-verified)
+- Authored **`M_Wave`** (headless pipeline): an unlit standing-wave material whose emissive brightness
+  scrolls a bright band along the ribbon's length (a `Panner` on the U coord over a dim base), so the
+  wave reads as energy flowing — the ribbon geometry already encodes the harmonic (hump count), and
+  this adds the motion. `UpdateWaveRibbon` now generates `U=0..1` UVs from the vertex X so the panner
+  has a coordinate; the ribbons use `M_Wave` (fall back to the emissive orb material if absent), tinted
+  by the realm palette colour. Render-verified: the teal ribbons read with a flowing band, legible, no
+  clutter. 104/104.
+
 ### Visual — gear cogs are lit brass PBR (ART_DIRECTION §2, render-verified)
 - The gear cogs were flat unlit-emissive. They now use the authored **`M_Metal`** brass PBR (metallic 1,
   roughness 0.35) and are lit by the scene + the Gears point light, so they read as dimensional
