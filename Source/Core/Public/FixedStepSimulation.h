@@ -83,7 +83,33 @@ struct MANIFOLDCORE_API FSimulationSnapshot
     {
         Ar << S.StepCount;
         Ar << S.SimulationTime;
-        Ar << S.StateData;
+        // Bounded read of the (possibly UNTRUSTED) kernel-state blob: reject a length that can't be
+        // backed by the bytes remaining, before the default TArray<uint8> serializer pre-allocates
+        // `count` bytes. Byte-for-byte identical to the default layout (int32 count + raw bytes) on
+        // save and on the valid-load path.
+        if (Ar.IsLoading())
+        {
+            int32 Count = 0;
+            Ar << Count;
+            const int64 Remaining = Ar.TotalSize() - Ar.Tell();
+            if (Ar.IsError() || Count < 0 || static_cast<int64>(Count) > Remaining)
+            {
+                Ar.SetError();
+                S.StateData.Reset();
+            }
+            else
+            {
+                S.StateData.SetNumUninitialized(Count);
+                if (Count > 0)
+                {
+                    Ar.Serialize(S.StateData.GetData(), Count);
+                }
+            }
+        }
+        else
+        {
+            Ar << S.StateData;
+        }
         Ar << S.StateHash;
         Ar << S.RNGState;
         return Ar;
@@ -132,6 +158,12 @@ public:
     // ClampMin metas on the config only constrain the Details panel, not direct C++/deserialized values.
     static constexpr float MinFixedDeltaTime = 0.0001f;       // matches FixedDeltaTime's editor ClampMin
     static constexpr int64 MaxReplayVerifySteps = 100000000;  // 100M: far above any real snapshot interval
+
+    // Conservative lower bound on the on-disk size of one serialized FSimulationSnapshot: StepCount
+    // (int64=8) + SimulationTime (float=4) + StateData length prefix (int32=4) + StateHash (uint64=8).
+    // The RNG state only adds more, so a real snapshot is always >= this. Used to reject a hostile
+    // Snapshots count before the default TArray serializer pre-allocates count*sizeof(snapshot).
+    static constexpr int64 MinSerializedSnapshotBytes = 24;
 
     // =====================================================================
     // CONTROL
@@ -339,7 +371,35 @@ public:
         Ar << Sim.InterpAlpha;
         Ar << Sim.bInitialized;
         Ar << Sim.RunningHash;
-        Ar << Sim.Snapshots;
+        // Bounded read of the (possibly UNTRUSTED) snapshot array. UE's default TArray serializer
+        // reads an int32 count and pre-allocates count*sizeof(FSimulationSnapshot) BEFORE reading any
+        // element, so a crafted count in a persisted/shared blob forces a multi-GB allocation (OOM).
+        // Reject up front any count that can't be backed by the bytes remaining (each snapshot needs
+        // >= MinSerializedSnapshotBytes). Byte-for-byte identical to the default layout on save and on
+        // the valid-load path, so the on-disk format is unchanged. (Companion to the gameplay replay's
+        // SerializeBoundedInt32Array — this is the Core snapshot serializer's equivalent guard.)
+        if (Ar.IsLoading())
+        {
+            int32 Count = 0;
+            Ar << Count;
+            const int64 Remaining = Ar.TotalSize() - Ar.Tell();
+            if (Ar.IsError() || Count < 0 ||
+                static_cast<int64>(Count) * MinSerializedSnapshotBytes > Remaining)
+            {
+                Ar.SetError(); // corrupt/hostile count — reject BEFORE allocating
+                Sim.Snapshots.Reset();
+                return Ar;
+            }
+            Sim.Snapshots.SetNum(Count);
+            for (int32 i = 0; i < Count; ++i)
+            {
+                Ar << Sim.Snapshots[i];
+            }
+        }
+        else
+        {
+            Ar << Sim.Snapshots; // saving: default layout (count + elements) — unchanged on disk
+        }
         return Ar;
     }
 

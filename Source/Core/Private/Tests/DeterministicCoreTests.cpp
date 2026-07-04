@@ -249,6 +249,65 @@ bool FFixedStepDegenerateConfigTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// Robustness (core audit — completing the untrusted-input invariant across every public serializer):
+// FFixedStepSimulation is the deterministic replay/snapshot core, and its operator<< read the
+// Snapshots array (and each snapshot's StateData blob) with UE's default TArray serializer, which
+// pre-allocates count*element BEFORE reading any element (its 16MB cap is net-archive-only). A crafted
+// count in a persisted/shared snapshot blob would force a multi-GB allocation (OOM) — the same class
+// the gameplay replay already guards with SerializeBoundedInt32Array. Both reads are now bounded
+// against the bytes remaining. This locks that hostile counts are rejected and valid blobs still
+// round-trip (the bound is byte-for-byte identical to the default layout on the happy path).
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSnapshotDeserializeBoundedTest, "MANIFOLD.Systems.DeterministicCore.SnapshotDeserializeBounded", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FSnapshotDeserializeBoundedTest::RunTest(const FString& Parameters)
+{
+    // (1) FSimulationSnapshot: a hostile StateData length must be rejected before pre-allocation.
+    {
+        FBufferArchive W;
+        int64 StepCount = 0; float SimTime = 0.0f; int32 HostileLen = 0x7FFFFFFF; // ~2.1e9 bytes claimed
+        W << StepCount; W << SimTime; W << HostileLen; // ...but the file ends here — none follow
+        FMemoryReader R(W);
+        FSimulationSnapshot Snap;
+        R << Snap;
+        UTEST_TRUE("hostile StateData length sets the archive error (no OOM pre-alloc)", R.IsError());
+        UTEST_EQUAL("hostile StateData left empty", Snap.StateData.Num(), 0);
+    }
+    // (2) FFixedStepSimulation: a hostile Snapshots count must be rejected. Serialize an empty-snapshot
+    //     sim (so the trailing 4 bytes ARE the Snapshots count) and overwrite that count with a hostile
+    //     value.
+    {
+        FFixedStepConfig Config;
+        FFixedStepSimulation Sim(Config);
+        Sim.Initialize(123ULL); // no snapshots captured -> Snapshots empty
+        FBufferArchive W;
+        W << Sim;
+        TArray<uint8> Bytes(W);
+        UTEST_TRUE("blob has room for the trailing count", Bytes.Num() >= 4);
+        int32 Hostile = 0x7FFFFFFF;
+        FMemory::Memcpy(Bytes.GetData() + Bytes.Num() - 4, &Hostile, sizeof(int32));
+        FMemoryReader R(Bytes);
+        FFixedStepSimulation Loaded(Config);
+        R << Loaded;
+        UTEST_TRUE("hostile Snapshots count sets the archive error (no OOM pre-alloc)", R.IsError());
+    }
+    // (3) A valid sim WITH a real captured snapshot still round-trips (the guard must not over-reject).
+    {
+        FFixedStepConfig Config; Config.bEnableSnapshots = true;
+        FFixedStepSimulation Sim(Config);
+        Sim.Initialize(77ULL);
+        Sim.StepMultiple(3);
+        Sim.CaptureSnapshot();
+        FBufferArchive W;
+        W << Sim;
+        FMemoryReader R(W);
+        FFixedStepSimulation Loaded(Config);
+        R << Loaded;
+        UTEST_FALSE("valid sim round-trips without error", R.IsError());
+        UTEST_EQUAL("valid sim step count preserved", Loaded.GetStepCount(), Sim.GetStepCount());
+    }
+    return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLazyRealizationDeterministicDetailTest, "MANIFOLD.LazyRealization.DeterministicDetail", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 
 bool FLazyRealizationDeterministicDetailTest::RunTest(const FString& Parameters)
