@@ -596,7 +596,12 @@ void AManifoldRealmVisualizer::Tick(float DeltaSeconds)
                         const float V = static_cast<float>(j - 1) / N;
                         const FVector P = FluidsCenter
                             + FVector((U - 0.5f) * 2.0f * FluidsExtent, (V - 0.5f) * 2.0f * FluidsExtent, 0.0f);
-                        PlaceSphere(P, 10.0f + FMath::Clamp(Density, 0.0f, 1.0f) * 18.0f, FluidsCyan);
+                        // Colour by density: dense cells run hot (whiter + brighter) so the vortex core
+                        // reads as intensity, not a flat cyan haze; sparse cells stay palette cyan.
+                        const float D = FMath::Clamp(Density, 0.0f, 1.0f);
+                        const FLinearColor FluidCol =
+                            FMath::Lerp(FluidsCyan, FLinearColor(0.85f, 1.0f, 1.0f), D * 0.75f) * (1.0f + 0.6f * D);
+                        PlaceSphere(P, 10.0f + D * 18.0f, FluidCol);
                     }
                 }
             }

@@ -6,6 +6,15 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Visual — Fluids vortex reads by density (ART_DIRECTION §2, render-verified)
+- The Fluids bead cloud was flat cyan. Beads are now coloured by their cell density — dense cells run
+  hot (whiter + brighter), sparse cells stay palette cyan — so the vortex core reads as intensity, not
+  a uniform haze. Render-verified: hotter dense cells, legible, no clutter. This is the achievable
+  headless (material/colour) slice of §2's richer-realms goal; the fuller per-realm GEOMETRY targets
+  (Harmonics concentric crystal shells, Circuits LC loop/arc, a true volumetric Fluids vortex) are
+  filed under the display + Fab-assets + human-eye tier in ART_AAA_HANDOFF and remain for that pass.
+  104/104.
+
 ### Visual — waves ribbon scrolls energy along its length (ART_DIRECTION §2, render-verified)
 - Authored **`M_Wave`** (headless pipeline): an unlit standing-wave material whose emissive brightness
   scrolls a bright band along the ribbon's length (a `Panner` on the U coord over a dim base), so the
