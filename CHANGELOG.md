@@ -6,6 +6,17 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Visual — realm orbs read as luminous energy spheres (render-verified)
+- The ratio-realm orbs rendered as flat matte colored *discs*: `M_RealmOrb`'s emissive body sat below
+  the post-process bloom threshold, so only the central star (whose whole body is bright) bloomed.
+  Retuned the authored material via `Tools/Art/manifold_materials.py` — core `0.7 → 1.0` so the orb
+  body itself blooms into a soft coloured halo, fresnel rim `1.4 → 2.4` (kept clearly hotter than the
+  core, widened `exp 3.5 → 3.0`) so the edge still reads as a 3D energy shell rather than a uniform
+  blown-out disc. Verified by offscreen render (compared against the flat-disc baseline): the whole
+  realm cluster now reads as glowing energy spheres, hues + spherical shape preserved, star still
+  brightest. No C++ rebuild (material-asset only); logic tests unchanged (104/104). Public showcase
+  media regeneration to match tracked as a follow-up.
+
 ### Audio — muted by default until production (dev/CI/headless are silent)
 - The procedural synth previously started on every launch (`AManifoldGameMode::BeginPlay` →
   `Synth->Start()`), so editor Play, packaged runs, and even headless render captures emitted

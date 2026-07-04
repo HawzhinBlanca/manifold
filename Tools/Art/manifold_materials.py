@@ -78,9 +78,14 @@ def finish(mat):
 
 
 # ---- the game's material set ------------------------------------------------
-def make_realm_orb(core=0.7, rim=1.4, fres_exp=3.5):
+def make_realm_orb(core=1.0, rim=2.4, fres_exp=3.0):
     """Unlit glowing energy sphere. Fresnel rim => a sphere reads 3D, not a flat disc.
-    Driven by a 'Color' vector param the visualizer's ApplyGlow() already sets."""
+    Driven by a 'Color' vector param the visualizer's ApplyGlow() already sets.
+    Tuned against the render: the orbs read as FLAT matte discs at the old 0.7/1.4 because the
+    body sat below the bloom threshold (only the star, whose whole body is bright, bloomed). Core
+    raised 0.7->1.0 so the orb body itself blooms into a soft coloured halo, rim 1.4->2.4 (kept
+    clearly hotter than the core) so the fresnel edge still reads as a 3D energy shell rather than
+    a uniform blown-out disc. The central star stays brightest via its own M_Star + a 1.9x glow."""
     m = new_material("M_RealmOrb")
     m.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
     col = vparam(m, "Color", unreal.LinearColor(1, 1, 1, 1), -900, -50)
