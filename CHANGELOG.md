@@ -6,6 +6,17 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Robustness — untrusted-input invariant completed across every public serializer
+- The gameplay replay layer bounds untrusted variable-length reads (`SerializeBoundedInt32Array`,
+  the `Steps` cap), but the Core `FFixedStepSimulation` snapshot serializer — the deterministic
+  replay/snapshot type — still read its `Snapshots` array and each snapshot's `StateData` blob with
+  UE's default `TArray` serializer, which pre-allocates `count*element` before reading any element
+  (its ~16MB cap is net-archive-only). A crafted count would force a multi-GB OOM. Both reads are now
+  bounded against the bytes remaining, byte-for-byte identical to the default layout on save and on
+  the valid-load path. Locked by `MANIFOLD.Systems.DeterministicCore.SnapshotDeserializeBounded`.
+  **103/103 green** (up from 102). With this, **every public serializer in the codebase uniformly
+  upholds the "bound untrusted variable-length reads" invariant.**
+
 ### Balance — objective sweep extended to the two hardest modes
 - `MANIFOLD.Balance.Sweep` (the objective fairness floor) measured only Classic and non-expert
   Constellation across 128 seeds; the harder modes were spot-tested at a single seed each. The sweep
