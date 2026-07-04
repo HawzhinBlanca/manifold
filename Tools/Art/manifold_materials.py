@@ -138,8 +138,58 @@ def make_metal(roughness=0.30, glow=0.20):
     return m
 
 
+def import_texture(name, rel_src, pkg="/Game/Sky", srgb=True):
+    """Import a source image (repo-relative to the .uproject dir) as a Texture2D asset.
+    Returns the loaded asset (or None if the source is missing)."""
+    src = unreal.Paths.combine([unreal.Paths.project_dir(), rel_src])
+    if not unreal.Paths.file_exists(src):
+        unreal.log_warning("MANIFOLD: sky source not found: " + src)
+        return None
+    dest = pkg + "/" + name
+    if unreal.EditorAssetLibrary.does_asset_exist(dest):
+        unreal.EditorAssetLibrary.delete_asset(dest)
+    task = unreal.AssetImportTask()
+    task.filename = src
+    task.destination_path = pkg
+    task.destination_name = name
+    task.automated = True
+    task.replace_existing = True
+    task.save = True
+    _tools.import_asset_tasks([task])
+    tex = unreal.EditorAssetLibrary.load_asset(dest)
+    if tex:
+        tex.set_editor_property("srgb", srgb)
+        # Equirectangular: longitude wraps (U), latitude clamps (V) so the poles don't bleed.
+        tex.set_editor_property("address_x", unreal.TextureAddress.TA_WRAP)
+        tex.set_editor_property("address_y", unreal.TextureAddress.TA_CLAMP)
+        unreal.EditorAssetLibrary.save_asset(dest)
+    return tex
+
+def make_skydome(brightness=0.85):
+    """Real deep-space backdrop: an unlit, two-sided sphere material that emits a public-domain
+    NASA Milky Way equirectangular panorama (mostly black sky + the galactic band), sampled on the
+    giant inside-out backdrop shell. Dimmed slightly so the void stays dark and the realms/seam pop.
+    Falls back to the procedural M_Nebula if the texture import failed (source image missing)."""
+    tex = import_texture("T_StarMap", "Tools/Art/assets/starmap_milkyway_2k.jpg")
+    if tex is None:
+        unreal.log_warning("MANIFOLD: skipping M_SkyDome (no star texture); M_Nebula remains the backdrop")
+        return None
+    m = new_material("M_SkyDome")
+    m.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
+    m.set_editor_property("two_sided", True)
+    samp = _mel.create_material_expression(m, unreal.MaterialExpressionTextureSample, -500, 0)
+    samp.set_editor_property("texture", tex)  # uses the mesh UV0 (the engine UV-sphere is equirect)
+    _mel.connect_material_property(mul(m, samp, const(m, brightness, -500, 250), -180, 0),
+                                   "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    finish(m)
+    return m
+
+
 def build_all():
     made = [make_realm_orb(), make_nebula(), make_star(), make_metal()]
+    sky = make_skydome()
+    if sky:
+        made.append(sky)
     unreal.log("MANIFOLD MATERIALS BUILT: " + ", ".join(x.get_name() for x in made))
 
 

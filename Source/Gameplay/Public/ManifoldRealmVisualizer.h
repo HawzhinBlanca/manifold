@@ -56,8 +56,9 @@ protected:
     UPROPERTY() UStaticMesh* SphereMesh = nullptr;
     UPROPERTY() UMaterialInterface* BaseMaterial = nullptr;
     UPROPERTY() UMaterialInterface* EmissiveMaterial = nullptr; // glowing realm orbs (unlit, blooms)
-    UPROPERTY() UMaterialInterface* NebulaMaterial = nullptr;   // procedural nebula backdrop
-    UPROPERTY() UStaticMeshComponent* Backdrop = nullptr;       // giant inside-out nebula shell
+    UPROPERTY() UMaterialInterface* NebulaMaterial = nullptr;   // procedural nebula backdrop (fallback)
+    UPROPERTY() UMaterialInterface* SkyMaterial = nullptr;      // real NASA Milky Way HDRI sky (preferred)
+    UPROPERTY() UStaticMeshComponent* Backdrop = nullptr;       // giant inside-out sky shell
     UPROPERTY() UMaterialInterface* StarMaterial = nullptr;     // hot star material (M_Star)
     UPROPERTY() UStaticMeshComponent* StarComp = nullptr;       // the Orbits-centre sun
     UPROPERTY() USceneComponent* SceneRoot = nullptr;

@@ -84,6 +84,14 @@ AManifoldRealmVisualizer::AManifoldRealmVisualizer()
     {
         NebulaMaterial = NebulaFinder.Object;
     }
+    // Real deep-space HDRI backdrop (public-domain NASA Milky Way panorama on the sky shell). Preferred
+    // over the procedural nebula when present; authored by Tools/Art/manifold_materials.py. Falls back
+    // to M_Nebula if the sky material/texture is absent.
+    static ConstructorHelpers::FObjectFinder<UMaterialInterface> SkyFinder(TEXT("/Game/Materials/M_SkyDome.M_SkyDome"));
+    if (SkyFinder.Succeeded())
+    {
+        SkyMaterial = SkyFinder.Object;
+    }
     // Hot star material for the Orbits centre (brighter core/rim than a realm orb).
     static ConstructorHelpers::FObjectFinder<UMaterialInterface> StarFinder(TEXT("/Game/Materials/M_Star.M_Star"));
     if (StarFinder.Succeeded())
@@ -192,14 +200,16 @@ void AManifoldRealmVisualizer::BeginPlay()
         }
     }
 
-    // Giant inside-out nebula shell — a real cosmic backdrop instead of empty black.
-    if (SphereMesh && NebulaMaterial)
+    // Giant inside-out sky shell — a real cosmic backdrop instead of empty black. Prefer the NASA
+    // Milky Way HDRI (M_SkyDome) when present; fall back to the procedural nebula.
+    UMaterialInterface* BackdropMat = SkyMaterial ? SkyMaterial : NebulaMaterial;
+    if (SphereMesh && BackdropMat)
     {
         Backdrop = NewObject<UStaticMeshComponent>(this, TEXT("NebulaBackdrop"));
         Backdrop->SetupAttachment(SceneRoot);
         Backdrop->RegisterComponent();
         Backdrop->SetStaticMesh(SphereMesh);
-        Backdrop->SetMaterial(0, NebulaMaterial);
+        Backdrop->SetMaterial(0, BackdropMat);
         Backdrop->SetCollisionEnabled(ECollisionEnabled::NoCollision);
         Backdrop->SetCastShadow(false);
         Backdrop->SetWorldLocation(FVector(0.0, 0.0, 300.0));

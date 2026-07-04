@@ -6,6 +6,18 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Visual — real deep-space HDRI sky (render-verified)
+- Replaced the procedural purple nebula backdrop with a **real public-domain NASA Milky Way**
+  all-sky panorama (SVS *Deep Star Maps 2020*): fetched the 4k EXR, tone-mapped + downsized it to a
+  332 KB 2k JPG (`Tools/Art/assets/starmap_milkyway_2k.jpg`), imported it as `T_StarMap`, and authored
+  an unlit two-sided `M_SkyDome` that emits it on the giant sky shell (`Tools/Art/manifold_materials.py`
+  gained `import_texture` + `make_skydome`). `AManifoldRealmVisualizer` now prefers `M_SkyDome` for the
+  backdrop and falls back to the procedural `M_Nebula` when the sky asset is absent. Verified by
+  offscreen render: dense realistic stars + the galactic band on a deep-black sky read far more
+  cinematic than the procedural haze, and the glowing realms/seam pop *harder* against the darker
+  backdrop (no wash, clean equirect mapping). Public-domain credit added in `Docs/CREDITS.md`.
+  Logic tests unchanged (104/104). First step of the cinematic/premium graphics pass.
+
 ### Visual — realm orbs read as luminous energy spheres (render-verified)
 - The ratio-realm orbs rendered as flat matte colored *discs*: `M_RealmOrb`'s emissive body sat below
   the post-process bloom threshold, so only the central star (whose whole body is bright) bloomed.
