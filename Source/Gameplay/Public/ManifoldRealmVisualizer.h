@@ -71,6 +71,7 @@ protected:
     UPROPERTY() UMaterialInterface* SkyMaterial = nullptr;      // real NASA Milky Way HDRI sky (preferred)
     UPROPERTY() UStaticMeshComponent* Backdrop = nullptr;       // giant inside-out sky shell
     UPROPERTY() UMaterialInterface* StarMaterial = nullptr;     // hot star material (M_Star)
+    UPROPERTY() UMaterialInterface* MetalMaterial = nullptr;    // lit brass PBR for the gear cogs (M_Metal)
     UPROPERTY() UStaticMeshComponent* StarComp = nullptr;       // the Orbits-centre sun
     UPROPERTY() USceneComponent* SceneRoot = nullptr;
     UPROPERTY() TArray<UStaticMeshComponent*> Pool;

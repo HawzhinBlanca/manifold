@@ -126,8 +126,10 @@ def make_star(core=1.1, rim=2.4):
     finish(m)
     return m
 
-def make_metal(roughness=0.30, glow=0.20):
-    """Lit metallic PBR for the gear cogs (brass/steel). 'Color' = base colour."""
+def make_metal(roughness=0.35, glow=0.40):
+    """Lit metallic PBR for the gear cogs (brass/steel). 'Color' = base colour. Emissive glow raised
+    (0.20->0.40) so a metallic cog still READS against the near-black starfield — legibility beats
+    spectacle (ART_DIRECTION §0); a pure-reflective metal would go too dark to read the ratio."""
     m = new_material("M_Metal")
     col = vparam(m, "Color", unreal.LinearColor(0.85, 0.7, 0.25, 1), -900, -50)
     _mel.connect_material_property(col, "", unreal.MaterialProperty.MP_BASE_COLOR)

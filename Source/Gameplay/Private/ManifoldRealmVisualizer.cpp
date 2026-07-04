@@ -13,6 +13,7 @@
 #include "ManifoldGearMesh.h"
 #include "ManifoldWaveMesh.h"
 #include "ProceduralMeshComponent.h"
+#include "KismetProceduralMeshLibrary.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Components/PointLightComponent.h"
@@ -97,6 +98,12 @@ AManifoldRealmVisualizer::AManifoldRealmVisualizer()
     if (StarFinder.Succeeded())
     {
         StarMaterial = StarFinder.Object;
+    }
+    // Lit brass PBR (M_Metal) for the gear cogs — real machined mechanism rather than energy glow.
+    static ConstructorHelpers::FObjectFinder<UMaterialInterface> MetalFinder(TEXT("/Game/Materials/M_Metal.M_Metal"));
+    if (MetalFinder.Succeeded())
+    {
+        MetalMaterial = MetalFinder.Object;
     }
 }
 
@@ -232,22 +239,23 @@ void AManifoldRealmVisualizer::BeginPlay()
     SpawnStarfield();
 
     // Two persistent procedural cogs for the Gears realm (mesh rebuilt on tooth-count change).
-    auto MakeCog = [&](const TCHAR* Name) -> UProceduralMeshComponent*
+    auto MakeCog = [&](const TCHAR* Name, UMaterialInterface* Mat) -> UProceduralMeshComponent*
     {
         UProceduralMeshComponent* Cog = NewObject<UProceduralMeshComponent>(this, Name);
         Cog->SetupAttachment(SceneRoot);
         Cog->RegisterComponent();
         Cog->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-        // Emissive so the gear cogs / wave ribbons glow to match the realm orbs (fallback to lit).
-        UMaterialInterface* CogMat = EmissiveMaterial ? EmissiveMaterial : BaseMaterial;
+        UMaterialInterface* CogMat = Mat ? Mat : (EmissiveMaterial ? EmissiveMaterial : BaseMaterial);
         if (CogMat) { Cog->CreateDynamicMaterialInstance(0, CogMat); }
         Cog->SetVisibility(false);
         return Cog;
     };
-    GearCogP = MakeCog(TEXT("GearCogP"));
-    GearCogQ = MakeCog(TEXT("GearCogQ"));
-    WaveRibbonP = MakeCog(TEXT("WaveRibbonP")); // same procedural-mesh setup, different geometry
-    WaveRibbonQ = MakeCog(TEXT("WaveRibbonQ"));
+    // Gear cogs use lit brass PBR (M_Metal); wave ribbons stay unlit-emissive to glow like the orbs.
+    UMaterialInterface* const CogMat = MetalMaterial ? MetalMaterial : EmissiveMaterial;
+    GearCogP = MakeCog(TEXT("GearCogP"), CogMat);
+    GearCogQ = MakeCog(TEXT("GearCogQ"), CogMat);
+    WaveRibbonP = MakeCog(TEXT("WaveRibbonP"), EmissiveMaterial); // same procedural-mesh setup, different geometry
+    WaveRibbonQ = MakeCog(TEXT("WaveRibbonQ"), EmissiveMaterial);
 }
 
 void AManifoldRealmVisualizer::ApplyGlow(UMaterialInstanceDynamic* MID, const FLinearColor& Color,
@@ -308,16 +316,24 @@ void AManifoldRealmVisualizer::UpdateGearCog(UProceduralMeshComponent* Cog, int3
         LastTeeth = Teeth;
         TArray<FVector> V; TArray<int32> Tris;
         ManifoldGearMesh::Build(Teeth, 34.0f, 12.0f, 8.0f, V, Tris);
-        const TArray<FVector> NoNormals;
-        const TArray<FVector2D> NoUV;
+        // The lit brass material needs normals + tangents to shade + catch specular (the mesh ships
+        // none -> a lit material renders black). Planar UVs feed the tangent solve; normals are
+        // computed smooth from the geometry.
+        TArray<FVector2D> UV; UV.Reserve(V.Num());
+        for (const FVector& Vtx : V) { UV.Add(FVector2D(Vtx.X * 0.02f, Vtx.Y * 0.02f)); }
+        TArray<FVector> Normals;
+        TArray<FProcMeshTangent> Tangents;
+        UKismetProceduralMeshLibrary::CalculateTangentsForMesh(V, Tris, UV, Normals, Tangents);
         const TArray<FLinearColor> NoColors;
-        const TArray<FProcMeshTangent> NoTangents;
-        Cog->CreateMeshSection_LinearColor(0, V, Tris, NoNormals, NoUV, NoColors, NoTangents, false);
+        Cog->CreateMeshSection_LinearColor(0, V, Tris, Normals, UV, NoColors, Tangents, false);
     }
 
     if (UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(Cog->GetMaterial(0)))
     {
-        ApplyGlow(MID, Color, PulseFactor);
+        // Brass PBR: set the base 'Color' to the realm's identity colour at unit brightness (the metal
+        // reflects the scene + gears point light; M_Metal's own emissive keeps it legible). A subtle
+        // member-flash lift via PulseFactor, but NOT the unlit glow-boost (which would clip the albedo).
+        MID->SetVectorParameterValue(TEXT("Color"), Color * FMath::Min(1.0f, 0.9f * PulseFactor));
     }
 }
 

@@ -6,6 +6,18 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Visual — gear cogs are lit brass PBR (ART_DIRECTION §2, render-verified)
+- The gear cogs were flat unlit-emissive. They now use the authored **`M_Metal`** brass PBR (metallic 1,
+  roughness 0.35) and are lit by the scene + the Gears point light, so they read as dimensional
+  machined cogs rather than a flat glow. `ManifoldGearMesh` ships no normals (a lit material would
+  render black), so `UpdateGearCog` now computes smooth normals + tangents via
+  `UKismetProceduralMeshLibrary::CalculateTangentsForMesh` (planar UVs) before building the section,
+  and drives the brass base `Color` from the realm's palette colour (not the unlit glow-boost, which
+  would clip a lit albedo). `M_Metal`'s emissive was raised (0.20→0.40) so the cog stays legible in the
+  near-black starfield (§0: legibility beats spectacle). Render-verified: shaded + legible. The fuller
+  photoreal-brass look (bevels/wear/Megascans metal, Fab cog meshes) remains a display+eye art task per
+  ART_AAA_HANDOFF. 104/104.
+
 ### Visual — bespoke HUD pass: palette chips + tiered rank (ART_DIRECTION §5, render-verified)
 - Reskinned the HUD (`AManifoldHUD`, C++ canvas — no gameplay change): every realm row in both the
   Classic readout and the Constellation tray now leads with a solid **palette-colour chip** (the
