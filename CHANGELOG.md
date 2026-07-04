@@ -14,8 +14,16 @@ work-package milestones rather than semantic versions until first playable.
   core, widened `exp 3.5 → 3.0`) so the edge still reads as a 3D energy shell rather than a uniform
   blown-out disc. Verified by offscreen render (compared against the flat-disc baseline): the whole
   realm cluster now reads as glowing energy spheres, hues + spherical shape preserved, star still
-  brightest. No C++ rebuild (material-asset only); logic tests unchanged (104/104). Public showcase
-  media regeneration to match tracked as a follow-up.
+  brightest. No C++ rebuild (material-asset only); logic tests unchanged (104/104).
+
+### Presentation — showcase media regenerated to the glowing-orb build
+- Regenerated all six public assets under `Docs/media/` so the README showcase matches the shipping
+  look (previously they showed the flat-disc orbs). Captured headless & offscreen via the built-in
+  dev flags — `-ManifoldAutoShot` (HUD-on readout → `gameplay-hud.png`; HUD-off beauty → `realms.png`),
+  `-ManifoldAutoShotConstellation` (Constellation Lock readout → `constellation.png`),
+  `-ManifoldAutoShotTitle` (title card → `title.png`), and `-ManifoldAutoShotSequence` (an 18-frame
+  burst → `scene-loop.gif`, assembled with ffmpeg + a palette pass). Every frame was eyeballed before
+  it was kept. Renders are silent (audio muted by default).
 
 ### Audio — muted by default until production (dev/CI/headless are silent)
 - The procedural synth previously started on every launch (`AManifoldGameMode::BeginPlay` →
