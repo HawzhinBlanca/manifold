@@ -16,6 +16,19 @@
 #include "Misc/Paths.h"
 #include "Misc/Parse.h"
 #include "Misc/CommandLine.h"
+#include "HAL/IConsoleManager.h"
+
+// Procedural audio is MUTED BY DEFAULT during development so that headless renders, CI runs, and
+// the editor make no sound (the synth otherwise plays discovery chimes / an ambient pad on every
+// launch). Production builds opt back IN by setting `manifold.MuteAudio 0` (config, command line
+// `-manifold.MuteAudio=0`, or console). Muting only gates the synth's real-time output — the audio
+// cue/sample LOGIC (AudioDirector / ToneSynth) is unchanged and still fully test-covered.
+// The default (1 = muted) is locked by MANIFOLD.Audio.MutedByDefault.
+static TAutoConsoleVariable<int32> CVarManifoldMuteAudio(
+    TEXT("manifold.MuteAudio"),
+    1,
+    TEXT("Mute MANIFOLD's procedural audio (1 = muted [default, silent until production]; 0 = play)."),
+    ECVF_Default);
 
 AManifoldGameMode::AManifoldGameMode()
 {
@@ -50,10 +63,17 @@ void AManifoldGameMode::BeginPlay()
         Profile = FManifoldProfile();
     }
 
-    // Real-time procedural synth: no sound asset needed, tones are generated in code.
+    // Real-time procedural synth: no sound asset needed, tones are generated in code. We always
+    // create + register the component (so the guarded PlayCue calls stay valid), but only START
+    // real-time output when audio is un-muted. Muted by default (manifold.MuteAudio=1) so dev / CI /
+    // headless renders are silent; production sets manifold.MuteAudio=0. While muted, queued cues are
+    // harmless no-ops (the component never generates to the audio device).
     Synth = NewObject<UManifoldSynthComponent>(this, TEXT("ManifoldSynth"));
     Synth->RegisterComponent();
-    Synth->Start(); // begin generating audio; PlayCue triggers tones
+    if (CVarManifoldMuteAudio.GetValueOnGameThread() == 0)
+    {
+        Synth->Start(); // begin generating audio; PlayCue triggers tones
+    }
 
     StartSession();
 }

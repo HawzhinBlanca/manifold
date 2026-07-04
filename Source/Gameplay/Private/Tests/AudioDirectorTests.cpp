@@ -3,6 +3,7 @@
 #include "Misc/AutomationTest.h"
 #include "ManifoldAudioDirector.h"
 #include "ManifoldToneSynth.h"
+#include "HAL/IConsoleManager.h"
 
 // The core of the audio layer: integer frequency ratios map to the correct
 // consonant musical intervals. This is what makes a discovered correspondence
@@ -159,5 +160,22 @@ bool FAudioHashFallbackVoicesTest::RunTest(const FString& Parameters)
         Rhythm.Mode == Gears.Mode && Gears.Mode == Circuits.Mode;
     UTEST_FALSE("the hash fallback gives unnamed realms distinct voices (not all identical)", bAllSame);
 
+    return true;
+}
+
+// The procedural synth must be MUTED BY DEFAULT: development, CI, and headless renders should make
+// no sound (the game only starts real-time audio when manifold.MuteAudio==0, which production sets).
+// This locks the ship-safe default so a regression can't silently un-mute every dev run. The
+// AManifoldGameMode translation unit registers the CVar when the Gameplay module loads.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAudioMutedByDefaultTest, "MANIFOLD.Audio.MutedByDefault", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FAudioMutedByDefaultTest::RunTest(const FString& Parameters)
+{
+    IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("manifold.MuteAudio"));
+    UTEST_TRUE("manifold.MuteAudio CVar is registered", CVar != nullptr);
+    if (CVar)
+    {
+        UTEST_EQUAL("audio is muted by default (silent until production)", CVar->GetInt(), 1);
+    }
     return true;
 }

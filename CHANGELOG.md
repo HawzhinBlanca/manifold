@@ -6,6 +6,17 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Audio — muted by default until production (dev/CI/headless are silent)
+- The procedural synth previously started on every launch (`AManifoldGameMode::BeginPlay` →
+  `Synth->Start()`), so editor Play, packaged runs, and even headless render captures emitted
+  discovery chimes + an ambient pad. Added the console variable **`manifold.MuteAudio` (default `1`
+  = muted)**; `BeginPlay` now only starts real-time output when it is `0`. The synth component is
+  still created, so the guarded `PlayCue` calls remain valid no-ops while muted. Production re-enables
+  sound with `manifold.MuteAudio 0` (config / `-manifold.MuteAudio=0` / console). Muting gates only
+  the real-time device output — the audio cue/sample **logic** (`UManifoldAudioDirector` /
+  `UManifoldSynthComponent`) is unchanged and still fully test-covered. The ship-safe default is
+  locked by `MANIFOLD.Audio.MutedByDefault`. **104/104 green** (up from 103).
+
 ### Robustness — untrusted-input invariant completed across every public serializer
 - The gameplay replay layer bounds untrusted variable-length reads (`SerializeBoundedInt32Array`,
   the `Steps` cap), but the Core `FFixedStepSimulation` snapshot serializer — the deterministic
