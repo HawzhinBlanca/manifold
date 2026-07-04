@@ -7,17 +7,20 @@ project, not generic advice.
 
 ## Where the visuals are now (shipped)
 
-A polished **stylized cosmic** look, authored entirely headless (see `Tools/Art/`):
+A polished **cinematic cosmic** look, authored + wired entirely headless (see `Tools/Art/`):
 
-- **`Content/Materials/M_RealmOrb`** — unlit energy-sphere material with a Fresnel rim, so
-  each realm reads as a glowing 3D sphere. Driven by the `Color` param
-  `AManifoldRealmVisualizer::ApplyGlow()` already sets.
-- **`Content/Materials/M_Nebula`** — two-sided procedural-noise nebula on a giant inside-out
-  backdrop shell (`Backdrop` in the visualizer). Turns the void into a soft violet nebula.
-- **`M_Star`, `M_Metal`** — authored, ready to wire (hot star / brass gears).
+- **`M_SkyDome` + `T_StarMap`** — a real public-domain NASA Milky Way HDRI panorama on the giant
+  inside-out sky shell (the visualizer prefers it; `M_Nebula` remains a procedural fallback).
+- **`M_RealmOrb`** — unlit fresnel energy-sphere (glowing 3D realm orbs), driven by `ApplyGlow()`.
+- **`M_Metal`** — lit brass PBR, now wired on the **gear cogs** (with computed normals).
+- **`M_Wave`** — a Panner-scrolled emissive band, wired on the **wave ribbons** (energy flows along).
+- **`M_Star`** — hot star for the Orbits centre. Fluids vortex is **density-coloured** (hot cores).
+- Code-driven **energy VFX** particle system (discovery bursts + seam sparks) + a dramatic
+  transport-seam arc; a **palette-chip HUD** + tiered rank reveal.
 - Cinematic scaffolding in `AManifoldRealmVisualizer::BeginPlay`: a `APostProcessVolume`
   (DOF, bloom, colour grade, grain, vignette, fixed exposure), a volumetric
   `AExponentialHeightFog`, a coloured point light per realm, and a key/rim directional rig.
+- Showcase media captured at **1080p** and synced to this build.
 
 Hero: `Docs/media/scene-loop.gif`.
 

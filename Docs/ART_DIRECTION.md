@@ -1,14 +1,19 @@
 # MANIFOLD — Art & VFX Direction
 
 > **Design pillar:** _the correspondence engine is the product; visuals are a layer._
-> The current build ships a **cinematic cosmic** look — authored energy-sphere materials, a
-> procedural nebula, volumetric lighting, and film-grade post (a real step past the original flat
-> placeholders). This document is the plan to push it further toward full photoreal — executable by
-> you, an artist, or me against the verified logic (turnkey guide: [ART_AAA_HANDOFF.md](ART_AAA_HANDOFF.md)).
+> The current build ships a **cinematic cosmic** look, and most of the dressing plan below (§2–§5) is
+> now **shipped and render-verified**: a real public-domain NASA Milky Way **HDRI sky** (replacing the
+> procedural nebula), glowing fresnel energy-orbs, a dramatic transport-**seam** arc with code-driven
+> energy VFX (discovery bursts + seam sparks), **lit brass-PBR gear cogs**, scrolling-energy **wave
+> ribbons**, a **density-coloured Fluids vortex**, a **palette-chip HUD** with tiered rank, and a 1080p
+> showcase. What remains is the higher-fidelity tier that needs a **display + Fab/Megascans assets +
+> Niagara + a human eye** — see the turnkey guide [ART_AAA_HANDOFF.md](ART_AAA_HANDOFF.md).
 > Visual verification is **not** blocked here: offscreen GPU rendering works on this
 > workstation (the `-ManifoldAutoShot` / `-ManifoldAutoShotSequence` flags capture real frames — see
 > the memory note on the RTX 3090 Ti), so the remaining art work is gated on *art direction and
 > assets*, not on a display. Nothing here changes gameplay; it is all presentation.
+>
+> **Status legend below:** ✅ shipped (render-verified) · 🎨 remaining (display + assets + eye).
 
 ## 0. North star
 
@@ -46,22 +51,24 @@ Each realm is a floating "world" ~1–2 m across. Replace the placeholder proced
 signature look per realm; the mesh the game already builds (gear cog, wave ribbon, orbit rings) is
 the anchor — dress it, don't replace the logic.
 
-- **Orbits** — a small star (emissive, `ManifoldPalette::Star`) with 1–3 planets on the orbit-path
-  rings the visualizer already draws. Niagara: sparse star-twinkle; a faint trail per planet.
-- **Fluids** — a translucent volume with a vortex; use a panning noise material + a Niagara ribbon
-  for the vortex core. Fresnel rim in Sky Blue.
-- **Harmonics** — concentric standing-wave shells; emissive pulses on the beat of the detected ratio.
-- **Waves** — the existing sine-ribbon mesh, upgraded with a scrolling emissive gradient whose
-  wavelength = the harmonic number (so the *ratio is legible in the geometry*).
-- **Rhythm** — a ring of pulse-emitters firing on the tempo; Niagara burst per beat.
-- **Gears** — the existing extruded cog, brass PBR material (metallic 1, roughness ~0.35), meshing
-  teeth; a second ghost-gear shows the ratio partner.
-- **Circuits** — an LC loop; an electric arc (Niagara ribbon with jitter) whose frequency = the tank
-  ratio.
+- **Orbits** — ✅ a hot star (`M_Star`) + planets on the orbit-path rings, with dotted orbit trails.
+  🎨 remaining: a textured planet (albedo/normal/night-lights) + a Niagara star corona.
+- **Fluids** — ✅ density-coloured vortex (dense cells run hot white-cyan, sparse stay palette cyan).
+  🎨 remaining: a true translucent/refractive **volume** (Niagara Fluids or a panning-noise volume).
+- **Harmonics** — 🎨 concentric standing-wave crystal shells (geometry; Megascans/subsurface) — needs
+  a display + assets. Currently the palette bead-pair sized to the ratio.
+- **Waves** — ✅ the sine-ribbon mesh now scrolls a bright emissive band along its length (`M_Wave`
+  panner over UVs); the hump count already encodes the harmonic, so the *ratio reads in the geometry*.
+- **Rhythm** — 🎨 a ring of pulse-emitters firing on the tempo (Niagara burst per beat) — needs the
+  editor. Currently the palette bead-pair.
+- **Gears** — ✅ the extruded cog now uses lit **brass PBR** (`M_Metal`, metallic 1, roughness 0.35)
+  with computed normals. 🎨 remaining: bevels/wear + Fab gear meshes for full photoreal.
+- **Circuits** — 🎨 an LC loop + electric arc (Niagara ribbon with jitter) — needs the editor.
+  Currently the palette bead-pair.
 
-**Shared motif:** when a realm is a *member* of the current correspondence, its rim/emissive gains a
-subtle gold pulse (the visualizer already exposes a `PulseFactor` discovery flash — drive the
-material emissive from it).
+**Shared motif:** ✅ member realms brighten on discovery via the `PulseFactor` flash, and code-driven
+energy VFX (discovery bursts + seam sparks) mark the moment. (Always-on per-realm ambient motes were
+tried and reverted — invisible when subtle, clutter when boosted; the event-driven VFX read better.)
 
 ## 3. The seam (the money shot)
 
@@ -74,22 +81,23 @@ The correspondence "seam" is the game's signature. When two realms share the hid
 
 ## 4. Scene, lighting, post
 
-- **Backdrop:** the procedural starfield stays; consider a very dark, slightly blue nebula gradient
-  (cheap sky material) so the saturated realm colours pop.
-- **Lighting:** the warm-key / cool-fill directional pair is already in code. Add a subtle per-realm
-  point light in the realm's palette colour for local grounding.
-- **Post:** bloom (already on) tuned so only emissive gold + star highlights bloom; gentle vignette;
-  fixed exposure (already set) so the scene never flickers. Optional: a mild chromatic aberration on
-  transport only.
+- **Backdrop:** ✅ a real public-domain NASA Milky Way **HDRI sky** (`M_SkyDome` + `T_StarMap`) on the
+  inside-out shell, replacing the procedural nebula (kept as a fallback). Dark realistic space; the
+  saturated realm colours pop hard against it.
+- **Lighting:** ✅ warm-key / cool-fill directional rig + a per-realm palette-coloured point light,
+  all feeding a volumetric fog.
+- **Post:** ✅ bloom + gentle vignette + fixed exposure + a cool colour grade + DoF (already tuned).
+  🎨 remaining: a colour LUT / mild transport-only chromatic aberration if desired.
 
-## 5. UMG / HUD (bespoke pass)
+## 5. UMG / HUD (bespoke pass) — ✅ SHIPPED (C++ canvas)
 
-The HUD is functional (branded readout, mode card, help overlay). A bespoke pass:
-- A ratio "chip" per realm in its palette colour, showing `p:q`, with a lock/member state.
-- A constellation tray for Constellation Lock: six chips, selectable, with a clear "locked" state.
-- Title card & rank reveal (S/A/B/C/D) with the emblem already generated procedurally.
-- Keep every string the code already surfaces (`ManifoldHUD` / `DrawConstellationReadout`); this is
-  reskin, not rewire.
+Done as a C++ HUD-canvas reskin (no UMG-editor needed):
+- ✅ A ratio **chip** per realm in its palette colour, in both the Classic readout and the
+  Constellation tray, colour-matching the realm's scene orb.
+- ✅ Constellation tray: six selectable chips with a bright **selected-outline** state.
+- ✅ Tier-coloured **rank reveal** (S gold → D grey) over the procedural emblem + title card.
+- ✅ Every string the code surfaces is kept — reskin, not rewire.
+- 🎨 remaining (optional): a true UMG pass with animated widgets / fonts (needs the editor).
 
 ## 6. Asset pipeline (what I need from you)
 
@@ -109,12 +117,19 @@ in place and tested.
 
 - ✅ Colorblind-safe centralised palette + regression test (§1).
 - ✅ Procedural meshes per realm (gear cog, wave ribbon, orbit rings, spheres).
-- ✅ Discovery flash (`PulseFactor`), seam render, transport bloom hooks.
-- ✅ Starfield, key/fill lighting, bloom/vignette/fixed-exposure post.
-- ✅ Branded HUD, mode cards, help overlay, procedural emblem, title card.
+- ✅ Real NASA Milky Way **HDRI sky** (`M_SkyDome`/`T_StarMap`); glowing fresnel energy-orbs.
+- ✅ **Lit brass-PBR gear cogs** (`M_Metal` + computed normals); **scrolling-energy wave ribbons**
+  (`M_Wave` panner + UVs); **density-coloured Fluids vortex**.
+- ✅ Dramatic transport-**seam** arc + code-driven **energy VFX** (discovery bursts + seam sparks).
+- ✅ Discovery flash (`PulseFactor`), transport hooks; key/fill lighting + per-realm point lights +
+  volumetric fog; bloom/vignette/fixed-exposure/DoF/colour-grade post.
+- ✅ **Palette-chip HUD** (both readouts) + tiered rank reveal + procedural emblem + title card;
+  1080p showcase media synced to the build.
 - ✅ **Headless visual verification** — offscreen GPU render (`-ManifoldAutoShot` /
   `-ManifoldAutoShotSequence`) captures real frames, and even an animated loop, so any dressing pass
   can be checked by eye without an interactive display.
 
-The remaining work in §2–§5 is **dressing**, gated on your art direction (the render path for
-verifying it is already in place).
+**The remaining §2–§5 work is the higher-fidelity tier** (per-realm photoreal *geometry* — crystal
+shells, LC loops, a volumetric fluid; Niagara VFX; Fab/Megascans assets), which genuinely needs a
+**display + assets + a human eye** (see [ART_AAA_HANDOFF.md](ART_AAA_HANDOFF.md)). The scriptable
+material/colour/HUD slices of §2–§5 are shipped and render-verified.
