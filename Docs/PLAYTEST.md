@@ -16,6 +16,8 @@ to see the live distribution (`Automation RunTests MANIFOLD.Balance.Sweep`). Cur
 | Classic decoy collisions | **0 / 128** | the red herring never false-matches |
 | Constellation solvable | **128 / 128** | every generated puzzle is winnable |
 | Constellation relation split | **Exact 64 / Octave 64** | rule inference is a true coin, not skewed |
+| Expert (rule hidden) solvable | **128 / 128** | the hardest single-puzzle mode is always winnable |
+| Expedition full clears | **32 / 32 base seeds** | the campaign ramp never generates an unwinnable level |
 
 **One imbalance found + fixed by this sweep:** the Classic score was being **swamped by the
 insight term**. `GetInsightRate()` is discovery-events per *sim-second*, whose denominator is

@@ -6,6 +6,22 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Balance — objective sweep extended to the two hardest modes
+- `MANIFOLD.Balance.Sweep` (the objective fairness floor) measured only Classic and non-expert
+  Constellation across 128 seeds; the harder modes were spot-tested at a single seed each. The sweep
+  now also asserts, across the seed space, that **Expert Constellation** (rule hidden) is solvable on
+  every seed (128/128) and that a perfect **Expedition** run clears every level with a positive score
+  on every swept base seed (32/32) — so a fairness regression in campaign or hidden-rule play can no
+  longer slip through. Both invariants held on first run. Test count unchanged (strengthens the
+  existing sweep). Still **102/102 green.**
+
+### Determinism — content-hash the realm in Transport's target id (audit follow-up)
+- `Transport()`'s Orbits→Fluids branch derived its "deterministic, traceable" perturbation id from
+  `GetTypeHash(FName)` — the process-local name-table index, not reproducible across runs/platforms —
+  contradicting the contract that id exists to uphold. Now hashes the realm-id **string** (matching the
+  `DetectSharedStructureCorrespondences` convention in the same file). Locked by
+  `MANIFOLD.Transport.TargetIdContentHashed`. **102/102 green** (up from 101).
+
 ### Robustness — public core determinism type hardened (final audit sweep)
 - A final adversarial sweep of the last un-audited surfaces — the **FixedStepSimulation / replay
   core**, **DeterministicRNG**, **Telemetry**, and **AudioDirector** — found **zero live defects** (7
