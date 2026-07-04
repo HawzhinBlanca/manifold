@@ -6,6 +6,13 @@ work-package milestones rather than semantic versions until first playable.
 
 ## [Unreleased]
 
+### Visual — dramatic transport-seam money shot (render-verified)
+- The "carry it across the seam" arc read as sparse gold dots. Rebuilt it as a brighter, denser
+  golden energy beam (beads 24→52) with a wide, hot energy "packet" racing across (falloff 6→4,
+  brightness base 1.0→1.15 / packet 1.6→2.6, sweep a touch faster) so the transport reads as energy
+  flowing between realms and blooms via post. Render-verified against the dark HDRI sky: clearly more
+  cinematic, doesn't blow out, realms still pop. `AManifoldRealmVisualizer::Tick`. Tests 104/104.
+
 ### Visual — real deep-space HDRI sky (render-verified)
 - Replaced the procedural purple nebula backdrop with a **real public-domain NASA Milky Way**
   all-sky panorama (SVS *Deep Star Maps 2020*): fetched the 4k EXR, tone-mapped + downsized it to a
