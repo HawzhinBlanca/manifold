@@ -233,6 +233,54 @@ bool FTransportVerificationTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// Regression (audit — determinism footgun in a public API): Transport()'s Orbits->Fluids branch
+// derived the injected perturbation's id from GetTypeHash(FName TargetRealm) — the process-local
+// name-table index, which is NOT reproducible across runs/platforms, breaking the very
+// "same transport reproduces the same id" contract this deterministic id exists to uphold. It now
+// hashes the realm-id STRING, matching the DetectSharedStructureCorrespondences convention in the
+// same file. This test locks that the id's realm word is the CONTENT hash of "Fluids", not the FName
+// handle hash (the two algorithms produce different values, so it fails on the pre-fix code).
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTransportIdContentHashedTest, "MANIFOLD.Transport.TargetIdContentHashed", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FTransportIdContentHashedTest::RunTest(const FString& Parameters)
+{
+    UOrbitsKernel* Orbits = NewObject<UOrbitsKernel>();
+    UFluidsKernel* Fluids = NewObject<UFluidsKernel>();
+    UCorrespondenceSystem* Correspond = NewObject<UCorrespondenceSystem>();
+
+    Orbits->Initialize(4242ULL);
+    Fluids->Initialize(2424ULL);
+    Correspond->RegisterKernels(Orbits, Fluids);
+
+    // A bound circular orbit so the Orbits->Fluids branch executes (it needs SemiMajorAxis > 0).
+    FOrbitsBodyDef Star; Star.Mass = 1.989e30; Star.bIsCentral = true; Orbits->AddBody(Star);
+    FOrbitsBodyDef Planet; Planet.Mass = 5.972e24; Planet.Position = FVector(1.496e11, 0.0, 0.0);
+    Planet.Velocity = FVector(0.0, FMath::Sqrt((Orbits->G * Star.Mass) / Planet.Position.X), 0.0);
+    const FGuid PlanetId = Orbits->AddBody(Planet);
+    for (int32 i = 0; i < 3; ++i) { Orbits->Step(86400.0f); } // compute orbital elements
+
+    FGuid TargetId;
+    bool bTransported = false;
+    Correspond->OnTransportCompleted.AddLambda([&bTransported, &TargetId](FGuid Src, FName DestRealm, FGuid DestId, float Strength) {
+        bTransported = true;
+        TargetId = DestId;
+    });
+
+    UTEST_TRUE("Transport Orbits -> Fluids succeeds", Correspond->Transport(PlanetId, TEXT("Fluids")));
+    UTEST_TRUE("Transport delegate fired", bTransported);
+
+    // The realm word of the id must be the CONTENT hash of the realm string (reproducible across
+    // runs/platforms), NOT the process-local FName handle hash. The two differ, so the pre-fix code
+    // (GetTypeHash(FName)) fails this assertion.
+    const uint32 ContentHash = GetTypeHash(FString(TEXT("Fluids")));
+    UTEST_EQUAL("Transport target id realm word is the content hash (reproducible)",
+        TargetId.B, ContentHash);
+    // Sanity: the source-structure word is carried through verbatim.
+    UTEST_EQUAL("Transport target id carries the source-structure word", TargetId.A, PlanetId.A);
+
+    return true;
+}
+
 // WP D1: the correspondence is authored as data (JSON), not hardcoded. Loading the
 // content file and feeding it to the system must ignite the 3:2<->vortex seam.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCorrespondenceDataDrivenTest, "MANIFOLD.Correspondence.DataDrivenMapping", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)

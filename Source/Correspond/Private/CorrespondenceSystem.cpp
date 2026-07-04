@@ -310,9 +310,13 @@ bool UCorrespondenceSystem::Transport(FGuid SourceStructureId, FName TargetRealm
                     // Deterministic, traceable id for the injected perturbation (was a
                     // throwaway GUID): derived from the source structure + target realm +
                     // where in the field it landed, so the same transport reproduces it.
+                    // Hash the realm-id STRING (content-stable), NOT the FName handle — GetTypeHash(FName)
+                    // is the process-local name-table index, which is not reproducible across runs/
+                    // platforms and would break the "same transport reproduces the same id" contract.
+                    // (Matches the DetectSharedStructureCorrespondences convention above.)
                     const FGuid TargetId(
                         SourceStructureId.A,
-                        GetTypeHash(TargetRealm),
+                        GetTypeHash(TargetRealm.ToString()),
                         static_cast<uint32>(FMath::RoundToInt(NormX * 100000.0f)),
                         static_cast<uint32>(FMath::RoundToInt(NormY * 100000.0f)));
                     OnTransportCompleted.Broadcast(SourceStructureId, TargetRealm, TargetId, Strength);
